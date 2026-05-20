@@ -148,25 +148,67 @@ tr:hover td{background:rgba(255,255,255,.02)}
 /* ── SELECT-BADGE inline ── */
 select.badge-select{border:none;background:transparent;font-family:var(--font);font-size:11px;cursor:pointer;padding:3px 8px;color:inherit;border-radius:20px;font-weight:600}
 
-@media(max-width:768px){.sidebar{display:none}.page{padding:24px 16px}.grid,.grid-3,.grid-4{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr}}
+/* ── MOBILE NAV ── */
+.mobile-topbar{display:none;position:fixed;top:0;left:0;right:0;height:56px;background:var(--surface);border-bottom:1px solid var(--border);z-index:200;align-items:center;padding:0 16px;gap:14px}
+.hamburger{background:none;border:none;cursor:pointer;padding:6px;border-radius:var(--radius-sm);display:flex;flex-direction:column;gap:5px;transition:var(--transition)}
+.hamburger span{display:block;width:22px;height:2px;background:var(--text);border-radius:2px;transition:var(--transition)}
+.hamburger.open span:nth-child(1){transform:translateY(7px) rotate(45deg)}
+.hamburger.open span:nth-child(2){opacity:0;transform:scaleX(0)}
+.hamburger.open span:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
+.mobile-logo{font-size:17px;font-weight:700;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.mobile-status{margin-left:auto;display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text3)}
+
+.drawer-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:150;backdrop-filter:blur(2px)}
+.drawer-overlay.open{display:block}
+
+@media(max-width:768px){
+  .mobile-topbar{display:flex}
+  .sidebar{position:fixed;top:0;left:0;height:100vh;z-index:160;transform:translateX(-100%);transition:transform .28s cubic-bezier(.4,0,.2,1);border-right:1px solid var(--border)}
+  .sidebar.open{transform:translateX(0)}
+  .main{width:100%}
+  .page{padding:80px 16px 24px}
+  .grid,.grid-3,.grid-4{grid-template-columns:1fr}
+  .stats{grid-template-columns:1fr 1fr}
+  .page-title{font-size:22px}
+  .filter-bar{flex-direction:column;align-items:stretch}
+  .filter-bar input,.filter-bar select{width:100%}
+  .filter-count{margin-left:0}
+  .actions{flex-direction:column}
+  .actions .btn{width:100%;justify-content:center}
+  .toast-container{bottom:16px;right:12px;left:12px}
+  .toast{min-width:unset;max-width:unset}
+}
 ::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
 </style>
 </head>
 <body>
+<!-- MOBILE TOPBAR -->
+<div class="mobile-topbar">
+  <button class="hamburger" id="hamburger" onclick="toggleMenu()" aria-label="Menú">
+    <span></span><span></span><span></span>
+  </button>
+  <span class="mobile-logo">⬡ Print3D</span>
+  <div class="mobile-status">
+    <span class="status-dot" id="statusDotMobile"></span>
+    <span id="statusTextMobile">Sin conectar</span>
+  </div>
+</div>
+<div class="drawer-overlay" id="drawerOverlay" onclick="closeMenu()"></div>
+
 <div class="layout">
 
 <!-- SIDEBAR -->
-<aside class="sidebar">
+<aside class="sidebar" id="sidebar">
   <div class="logo">
     <span class="logo-mark">⬡ Print3D</span>
     <span class="logo-sub">Cotizador · Costa Rica</span>
   </div>
   <nav>
     <div class="nav-label">Menú</div>
-    <div class="nav-item active" onclick="showPage('cotizador',this)"><span class="nav-icon">🖨️</span> Cotizador</div>
-    <div class="nav-item" onclick="showPage('trabajos',this)"><span class="nav-icon">📂</span> Trabajos</div>
-    <div class="nav-item" onclick="showPage('inventario',this)"><span class="nav-icon">🧵</span> Inventario</div>
-    <div class="nav-item" onclick="showPage('configuracion',this)"><span class="nav-icon">⚙️</span> Configuración</div>
+    <div class="nav-item active" onclick="showPage('cotizador',this);closeMenu()"><span class="nav-icon">🖨️</span> Cotizador</div>
+    <div class="nav-item" onclick="showPage('trabajos',this);closeMenu()"><span class="nav-icon">📂</span> Trabajos</div>
+    <div class="nav-item" onclick="showPage('inventario',this);closeMenu()"><span class="nav-icon">🧵</span> Inventario</div>
+    <div class="nav-item" onclick="showPage('configuracion',this);closeMenu()"><span class="nav-icon">⚙️</span> Configuración</div>
   </nav>
   <div class="sidebar-footer">
     <span class="status-dot" id="statusDot"></span>
@@ -745,7 +787,7 @@ async function cargarInventario(){
     return;
   }
   const rows=datos.map(d=>`<tr>
-    <td><span class="badge" style="background:rgba(0,229,255,.1);color:var(--accent)">${d.tipo}</span></td>
+    <td><span class="badge" style="background:rgba(0,229,255,.1);color:var(--accent)">${d.tipo||'—'}</span></td>
     <td>${d.color||'—'}</td><td>${d.marca||'—'}</td>
     <td style="font-family:var(--mono)">₡${(+d.precio||0).toLocaleString('es-CR')}</td>
     <td style="font-family:var(--mono)">${d.peso||0} g</td>
@@ -796,10 +838,32 @@ async function cargarConfiguracion(){
     calcCfg(); toast('✅ Config cargada desde Sheets.','success');
   } catch(e){}
 }
+function toggleMenu(){
+  const sidebar=document.getElementById('sidebar');
+  const overlay=document.getElementById('drawerOverlay');
+  const btn=document.getElementById('hamburger');
+  const open=sidebar.classList.toggle('open');
+  overlay.classList.toggle('open',open);
+  btn.classList.toggle('open',open);
+  document.body.style.overflow=open?'hidden':'';
+}
+function closeMenu(){
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('drawerOverlay').classList.remove('open');
+  document.getElementById('hamburger').classList.remove('open');
+  document.body.style.overflow='';
+}
+
 function actualizarStatus(){
   const dot=document.getElementById('statusDot'),text=document.getElementById('statusText');
-  if(API_URL){ dot.className='status-dot connected'; text.textContent='Conectado a Sheets'; }
-  else { dot.className='status-dot'; text.textContent='Sin conectar'; }
+  const dotM=document.getElementById('statusDotMobile'),textM=document.getElementById('statusTextMobile');
+  if(API_URL){
+    dot.className='status-dot connected'; text.textContent='Conectado a Sheets';
+    dotM.className='status-dot connected'; textM.textContent='Conectado';
+  } else {
+    dot.className='status-dot'; text.textContent='Sin conectar';
+    dotM.className='status-dot'; textM.textContent='Sin conectar';
+  }
 }
 
 /* ── API ── */
