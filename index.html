@@ -745,7 +745,7 @@ async function cargarInventario(){
     return;
   }
   const rows=datos.map(d=>`<tr>
-    <td><span class="badge" style="background:rgba(0,229,255,.1);color:var(--accent)">${d.tipo}</span></td>
+    <td><span class="badge" style="background:rgba(0,229,255,.1);color:var(--accent)">${d.tipo||'—'}</span></td>
     <td>${d.color||'—'}</td><td>${d.marca||'—'}</td>
     <td style="font-family:var(--mono)">₡${(+d.precio||0).toLocaleString('es-CR')}</td>
     <td style="font-family:var(--mono)">${d.peso||0} g</td>

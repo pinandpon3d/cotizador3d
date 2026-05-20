@@ -29,6 +29,19 @@ function getSheet(name, headers) {
     headerRange.setBackground('#1a73e8');
     headerRange.setFontColor('#ffffff');
     sheet.setFrozenRows(1);
+  } else {
+    // If row 1 doesn't match expected headers, insert them at the top
+    const existing = sheet.getRange(1, 1, 1, headers.length).getValues()[0];
+    const hasHeaders = headers.every((h, i) => existing[i] === h);
+    if (!hasHeaders) {
+      sheet.insertRowBefore(1);
+      sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+      const headerRange = sheet.getRange(1, 1, 1, headers.length);
+      headerRange.setFontWeight('bold');
+      headerRange.setBackground('#1a73e8');
+      headerRange.setFontColor('#ffffff');
+      sheet.setFrozenRows(1);
+    }
   }
   return sheet;
 }
