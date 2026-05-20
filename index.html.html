@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cotizador 3D · CR</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0e17;--surface:#111827;--surface2:#1a2236;--surface3:#222d42;
+  --border:#2a3a55;--accent:#00e5ff;--accent2:#7c3aed;--accent3:#10b981;
+  --warn:#f59e0b;--danger:#ef4444;--text:#e2e8f0;--text2:#94a3b8;--text3:#64748b;
+  --input-bg:#0f1724;--radius:12px;--radius-sm:8px;--shadow:0 4px 24px rgba(0,0,0,.4);
+  --font:'Space Grotesk',sans-serif;--mono:'JetBrains Mono',monospace;
+  --transition:all .18s cubic-bezier(.4,0,.2,1);
+}
+html{scroll-behavior:smooth}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;line-height:1.6;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");pointer-events:none;z-index:0;opacity:.5}
+
+.layout{display:flex;min-height:100vh}
+.sidebar{width:260px;min-height:100vh;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;position:sticky;top:0;z-index:100;flex-shrink:0}
+.logo{padding:28px 24px 20px;border-bottom:1px solid var(--border)}
+.logo-mark{font-size:22px;font-weight:700;letter-spacing:-.5px;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;display:block;line-height:1.1}
+.logo-sub{font-size:11px;color:var(--text3);font-weight:500;letter-spacing:1.5px;text-transform:uppercase;margin-top:4px}
+nav{padding:16px 12px;flex:1}
+.nav-label{font-size:10px;font-weight:600;color:var(--text3);letter-spacing:1.8px;text-transform:uppercase;padding:8px 12px;margin-bottom:4px}
+.nav-item{display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius:var(--radius-sm);cursor:pointer;transition:var(--transition);font-size:14px;font-weight:500;color:var(--text2);margin-bottom:2px;border:1px solid transparent;position:relative}
+.nav-item:hover{background:var(--surface2);color:var(--text);border-color:var(--border)}
+.nav-item.active{background:linear-gradient(135deg,rgba(0,229,255,.12),rgba(124,58,237,.08));color:var(--accent);border-color:rgba(0,229,255,.25)}
+.nav-item.active::before{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);width:3px;height:60%;background:var(--accent);border-radius:0 3px 3px 0}
+.nav-icon{font-size:18px;width:22px;text-align:center}
+.sidebar-footer{padding:16px 20px;border-top:1px solid var(--border);font-size:11px;color:var(--text3)}
+.status-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--text3);margin-right:6px;transition:var(--transition)}
+.status-dot.connected{background:var(--accent3);box-shadow:0 0 6px var(--accent3)}
+
+.main{flex:1;overflow:hidden;position:relative}
+.page{display:none;padding:40px 48px;animation:fadeIn .25s ease;max-width:1100px}
+.page.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+.page-header{margin-bottom:36px}
+.page-title{font-size:28px;font-weight:700;letter-spacing:-.5px;line-height:1.2}
+.page-title span{background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.page-desc{color:var(--text2);font-size:14px;margin-top:6px}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:28px;margin-bottom:20px}
+.card-title{font-size:12px;font-weight:600;color:var(--text3);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:20px;display:flex;align-items:center;gap:8px}
+.card-title::after{content:'';flex:1;height:1px;background:var(--border)}
+
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+.grid-4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:16px}
+.full{grid-column:1/-1}
+.field{display:flex;flex-direction:column;gap:6px}
+label{font-size:12px;font-weight:600;color:var(--text2);letter-spacing:.3px}
+input,select,textarea{background:var(--input-bg);border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:10px 14px;font-family:var(--font);font-size:14px;color:var(--text);transition:var(--transition);outline:none;width:100%}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,229,255,.1)}
+input[readonly]{opacity:.6;cursor:not-allowed;background:var(--surface2)}
+input.calc-result{color:var(--accent);font-family:var(--mono);font-weight:500;background:rgba(0,229,255,.05);border-color:rgba(0,229,255,.2)}
+input.final-price{color:var(--accent3);font-family:var(--mono);font-size:18px;font-weight:700;background:rgba(16,185,129,.07);border-color:rgba(16,185,129,.3);padding:14px 16px;border-radius:10px}
+select option{background:var(--surface)}
+textarea{resize:vertical;min-height:80px}
+.hint{font-size:11px;color:var(--text3);margin-top:2px}
+
+.btn{display:inline-flex;align-items:center;gap:8px;padding:10px 22px;border-radius:var(--radius-sm);font-family:var(--font);font-size:14px;font-weight:600;cursor:pointer;transition:var(--transition);border:none;letter-spacing:.2px}
+.btn-primary{background:linear-gradient(135deg,var(--accent),#0099cc);color:#000}
+.btn-primary:hover{filter:brightness(1.1);transform:translateY(-1px);box-shadow:0 4px 16px rgba(0,229,255,.3)}
+.btn-ghost{background:transparent;border:1.5px solid var(--border);color:var(--text2)}
+.btn-ghost:hover{border-color:var(--accent);color:var(--accent);background:rgba(0,229,255,.05)}
+.btn-success{background:linear-gradient(135deg,var(--accent3),#059669);color:#fff}
+.btn-success:hover{filter:brightness(1.1);transform:translateY(-1px)}
+.btn-sm{padding:7px 14px;font-size:12px}
+.actions{display:flex;gap:12px;margin-top:24px;flex-wrap:wrap}
+
+.divider{height:1px;background:var(--border);margin:24px 0}
+
+.breakdown{background:var(--surface2);border-radius:var(--radius);padding:20px;margin-top:20px}
+.breakdown-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px}
+.breakdown-row:last-child{border-bottom:none;font-weight:700;font-size:15px;padding-top:12px;margin-top:4px}
+.breakdown-label{color:var(--text2)}
+.breakdown-val{font-family:var(--mono);font-weight:500}
+.breakdown-row.total .breakdown-val{color:var(--accent3);font-size:18px}
+.breakdown-row.subtotal{border-top:1px solid var(--border);margin-top:8px;padding-top:12px}
+
+/* ── FILTROS ── */
+.filter-bar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;align-items:center}
+.filter-bar input,.filter-bar select{width:auto;padding:8px 12px;font-size:13px}
+.filter-bar input{min-width:200px}
+.filter-count{font-size:12px;color:var(--text3);margin-left:auto}
+
+/* ── TABLA ── */
+.table-wrap{overflow-x:auto;border-radius:var(--radius);border:1px solid var(--border)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{background:var(--surface2);padding:12px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--text3);letter-spacing:1.2px;text-transform:uppercase;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:12px 16px;border-bottom:1px solid rgba(42,58,85,.5);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,.02)}
+
+/* ── BADGES ── */
+.badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:.3px;white-space:nowrap}
+.badge-cotizado{background:rgba(124,58,237,.2);color:#a78bfa}
+.badge-aprobado{background:rgba(16,185,129,.2);color:#34d399}
+.badge-rechazado{background:rgba(239,68,68,.2);color:#f87171}
+.badge-entregado{background:rgba(0,229,255,.15);color:var(--accent)}
+.badge-cancelado{background:rgba(100,116,139,.2);color:var(--text3)}
+/* Categorías */
+.badge-funcional{background:rgba(0,229,255,.12);color:#67e8f9}
+.badge-decorativa{background:rgba(251,146,60,.15);color:#fb923c}
+.badge-prototipo{background:rgba(167,139,250,.2);color:#a78bfa}
+.badge-educativo{background:rgba(52,211,153,.15);color:#34d399}
+.badge-repuesto{background:rgba(251,191,36,.15);color:#fbbf24}
+.badge-personalizado{background:rgba(236,72,153,.15);color:#f472b6}
+.badge-otro{background:rgba(100,116,139,.15);color:#94a3b8}
+
+/* ── STATS ── */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;text-align:center}
+.stat-val{font-size:24px;font-weight:700;font-family:var(--mono);background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.stat-label{font-size:11px;color:var(--text3);margin-top:4px;font-weight:500;text-transform:uppercase;letter-spacing:1px}
+
+/* ── SETUP BANNER ── */
+.setup-banner{background:linear-gradient(135deg,rgba(124,58,237,.15),rgba(0,229,255,.08));border:1px solid rgba(0,229,255,.2);border-radius:var(--radius);padding:24px;margin-bottom:28px;display:flex;align-items:flex-start;gap:16px}
+.setup-banner .icon{font-size:28px;flex-shrink:0;margin-top:2px}
+.setup-banner h3{font-size:15px;font-weight:600;margin-bottom:6px}
+.setup-banner p{font-size:13px;color:var(--text2);line-height:1.7}
+.setup-banner code{font-family:var(--mono);font-size:11px;background:rgba(0,0,0,.3);padding:2px 6px;border-radius:4px;color:var(--accent);word-break:break-all}
+
+/* ── EMPTY STATE ── */
+.empty{text-align:center;padding:60px 20px;color:var(--text3)}
+.empty-icon{font-size:48px;margin-bottom:12px;display:block;opacity:.5}
+.empty p{font-size:14px}
+
+/* ── LOADING ── */
+.loading{display:flex;align-items:center;gap:10px;color:var(--text3);font-size:13px;padding:40px;justify-content:center}
+.spinner{width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── TOAST ── */
+.toast-container{position:fixed;bottom:24px;right:24px;z-index:1000;display:flex;flex-direction:column;gap:10px}
+.toast{padding:14px 18px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;box-shadow:var(--shadow);display:flex;align-items:center;gap:10px;animation:slideIn .25s ease;min-width:260px;max-width:380px;border-left:3px solid}
+.toast-success{background:var(--surface);border-color:var(--accent3);color:var(--text)}
+.toast-error{background:var(--surface);border-color:var(--danger);color:var(--text)}
+.toast-info{background:var(--surface);border-color:var(--accent);color:var(--text)}
+@keyframes slideIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:none}}
+
+/* ── SELECT-BADGE inline ── */
+select.badge-select{border:none;background:transparent;font-family:var(--font);font-size:11px;cursor:pointer;padding:3px 8px;color:inherit;border-radius:20px;font-weight:600}
+
+@media(max-width:768px){.sidebar{display:none}.page{padding:24px 16px}.grid,.grid-3,.grid-4{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr}}
+::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+</style>
+</head>
+<body>
+<div class="layout">
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="logo">
+    <span class="logo-mark">⬡ Print3D</span>
+    <span class="logo-sub">Cotizador · Costa Rica</span>
+  </div>
+  <nav>
+    <div class="nav-label">Menú</div>
+    <div class="nav-item active" onclick="showPage('cotizador',this)"><span class="nav-icon">🖨️</span> Cotizador</div>
+    <div class="nav-item" onclick="showPage('trabajos',this)"><span class="nav-icon">📂</span> Trabajos</div>
+    <div class="nav-item" onclick="showPage('inventario',this)"><span class="nav-icon">🧵</span> Inventario</div>
+    <div class="nav-item" onclick="showPage('configuracion',this)"><span class="nav-icon">⚙️</span> Configuración</div>
+  </nav>
+  <div class="sidebar-footer">
+    <span class="status-dot" id="statusDot"></span>
+    <span id="statusText">Sin conectar</span>
+  </div>
+</aside>
+
+<main class="main">
+
+<!-- ══ COTIZADOR ══ -->
+<div class="page active" id="page-cotizador">
+  <div class="page-header">
+    <h1 class="page-title">Cotizador <span>de piezas</span></h1>
+    <p class="page-desc">Calculá el precio justo de cada pieza impresa en 3D.</p>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📋 Datos del pedido</div>
+    <div class="grid">
+      <div class="field">
+        <label>Nombre de la pieza</label>
+        <input type="text" id="c_pieza" placeholder="Ej: Soporte para celular" oninput="calcular()">
+      </div>
+      <div class="field">
+        <label>Cliente</label>
+        <input type="text" id="c_cliente" placeholder="Nombre del cliente">
+      </div>
+      <div class="field">
+        <label>Fecha</label>
+        <input type="date" id="c_fecha">
+      </div>
+      <div class="field">
+        <label>Categoría del trabajo</label>
+        <select id="c_categoria" oninput="calcular()">
+          <option value="Funcional">⚙️ Funcional</option>
+          <option value="Decorativa">🎨 Decorativa</option>
+          <option value="Prototipo">🔬 Prototipo</option>
+          <option value="Educativo">📚 Educativo</option>
+          <option value="Repuesto">🔧 Repuesto</option>
+          <option value="Personalizado">✨ Personalizado</option>
+          <option value="Otro">📦 Otro</option>
+        </select>
+      </div>
+      <div class="field full">
+        <label>Notas</label>
+        <input type="text" id="c_notas" placeholder="Observaciones opcionales">
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📦 Insumos de impresión</div>
+    <div class="grid-3">
+      <div class="field">
+        <label>Gramos de filamento (g)</label>
+        <input type="number" id="c_gramos" value="25" min="0" step="0.1" oninput="calcular()">
+        <span class="hint">Del slicer (Cura, Bambu…)</span>
+      </div>
+      <div class="field">
+        <label>Horas de impresión (h)</label>
+        <input type="number" id="c_horas" value="3.5" min="0" step="0.1" oninput="calcular()">
+        <span class="hint">Del slicer</span>
+      </div>
+      <div class="field">
+        <label>Horas de mano de obra (h)</label>
+        <input type="number" id="c_horasMO" value="0.5" min="0" step="0.1" oninput="calcular()">
+        <span class="hint">0 si no aplica</span>
+      </div>
+      <div class="field">
+        <label>Horas de diseño (h)</label>
+        <input type="number" id="c_horasDis" value="0" min="0" step="0.1" oninput="calcular()">
+      </div>
+      <div class="field">
+        <label>Costo fijo diseño (₡)</label>
+        <input type="number" id="c_disFijo" value="0" min="0" step="100" oninput="calcular()">
+      </div>
+      <div class="field">
+        <label>Costo postprocesado (₡)</label>
+        <input type="number" id="c_post" value="0" min="0" step="100" oninput="calcular()">
+        <span class="hint">Lijado, pintura, etc.</span>
+      </div>
+      <div class="field">
+        <label>Otros costos (₡)</label>
+        <input type="number" id="c_otros" value="0" min="0" step="100" oninput="calcular()">
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="grid-3">
+      <div class="field">
+        <label>% Fallos/Desperdicio</label>
+        <input type="number" id="c_fallos" value="5" min="0" max="100" oninput="calcular()">
+        <span class="hint">Ej: 5 = 5%</span>
+      </div>
+      <div class="field">
+        <label>% Margen de ganancia</label>
+        <input type="number" id="c_margen" value="35" min="0" max="200" oninput="calcular()">
+      </div>
+      <div class="field">
+        <label>% IVA (0 si no facturás)</label>
+        <input type="number" id="c_iva" value="0" min="0" max="50" oninput="calcular()">
+        <span class="hint">13 = IVA CR</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🧮 Desglose de costos</div>
+    <div class="breakdown">
+      <div class="breakdown-row"><span class="breakdown-label">Material</span><span class="breakdown-val" id="r_material">₡0.00</span></div>
+      <div class="breakdown-row"><span class="breakdown-label">Electricidad</span><span class="breakdown-val" id="r_elec">₡0.00</span></div>
+      <div class="breakdown-row"><span class="breakdown-label">Desgaste impresora</span><span class="breakdown-val" id="r_desgaste">₡0.00</span></div>
+      <div class="breakdown-row"><span class="breakdown-label">Mano de obra</span><span class="breakdown-val" id="r_mo">₡0.00</span></div>
+      <div class="breakdown-row"><span class="breakdown-label">Diseño</span><span class="breakdown-val" id="r_dis">₡0.00</span></div>
+      <div class="breakdown-row"><span class="breakdown-label">Postprocesado</span><span class="breakdown-val" id="r_post">₡0.00</span></div>
+      <div class="breakdown-row"><span class="breakdown-label">Otros</span><span class="breakdown-val" id="r_otros">₡0.00</span></div>
+      <div class="breakdown-row subtotal"><span class="breakdown-label">Subtotal de costos</span><span class="breakdown-val" id="r_subtotal">₡0.00</span></div>
+      <div class="breakdown-row"><span class="breakdown-label">+ Fallos/Desperdicio</span><span class="breakdown-val" id="r_fallosMonto">₡0.00</span></div>
+      <div class="breakdown-row"><span class="breakdown-label">Costo total con fallos</span><span class="breakdown-val" id="r_costoFallos">₡0.00</span></div>
+      <div class="breakdown-row"><span class="breakdown-label">+ Ganancia</span><span class="breakdown-val" id="r_ganancia">₡0.00</span></div>
+      <div class="breakdown-row"><span class="breakdown-label">Precio antes de impuesto</span><span class="breakdown-val" id="r_antesIVA">₡0.00</span></div>
+      <div class="breakdown-row"><span class="breakdown-label">+ IVA</span><span class="breakdown-val" id="r_ivaMonto">₡0.00</span></div>
+      <div class="breakdown-row total"><span class="breakdown-label">💲 PRECIO FINAL (redondeado ₡100)</span><span class="breakdown-val" id="r_final">₡0</span></div>
+    </div>
+    <div class="actions">
+      <button class="btn btn-success" onclick="guardarCotizacion()">💾 Guardar trabajo</button>
+      <button class="btn btn-ghost" onclick="limpiarCotizador()">🔄 Nueva cotización</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TRABAJOS ══ -->
+<div class="page" id="page-trabajos">
+  <div class="page-header">
+    <h1 class="page-title">Trabajos <span>cotizados y realizados</span></h1>
+    <p class="page-desc">Todos los pedidos con filtros por estado y categoría.</p>
+  </div>
+
+  <div class="stats">
+    <div class="stat-card"><div class="stat-val" id="s_total">0</div><div class="stat-label">Total</div></div>
+    <div class="stat-card"><div class="stat-val" id="s_aprobadas">0</div><div class="stat-label">Aprobados</div></div>
+    <div class="stat-card"><div class="stat-val" id="s_entregadas">0</div><div class="stat-label">Entregados</div></div>
+    <div class="stat-card"><div class="stat-val" id="s_ingresos">₡0</div><div class="stat-label">Ingresos aprox.</div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🔍 Filtros</div>
+    <div class="filter-bar">
+      <input type="text" id="f_buscar" placeholder="🔎 Buscar por pieza o cliente…" oninput="filtrarTrabajos()">
+      <select id="f_estado" onchange="filtrarTrabajos()">
+        <option value="">Todos los estados</option>
+        <option>Cotizado</option><option>Aprobado</option>
+        <option>Rechazado</option><option>Entregado</option><option>Cancelado</option>
+      </select>
+      <select id="f_categoria" onchange="filtrarTrabajos()">
+        <option value="">Todas las categorías</option>
+        <option>Funcional</option><option>Decorativa</option><option>Prototipo</option>
+        <option>Educativo</option><option>Repuesto</option><option>Personalizado</option><option>Otro</option>
+      </select>
+      <button class="btn btn-ghost btn-sm" onclick="limpiarFiltros()">✕ Limpiar</button>
+      <span class="filter-count" id="filterCount"></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📋 Registro de trabajos</div>
+    <div id="trabajosContent">
+      <div class="loading"><div class="spinner"></div>Cargando trabajos…</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ INVENTARIO ══ -->
+<div class="page" id="page-inventario">
+  <div class="page-header">
+    <h1 class="page-title">Inventario de <span>filamentos</span></h1>
+    <p class="page-desc">Control de rollos disponibles y costos actualizados.</p>
+  </div>
+  <div class="card">
+    <div class="card-title">➕ Agregar filamento</div>
+    <div class="grid-3">
+      <div class="field"><label>Tipo</label>
+        <select id="inv_tipo"><option>PLA</option><option>PETG</option><option>ABS</option><option>TPU</option><option>ASA</option><option>Nylon</option><option>Otro</option></select>
+      </div>
+      <div class="field"><label>Color</label><input type="text" id="inv_color" placeholder="Blanco, Negro…"></div>
+      <div class="field"><label>Marca</label><input type="text" id="inv_marca" placeholder="Bambu Lab, Sunlu…"></div>
+      <div class="field"><label>Precio del rollo (₡)</label><input type="number" id="inv_precio" value="6500" min="0"></div>
+      <div class="field"><label>Peso del rollo (g)</label><input type="number" id="inv_peso" value="1000" min="0"></div>
+      <div class="field"><label>Gramos disponibles</label><input type="number" id="inv_disponibles" value="1000" min="0"></div>
+      <div class="field"><label>Proveedor</label><input type="text" id="inv_proveedor" placeholder="3D Filamentos CR…"></div>
+      <div class="field"><label>Fecha de compra</label><input type="date" id="inv_fecha"></div>
+      <div class="field"><label>Notas</label><input type="text" id="inv_notas" placeholder="Opcional"></div>
+    </div>
+    <div class="actions"><button class="btn btn-primary" onclick="guardarFilamento()">➕ Agregar al inventario</button></div>
+  </div>
+  <div class="card">
+    <div class="card-title">🧵 Rollos en inventario</div>
+    <div id="inventarioContent"><div class="loading"><div class="spinner"></div>Cargando…</div></div>
+  </div>
+</div>
+
+<!-- ══ CONFIGURACIÓN ══ -->
+<div class="page" id="page-configuracion">
+  <div class="page-header">
+    <h1 class="page-title">⚙️ <span>Configuración</span></h1>
+    <p class="page-desc">Parámetros globales que afectan todos los cálculos.</p>
+  </div>
+  <div class="setup-banner">
+    <div class="icon">🔗</div>
+    <div>
+      <h3>Conectar con Google Sheets</h3>
+      <p>Pegá la URL de tu Google Apps Script para sincronizar datos en la nube.</p>
+      <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <input type="text" id="cfg_apiUrl" placeholder="https://script.google.com/macros/s/XXX/exec" style="max-width:420px;font-family:var(--mono);font-size:12px">
+        <button class="btn btn-primary btn-sm" onclick="guardarApiUrl()">💾 Guardar URL</button>
+        <button class="btn btn-ghost btn-sm" onclick="testConexion()">🔌 Probar</button>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">🧵 Filamento</div>
+    <div class="grid">
+      <div class="field"><label>Precio del rollo (₡)</label><input type="number" id="cfg_precioRollo" value="6500" min="0" oninput="calcCfg()"></div>
+      <div class="field"><label>Peso del rollo (g)</label><input type="number" id="cfg_pesoRollo" value="1000" min="0" oninput="calcCfg()"></div>
+      <div class="field full"><label>Costo por gramo (₡/g) — automático</label><input type="text" id="cfg_costoGramo" readonly class="calc-result"></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">⚡ Electricidad</div>
+    <div class="grid-3">
+      <div class="field"><label>Consumo (W)</label><input type="number" id="cfg_watts" value="120" min="0" oninput="calcCfg()"><span class="hint">Típico 80–200 W</span></div>
+      <div class="field"><label>Consumo kW — automático</label><input type="text" id="cfg_kw" readonly class="calc-result"></div>
+      <div class="field"><label>Precio kWh (₡)</label><input type="number" id="cfg_kwhPrecio" value="110" min="0" oninput="calcCfg()"><span class="hint">ARESEP ≈ ₡100–130</span></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">🔧 Desgaste de impresora</div>
+    <div class="grid-4">
+      <div class="field"><label>Precio de compra (₡)</label><input type="number" id="cfg_compraPrint" value="350000" min="0" oninput="calcCfg()"></div>
+      <div class="field"><label>Vida útil (h)</label><input type="number" id="cfg_vidaUtil" value="2000" min="1" oninput="calcCfg()"></div>
+      <div class="field"><label>Mantenimiento total (₡)</label><input type="number" id="cfg_mantenimiento" value="50000" min="0" oninput="calcCfg()"></div>
+      <div class="field"><label>Desgaste/h — automático</label><input type="text" id="cfg_desgasteHora" readonly class="calc-result"></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">👷 Mano de obra y diseño</div>
+    <div class="grid">
+      <div class="field"><label>Tarifa MO (₡/h)</label><input type="number" id="cfg_tarifaMO" value="3500" min="0" oninput="guardarCfgLocal()"></div>
+      <div class="field"><label>Tarifa diseño (₡/h)</label><input type="number" id="cfg_tarifaDis" value="5000" min="0" oninput="guardarCfgLocal()"></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">💰 Márgenes por defecto</div>
+    <div class="grid-3">
+      <div class="field"><label>% Fallos</label><input type="number" id="cfg_fallos" value="5" min="0" max="100" oninput="guardarCfgLocal()"><span class="hint">Ej: 5 = 5%</span></div>
+      <div class="field"><label>% Margen</label><input type="number" id="cfg_margen" value="35" min="0" max="500" oninput="guardarCfgLocal()"></div>
+      <div class="field"><label>% IVA</label><input type="number" id="cfg_iva" value="0" min="0" max="50" oninput="guardarCfgLocal()"><span class="hint">13 si emitís factura</span></div>
+    </div>
+  </div>
+  <div class="actions">
+    <button class="btn btn-primary" onclick="guardarConfiguracion()">💾 Guardar en Sheets</button>
+    <button class="btn btn-ghost" onclick="cargarConfiguracion()">🔄 Recargar desde Sheets</button>
+  </div>
+</div>
+
+</main>
+</div>
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+/* ── ESTADO GLOBAL ── */
+let API_URL = localStorage.getItem('api_url') || '';
+let CFG = {};
+let todosLosTrabajos = [];
+
+/* ── INIT ── */
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('c_fecha').value = today();
+  document.getElementById('inv_fecha').value = today();
+  if (API_URL) document.getElementById('cfg_apiUrl').value = API_URL;
+  cargarCfgLocal();
+  calcCfg();
+  calcular();
+  actualizarStatus();
+});
+
+function today() { return new Date().toISOString().split('T')[0]; }
+
+/* ── NAVEGACIÓN ── */
+function showPage(id, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  if (el) el.classList.add('active');
+  if (id === 'trabajos')     cargarTrabajos();
+  if (id === 'inventario')   cargarInventario();
+  if (id === 'configuracion') cargarConfiguracion();
+}
+
+/* ── CONFIG ── */
+function getCfg() {
+  return {
+    precioRollo:   +document.getElementById('cfg_precioRollo').value  || 6500,
+    pesoRollo:     +document.getElementById('cfg_pesoRollo').value    || 1000,
+    watts:         +document.getElementById('cfg_watts').value        || 120,
+    kwhPrecio:     +document.getElementById('cfg_kwhPrecio').value    || 110,
+    compraPrint:   +document.getElementById('cfg_compraPrint').value  || 350000,
+    vidaUtil:      +document.getElementById('cfg_vidaUtil').value     || 2000,
+    mantenimiento: +document.getElementById('cfg_mantenimiento').value|| 50000,
+    tarifaMO:      +document.getElementById('cfg_tarifaMO').value     || 3500,
+    tarifaDis:     +document.getElementById('cfg_tarifaDis').value    || 5000,
+    fallos:        +document.getElementById('cfg_fallos').value       || 5,
+    margen:        +document.getElementById('cfg_margen').value       || 35,
+    iva:           +document.getElementById('cfg_iva').value          || 0,
+  };
+}
+function calcCfg() {
+  const c = getCfg();
+  document.getElementById('cfg_costoGramo').value  = fmt(c.pesoRollo>0 ? c.precioRollo/c.pesoRollo : 0);
+  document.getElementById('cfg_kw').value           = (c.watts/1000).toFixed(3)+' kW';
+  document.getElementById('cfg_desgasteHora').value = fmt(c.vidaUtil>0 ? (c.compraPrint+c.mantenimiento)/c.vidaUtil : 0);
+  guardarCfgLocal();
+}
+function guardarCfgLocal() {
+  const c = getCfg();
+  c.costoGramo = c.pesoRollo>0 ? c.precioRollo/c.pesoRollo : 0;
+  c.kw         = c.watts/1000;
+  c.desgasteH  = c.vidaUtil>0 ? (c.compraPrint+c.mantenimiento)/c.vidaUtil : 0;
+  CFG = c;
+  localStorage.setItem('cfg', JSON.stringify(c));
+  document.getElementById('c_fallos').value = c.fallos;
+  document.getElementById('c_margen').value = c.margen;
+  document.getElementById('c_iva').value    = c.iva;
+  calcular();
+}
+function cargarCfgLocal() {
+  const saved = localStorage.getItem('cfg');
+  if (!saved) { guardarCfgLocal(); return; }
+  const c = JSON.parse(saved);
+  ['precioRollo','pesoRollo','watts','kwhPrecio','compraPrint','vidaUtil',
+   'mantenimiento','tarifaMO','tarifaDis','fallos','margen','iva'].forEach(f => {
+    const el = document.getElementById('cfg_'+f);
+    if (el && c[f]!=null) el.value = c[f];
+  });
+  CFG = c;
+  document.getElementById('c_fallos').value = c.fallos||5;
+  document.getElementById('c_margen').value = c.margen||35;
+  document.getElementById('c_iva').value    = c.iva||0;
+}
+
+/* ── CÁLCULO PRINCIPAL ── */
+function calcular() {
+  const c = CFG.costoGramo!=null ? CFG : (() => { guardarCfgLocal(); return CFG; })();
+  const G=fv('c_gramos'), H=fv('c_horas'), Ho=fv('c_horasMO'),
+        Hd=fv('c_horasDis'), Df=fv('c_disFijo'), P=fv('c_post'), O=fv('c_otros'),
+        F=fv('c_fallos')/100, M=fv('c_margen')/100, IVA=fv('c_iva')/100;
+
+  const mat=G*(c.costoGramo||0), elec=(c.kw||0)*H*(c.kwhPrecio||0),
+        deg=H*(c.desgasteH||0), mo=Ho*(c.tarifaMO||0),
+        dis=Hd*(c.tarifaDis||0)+Df, post=P, otros=O;
+  const sub=mat+elec+deg+mo+dis+post+otros;
+  const fallosMonto=sub*F, costoF=sub+fallosMonto;
+  const gan=costoF*M, antesIVA=costoF+gan, ivaMonto=antesIVA*IVA;
+  const final=antesIVA+ivaMonto, red=Math.ceil(final/100)*100;
+
+  set('r_material',fmt(mat)); set('r_elec',fmt(elec)); set('r_desgaste',fmt(deg));
+  set('r_mo',fmt(mo)); set('r_dis',fmt(dis)); set('r_post',fmt(post));
+  set('r_otros',fmt(otros)); set('r_subtotal',fmt(sub));
+  set('r_fallosMonto',fmt(fallosMonto)); set('r_costoFallos',fmt(costoF));
+  set('r_ganancia',fmt(gan)); set('r_antesIVA',fmt(antesIVA));
+  set('r_ivaMonto',fmt(ivaMonto));
+  set('r_final','₡'+red.toLocaleString('es-CR'));
+}
+
+function fv(id){ return parseFloat(document.getElementById(id)?.value)||0; }
+function fmt(n){ return '₡'+(n||0).toLocaleString('es-CR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function set(id,v){ const e=document.getElementById(id); if(e) e.textContent=v; }
+
+function limpiarCotizador(){
+  ['c_pieza','c_cliente','c_notas'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('c_fecha').value=today();
+  ['c_gramos','c_horas','c_horasMO','c_horasDis','c_disFijo','c_post','c_otros']
+    .forEach(id=>document.getElementById(id).value=0);
+  calcular();
+}
+
+/* ── GUARDAR COTIZACIÓN ── */
+async function guardarCotizacion(){
+  const pieza=document.getElementById('c_pieza').value.trim();
+  if(!pieza){ toast('Ingresá el nombre de la pieza.','error'); return; }
+
+  const redText = document.getElementById('r_final').textContent;
+  const precioFinal = parseInt(redText.replace(/[^0-9]/g,''))||0;
+  const costoTexto = document.getElementById('r_costoFallos').textContent;
+  const costoTotal = parseFloat(costoTexto.replace(/[₡.,\s]/g,'').replace(',','.'))||0;
+
+  const datos={
+    fecha:     document.getElementById('c_fecha').value,
+    cliente:   document.getElementById('c_cliente').value,
+    pieza,
+    categoria: document.getElementById('c_categoria').value,
+    gramos:    fv('c_gramos'),
+    horas:     fv('c_horas'),
+    costoTotal,
+    precioFinal,
+    estado:    'Cotizado',
+    notas:     document.getElementById('c_notas').value
+  };
+
+  const hist=JSON.parse(localStorage.getItem('historial')||'[]');
+  hist.unshift(datos);
+  localStorage.setItem('historial',JSON.stringify(hist));
+
+  if(API_URL){
+    try{ await apiCall('guardarCotizacion',datos); toast('✅ Guardado en Google Sheets.','success'); }
+    catch(e){ toast('⚠️ Guardado local (Sheets no disponible).','info'); }
+  } else {
+    toast('💾 Guardado localmente.','info');
+  }
+}
+
+/* ── TRABAJOS (historial con filtros) ── */
+async function cargarTrabajos(){
+  document.getElementById('trabajosContent').innerHTML=
+    '<div class="loading"><div class="spinner"></div>Cargando trabajos…</div>';
+  if(API_URL){
+    try{ todosLosTrabajos=await apiGet('historial'); }
+    catch(e){ todosLosTrabajos=JSON.parse(localStorage.getItem('historial')||'[]'); }
+  } else {
+    todosLosTrabajos=JSON.parse(localStorage.getItem('historial')||'[]');
+  }
+  actualizarStats(todosLosTrabajos);
+  renderTrabajos(todosLosTrabajos);
+}
+
+function filtrarTrabajos(){
+  const buscar=document.getElementById('f_buscar').value.toLowerCase();
+  const estado=document.getElementById('f_estado').value;
+  const cat=document.getElementById('f_categoria').value;
+
+  const filtrados=todosLosTrabajos.filter(d=>{
+    const matchText=!buscar||
+      (d.pieza||'').toLowerCase().includes(buscar)||
+      (d.cliente||'').toLowerCase().includes(buscar);
+    const matchEstado=!estado||d.estado===estado;
+    const matchCat=!cat||d.categoria===cat;
+    return matchText&&matchEstado&&matchCat;
+  });
+
+  document.getElementById('filterCount').textContent=
+    filtrados.length+' de '+todosLosTrabajos.length+' trabajos';
+  renderTrabajos(filtrados);
+}
+
+function limpiarFiltros(){
+  document.getElementById('f_buscar').value='';
+  document.getElementById('f_estado').value='';
+  document.getElementById('f_categoria').value='';
+  document.getElementById('filterCount').textContent='';
+  renderTrabajos(todosLosTrabajos);
+}
+
+function actualizarStats(datos){
+  const aprobados=datos.filter(d=>d.estado==='Aprobado').length;
+  const entregados=datos.filter(d=>d.estado==='Entregado').length;
+  const ingresos=datos.filter(d=>['Aprobado','Entregado'].includes(d.estado))
+    .reduce((s,d)=>s+(parseFloat(d.precioFinal)||0),0);
+  document.getElementById('s_total').textContent=datos.length;
+  document.getElementById('s_aprobadas').textContent=aprobados;
+  document.getElementById('s_entregadas').textContent=entregados;
+  document.getElementById('s_ingresos').textContent='₡'+ingresos.toLocaleString('es-CR');
+}
+
+const ESTADO_BADGE={
+  'Cotizado':'badge-cotizado','Aprobado':'badge-aprobado',
+  'Rechazado':'badge-rechazado','Entregado':'badge-entregado','Cancelado':'badge-cancelado'
+};
+const CAT_BADGE={
+  'Funcional':'badge-funcional','Decorativa':'badge-decorativa','Prototipo':'badge-prototipo',
+  'Educativo':'badge-educativo','Repuesto':'badge-repuesto','Personalizado':'badge-personalizado','Otro':'badge-otro'
+};
+const CAT_ICON={'Funcional':'⚙️','Decorativa':'🎨','Prototipo':'🔬','Educativo':'📚','Repuesto':'🔧','Personalizado':'✨','Otro':'📦'};
+
+function renderTrabajos(datos){
+  const cont=document.getElementById('trabajosContent');
+  if(!datos.length){
+    cont.innerHTML=`<div class="empty"><span class="empty-icon">📭</span><p>No hay trabajos que coincidan con los filtros.</p></div>`;
+    return;
+  }
+  const rows=datos.map((d,i)=>{
+    const estadoClass=ESTADO_BADGE[d.estado]||'badge-cotizado';
+    const catClass=CAT_BADGE[d.categoria]||'badge-otro';
+    const catIcon=CAT_ICON[d.categoria]||'📦';
+    return `<tr>
+      <td style="color:var(--text3);font-size:12px">${d.fecha||''}</td>
+      <td><strong>${d.cliente||'—'}</strong></td>
+      <td>${d.pieza||'—'}</td>
+      <td><span class="badge ${catClass}">${catIcon} ${d.categoria||'—'}</span></td>
+      <td style="font-family:var(--mono);font-size:12px">${d.gramos||0}g / ${d.horas||0}h</td>
+      <td style="font-family:var(--mono)">₡${(parseFloat(d.costoTotal)||0).toLocaleString('es-CR',{maximumFractionDigits:0})}</td>
+      <td style="font-family:var(--mono);font-weight:600;color:var(--accent3)">₡${(parseFloat(d.precioFinal)||0).toLocaleString('es-CR',{maximumFractionDigits:0})}</td>
+      <td>
+        <select class="badge ${estadoClass} badge-select"
+          onchange="cambiarEstado(${i},this.value,this)">
+          ${['Cotizado','Aprobado','Rechazado','Entregado','Cancelado'].map(e=>
+            `<option value="${e}"${d.estado===e?' selected':''}>${e}</option>`).join('')}
+        </select>
+      </td>
+      <td style="color:var(--text3);font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${d.notas||''}</td>
+    </tr>`;
+  }).join('');
+
+  cont.innerHTML=`
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Fecha</th><th>Cliente</th><th>Pieza</th><th>Categoría</th>
+          <th>Gramos/Horas</th><th>Costo</th><th>Precio final</th><th>Estado</th><th>Notas</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+function cambiarEstado(idx,nuevoEstado,sel){
+  const hist=JSON.parse(localStorage.getItem('historial')||'[]');
+  if(hist[idx]){
+    hist[idx].estado=nuevoEstado;
+    localStorage.setItem('historial',JSON.stringify(hist));
+    todosLosTrabajos=hist;
+    const cls=ESTADO_BADGE[nuevoEstado]||'badge-cotizado';
+    sel.className=`badge ${cls} badge-select`;
+    actualizarStats(hist);
+    toast('Estado → '+nuevoEstado,'success');
+  }
+}
+
+/* ── INVENTARIO ── */
+async function guardarFilamento(){
+  const datos={
+    tipo:        document.getElementById('inv_tipo').value,
+    color:       document.getElementById('inv_color').value,
+    marca:       document.getElementById('inv_marca').value,
+    precio:      +document.getElementById('inv_precio').value||0,
+    peso:        +document.getElementById('inv_peso').value||1000,
+    disponibles: +document.getElementById('inv_disponibles').value||0,
+    proveedor:   document.getElementById('inv_proveedor').value,
+    fechaCompra: document.getElementById('inv_fecha').value,
+    notas:       document.getElementById('inv_notas').value,
+  };
+  datos.costoGramo=datos.peso>0?datos.precio/datos.peso:0;
+  datos.valorRestante=datos.costoGramo*datos.disponibles;
+  const inv=JSON.parse(localStorage.getItem('inventario')||'[]');
+  inv.unshift(datos); localStorage.setItem('inventario',JSON.stringify(inv));
+  if(API_URL){ try{ await apiCall('guardarFilamento',datos); }catch(e){} }
+  toast('✅ Filamento agregado.','success');
+  cargarInventario();
+}
+
+async function cargarInventario(){
+  const cont=document.getElementById('inventarioContent');
+  cont.innerHTML='<div class="loading"><div class="spinner"></div>Cargando…</div>';
+  let datos=[];
+  if(API_URL){ try{ datos=await apiGet('inventario'); }catch(e){ datos=JSON.parse(localStorage.getItem('inventario')||'[]'); } }
+  else datos=JSON.parse(localStorage.getItem('inventario')||'[]');
+  if(!datos.length){
+    cont.innerHTML='<div class="empty"><span class="empty-icon">🧵</span><p>No hay filamentos registrados. Agregá uno arriba.</p></div>';
+    return;
+  }
+  const rows=datos.map(d=>`<tr>
+    <td><span class="badge" style="background:rgba(0,229,255,.1);color:var(--accent)">${d.tipo}</span></td>
+    <td>${d.color||'—'}</td><td>${d.marca||'—'}</td>
+    <td style="font-family:var(--mono)">₡${(+d.precio||0).toLocaleString('es-CR')}</td>
+    <td style="font-family:var(--mono)">${d.peso||0} g</td>
+    <td style="font-family:var(--mono);color:var(--accent)">₡${(+d.costoGramo||0).toFixed(2)}/g</td>
+    <td style="font-family:var(--mono)">${d.disponibles||0} g</td>
+    <td style="font-family:var(--mono);color:var(--accent3)">₡${(+d.valorRestante||0).toLocaleString('es-CR',{maximumFractionDigits:0})}</td>
+    <td>${d.proveedor||'—'}</td>
+    <td style="font-size:12px;color:var(--text3)">${d.fechaCompra||''}</td>
+  </tr>`).join('');
+  cont.innerHTML=`<div class="table-wrap"><table>
+    <thead><tr><th>Tipo</th><th>Color</th><th>Marca</th><th>Precio</th><th>Peso</th>
+    <th>Costo/g</th><th>Disponible</th><th>Valor rest.</th><th>Proveedor</th><th>Compra</th></tr></thead>
+    <tbody>${rows}</tbody></table></div>`;
+}
+
+/* ── CONFIG SHEETS ── */
+function guardarApiUrl(){
+  API_URL=document.getElementById('cfg_apiUrl').value.trim();
+  localStorage.setItem('api_url',API_URL);
+  actualizarStatus(); toast('URL guardada.','info');
+}
+async function testConexion(){
+  if(!API_URL){ toast('Ingresá la URL primero.','error'); return; }
+  toast('Probando conexión…','info');
+  try{ await apiCall('ping',{}); toast('✅ Conexión exitosa con Google Sheets.','success'); actualizarStatus(); }
+  catch(e){ toast('❌ No se pudo conectar: '+e.message,'error'); }
+}
+async function guardarConfiguracion(){
+  guardarCfgLocal();
+  if(!API_URL){ toast('Configuración guardada localmente.','info'); return; }
+  try{ await apiCall('guardarConfiguracion',getCfg()); toast('✅ Guardado en Sheets.','success'); }
+  catch(e){ toast('⚠️ Solo guardado local.','info'); }
+}
+async function cargarConfiguracion(){
+  if(API_URL) document.getElementById('cfg_apiUrl').value=API_URL;
+  if(!API_URL){ return; }
+  try{
+    const datos=await apiGet('configuracion');
+    ['precioRollo','pesoRollo','watts','kwhPrecio','compraPrint',
+     'vidaUtil','mantenimiento','tarifaMO','tarifaDis','fallos','margen','iva'].forEach(f=>{
+      const el=document.getElementById('cfg_'+f);
+      if(el&&datos[f]!=null) el.value=datos[f];
+    });
+    calcCfg(); toast('✅ Config cargada desde Sheets.','success');
+  } catch(e){}
+}
+function actualizarStatus(){
+  const dot=document.getElementById('statusDot'),text=document.getElementById('statusText');
+  if(API_URL){ dot.className='status-dot connected'; text.textContent='Conectado a Sheets'; }
+  else { dot.className='status-dot'; text.textContent='Sin conectar'; }
+}
+
+/* ── API ── */
+async function apiCall(accion,datos){
+  if(!API_URL) throw new Error('Sin URL');
+  await fetch(API_URL+'?accion='+accion,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify({accion,...datos})});
+  return {ok:true};
+}
+async function apiGet(accion,params=''){
+  if(!API_URL) throw new Error('Sin URL');
+  const res=await fetch(API_URL+'?accion='+accion+params);
+  if(!res.ok) throw new Error('HTTP '+res.status);
+  return res.json();
+}
+
+/* ── TOASTS ── */
+function toast(msg,type='info'){
+  const c=document.getElementById('toastContainer');
+  const icons={success:'✅',error:'❌',info:'💡'};
+  const t=document.createElement('div');
+  t.className=`toast toast-${type}`;
+  t.innerHTML=`<span>${icons[type]}</span> ${msg}`;
+  c.appendChild(t);
+  setTimeout(()=>{t.style.opacity='0';t.style.transform='translateX(20px)';t.style.transition='all .3s';setTimeout(()=>t.remove(),300);},3500);
+}
+</script>
+</body>
+</html>
