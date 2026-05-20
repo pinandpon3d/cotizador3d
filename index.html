@@ -377,11 +377,15 @@ select.badge-select{border:none;background:transparent;font-family:var(--font);f
     <div class="icon">🔗</div>
     <div>
       <h3>Conectar con Google Sheets</h3>
-      <p>Pegá la URL de tu Google Apps Script para sincronizar datos en la nube.</p>
+      <p>
+        <strong>Paso 1:</strong> Abrí tu planilla → <strong>Extensiones → Apps Script</strong> → pegá el contenido de <code>apps-script/Code.gs</code> y guardá.<br>
+        <strong>Paso 2:</strong> <strong>Implementar → Nueva implementación</strong> · Tipo: <em>Aplicación web</em> · Ejecutar como: <em>Yo</em> · Acceso: <em>Cualquier persona</em>.<br>
+        <strong>Paso 3:</strong> Copiá la URL resultante y pegala aquí abajo.
+      </p>
       <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
         <input type="text" id="cfg_apiUrl" placeholder="https://script.google.com/macros/s/XXX/exec" style="max-width:420px;font-family:var(--mono);font-size:12px">
         <button class="btn btn-primary btn-sm" onclick="guardarApiUrl()">💾 Guardar URL</button>
-        <button class="btn btn-ghost btn-sm" onclick="testConexion()">🔌 Probar</button>
+        <button class="btn btn-ghost btn-sm" onclick="testConexion()">🔌 Probar conexión</button>
       </div>
     </div>
   </div>
@@ -690,15 +694,20 @@ function renderTrabajos(datos){
     </div>`;
 }
 
-function cambiarEstado(idx,nuevoEstado,sel){
+async function cambiarEstado(idx,nuevoEstado,sel){
   const hist=JSON.parse(localStorage.getItem('historial')||'[]');
   if(hist[idx]){
-    hist[idx].estado=nuevoEstado;
+    const item=hist[idx];
+    item.estado=nuevoEstado;
     localStorage.setItem('historial',JSON.stringify(hist));
     todosLosTrabajos=hist;
     const cls=ESTADO_BADGE[nuevoEstado]||'badge-cotizado';
     sel.className=`badge ${cls} badge-select`;
     actualizarStats(hist);
+    if(API_URL){
+      try{ await apiCall('actualizarEstado',{fecha:item.fecha,pieza:item.pieza,estado:nuevoEstado}); }
+      catch(e){}
+    }
     toast('Estado → '+nuevoEstado,'success');
   }
 }
@@ -761,7 +770,11 @@ function guardarApiUrl(){
 async function testConexion(){
   if(!API_URL){ toast('Ingresá la URL primero.','error'); return; }
   toast('Probando conexión…','info');
-  try{ await apiCall('ping',{}); toast('✅ Conexión exitosa con Google Sheets.','success'); actualizarStatus(); }
+  try{
+    const res=await apiGet('ping');
+    if(res&&res.status==='ok'){ toast('✅ Conexión exitosa con Google Sheets.','success'); actualizarStatus(); }
+    else{ toast('❌ Respuesta inesperada: '+(res.error||JSON.stringify(res)),'error'); }
+  }
   catch(e){ toast('❌ No se pudo conectar: '+e.message,'error'); }
 }
 async function guardarConfiguracion(){
