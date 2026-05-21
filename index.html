@@ -534,7 +534,7 @@ select.badge-select{border:none;background:transparent;font-family:var(--font);f
 </div>
 
 <!-- MODAL RESUMEN -->
-<div class="modal-overlay" id="modalResumen" onclick="cerrarModal(event)">
+<div class="modal-overlay" id="modalResumen" onclick="if(event.target===this)cerrarModal()">
   <div class="modal">
     <div class="modal-header">
       <div>
@@ -548,7 +548,7 @@ select.badge-select{border:none;background:transparent;font-family:var(--font);f
     <div class="modal-footer">
       <button class="btn btn-ghost btn-sm" onclick="cerrarModal()">Cerrar</button>
       <button class="btn btn-ghost btn-sm" onclick="cerrarModal();showPage('trabajos',document.querySelectorAll('.nav-item')[1])">Ver trabajos</button>
-      <button class="btn btn-success btn-sm" onclick="cerrarModal();limpiarCotizador()">+ Nueva cotización</button>
+      <button class="btn btn-success btn-sm" onclick="cerrarModal();limpiarCotizador();showPage('cotizador',document.querySelector('.nav-item'))">+ Nueva cotización</button>
     </div>
   </div>
 </div>
@@ -673,42 +673,7 @@ function formatFecha(f){
 }
 
 function verTrabajo(jsonStr){
-  const d=JSON.parse(jsonStr);
-  const catClass=CAT_BADGE[d.categoria]||'badge-otro';
-  const catIcon=CAT_ICON[d.categoria]||'📦';
-  const estadoClass=ESTADO_BADGE[d.estado]||'badge-cotizado';
-  document.getElementById('modal-pieza').textContent=d.pieza||'Sin nombre';
-  document.getElementById('modal-meta').textContent=
-    `${d.cliente||'Sin cliente'} · ${formatFecha(d.fecha)}`;
-  document.getElementById('modal-breakdown').innerHTML=`
-    <div class="breakdown">
-      <div class="breakdown-row">
-        <span class="breakdown-label">Categoría</span>
-        <span class="breakdown-val"><span class="badge ${catClass}">${catIcon} ${d.categoria||'—'}</span></span>
-      </div>
-      <div class="breakdown-row">
-        <span class="breakdown-label">Filamento usado</span>
-        <span class="breakdown-val" style="font-family:var(--mono)">${d.gramos||0} g</span>
-      </div>
-      <div class="breakdown-row">
-        <span class="breakdown-label">Tiempo de impresión</span>
-        <span class="breakdown-val" style="font-family:var(--mono)">${d.horas||0} h</span>
-      </div>
-      <div class="breakdown-row subtotal">
-        <span class="breakdown-label">Costo total (con fallos)</span>
-        <span class="breakdown-val" style="font-family:var(--mono)">₡${(parseFloat(d.costoTotal)||0).toLocaleString('es-CR',{maximumFractionDigits:0})}</span>
-      </div>
-      <div class="breakdown-row total">
-        <span class="breakdown-label">💲 Precio final</span>
-        <span class="breakdown-val">₡${(parseFloat(d.precioFinal)||0).toLocaleString('es-CR',{maximumFractionDigits:0})}</span>
-      </div>
-      ${d.notas?`<div class="breakdown-row"><span class="breakdown-label">Notas</span><span class="breakdown-val" style="font-size:12px;color:var(--text2);text-align:right;max-width:60%;white-space:normal">${d.notas}</span></div>`:''}
-    </div>
-    <div style="padding:14px 20px">
-      <span class="badge ${estadoClass}" style="font-size:12px;padding:5px 14px">Estado: ${d.estado||'Cotizado'}</span>
-    </div>`;
-  document.getElementById('modalResumen').classList.add('open');
-  document.body.style.overflow='hidden';
+  abrirModal(JSON.parse(jsonStr));
 }
 
 function limpiarCotizador(){
@@ -724,70 +689,94 @@ async function guardarCotizacion(){
   const pieza=document.getElementById('c_pieza').value.trim();
   if(!pieza){ toast('Ingresá el nombre de la pieza.','error'); return; }
 
-  const redText = document.getElementById('r_final').textContent;
-  const precioFinal = parseInt(redText.replace(/[^0-9]/g,''))||0;
-  const costoTexto = document.getElementById('r_costoFallos').textContent;
-  const costoTotal = parseFloat(costoTexto.replace(/[₡.,\s]/g,'').replace(',','.'))||0;
+  const redText=document.getElementById('r_final').textContent;
+  const precioFinal=parseInt(redText.replace(/[^0-9]/g,''))||0;
+  const costoTexto=document.getElementById('r_costoFallos').textContent;
+  const costoTotal=parseFloat(costoTexto.replace(/[₡\s]/g,'').replace(',','.'))||0;
+
+  // Desglose completo guardado localmente
+  const desglose=[
+    {label:'Material',               val:document.getElementById('r_material').textContent},
+    {label:'Electricidad',            val:document.getElementById('r_elec').textContent},
+    {label:'Desgaste impresora',      val:document.getElementById('r_desgaste').textContent},
+    {label:'Mano de obra',            val:document.getElementById('r_mo').textContent},
+    {label:'Diseño',                  val:document.getElementById('r_dis').textContent},
+    {label:'Postprocesado',           val:document.getElementById('r_post').textContent},
+    {label:'Otros',                   val:document.getElementById('r_otros').textContent},
+    {label:'Subtotal',                val:document.getElementById('r_subtotal').textContent, sub:true},
+    {label:'+ Fallos/Desperdicio',    val:document.getElementById('r_fallosMonto').textContent},
+    {label:'Costo total con fallos',  val:document.getElementById('r_costoFallos').textContent},
+    {label:'+ Ganancia',              val:document.getElementById('r_ganancia').textContent},
+    {label:'Precio antes de IVA',     val:document.getElementById('r_antesIVA').textContent},
+    {label:'+ IVA',                   val:document.getElementById('r_ivaMonto').textContent},
+    {label:'PRECIO FINAL',            val:document.getElementById('r_final').textContent, total:true},
+  ];
 
   const datos={
-    fecha:     document.getElementById('c_fecha').value,
-    cliente:   document.getElementById('c_cliente').value,
+    fecha:document.getElementById('c_fecha').value,
+    cliente:document.getElementById('c_cliente').value,
     pieza,
-    categoria: document.getElementById('c_categoria').value,
-    gramos:    fv('c_gramos'),
-    horas:     fv('c_horas'),
-    costoTotal,
-    precioFinal,
-    estado:    'Cotizado',
-    notas:     document.getElementById('c_notas').value
+    categoria:document.getElementById('c_categoria').value,
+    gramos:fv('c_gramos'), horas:fv('c_horas'),
+    costoTotal, precioFinal, estado:'Cotizado',
+    notas:document.getElementById('c_notas').value,
+    _desglose:desglose   // guardado solo en localStorage
   };
 
   const hist=JSON.parse(localStorage.getItem('historial')||'[]');
   hist.unshift(datos);
   localStorage.setItem('historial',JSON.stringify(hist));
 
-  // Capturar desglose antes de que cambie
-  const desglose=[
-    {label:'Material',          val:document.getElementById('r_material').textContent},
-    {label:'Electricidad',       val:document.getElementById('r_elec').textContent},
-    {label:'Desgaste impresora', val:document.getElementById('r_desgaste').textContent},
-    {label:'Mano de obra',       val:document.getElementById('r_mo').textContent},
-    {label:'Diseño',             val:document.getElementById('r_dis').textContent},
-    {label:'Postprocesado',      val:document.getElementById('r_post').textContent},
-    {label:'Otros',              val:document.getElementById('r_otros').textContent},
-    {label:'Subtotal',           val:document.getElementById('r_subtotal').textContent, sub:true},
-    {label:'+ Fallos/Desperdicio',val:document.getElementById('r_fallosMonto').textContent},
-    {label:'Costo total con fallos',val:document.getElementById('r_costoFallos').textContent},
-    {label:'+ Ganancia',         val:document.getElementById('r_ganancia').textContent},
-    {label:'Precio antes de IVA',val:document.getElementById('r_antesIVA').textContent},
-    {label:'+ IVA',              val:document.getElementById('r_ivaMonto').textContent},
-    {label:'💲 PRECIO FINAL',    val:document.getElementById('r_final').textContent, total:true},
-  ];
-
-  mostrarResumen(datos, desglose);
+  abrirModal(datos);
 
   if(API_URL){
-    try{ await apiCall('guardarCotizacion',datos); }
-    catch(e){}
+    const {_desglose,...datosSheets}=datos;
+    try{ await apiCall('guardarCotizacion',datosSheets); }catch(e){}
   }
 }
 
-function mostrarResumen(datos, desglose){
-  document.getElementById('modal-pieza').textContent = datos.pieza;
-  document.getElementById('modal-meta').textContent =
-    `${datos.cliente||'Sin cliente'} · ${datos.categoria} · ${formatFecha(datos.fecha)}`;
-  document.getElementById('modal-breakdown').innerHTML =
-    `<div class="breakdown">${desglose.map(r=>`
+function abrirModal(d){
+  const catClass=CAT_BADGE[d.categoria]||'badge-otro';
+  const catIcon=CAT_ICON[d.categoria]||'📦';
+  const estadoClass=ESTADO_BADGE[d.estado]||'badge-cotizado';
+  document.getElementById('modal-pieza').textContent=d.pieza||'Sin nombre';
+  document.getElementById('modal-meta').textContent=
+    `${d.cliente||'Sin cliente'} · ${d.categoria||''} · ${formatFecha(d.fecha)}`;
+
+  let bodyHtml='';
+  if(d._desglose){
+    // Desglose completo
+    bodyHtml=`<div class="breakdown">${d._desglose.map(r=>`
       <div class="breakdown-row${r.total?' total':''}${r.sub?' subtotal':''}">
         <span class="breakdown-label">${r.label}</span>
         <span class="breakdown-val">${r.val}</span>
       </div>`).join('')}</div>`;
+  } else {
+    // Resumen básico (trabajos históricos sin desglose)
+    bodyHtml=`<div class="breakdown">
+      <div class="breakdown-row"><span class="breakdown-label">Categoría</span>
+        <span class="breakdown-val"><span class="badge ${catClass}">${catIcon} ${d.categoria||'—'}</span></span></div>
+      <div class="breakdown-row"><span class="breakdown-label">Filamento usado</span>
+        <span class="breakdown-val" style="font-family:var(--mono)">${d.gramos||0} g</span></div>
+      <div class="breakdown-row"><span class="breakdown-label">Tiempo de impresión</span>
+        <span class="breakdown-val" style="font-family:var(--mono)">${d.horas||0} h</span></div>
+      <div class="breakdown-row subtotal"><span class="breakdown-label">Costo total (con fallos)</span>
+        <span class="breakdown-val" style="font-family:var(--mono)">₡${(parseFloat(d.costoTotal)||0).toLocaleString('es-CR',{maximumFractionDigits:0})}</span></div>
+      <div class="breakdown-row total"><span class="breakdown-label">PRECIO FINAL</span>
+        <span class="breakdown-val">₡${(parseFloat(d.precioFinal)||0).toLocaleString('es-CR',{maximumFractionDigits:0})}</span></div>
+      ${d.notas?`<div class="breakdown-row"><span class="breakdown-label">Notas</span>
+        <span class="breakdown-val" style="font-size:12px;color:var(--text2);text-align:right;max-width:60%;white-space:normal">${d.notas}</span></div>`:''}
+    </div>
+    <div style="padding:12px 20px">
+      <span class="badge ${estadoClass}" style="font-size:12px;padding:5px 14px">Estado: ${d.estado||'Cotizado'}</span>
+    </div>`;
+  }
+  document.getElementById('modal-breakdown').innerHTML=bodyHtml;
   document.getElementById('modalResumen').classList.add('open');
   document.body.style.overflow='hidden';
 }
 
-function cerrarModal(e){
-  if(e&&e.target!==document.getElementById('modalResumen')) return;
+function cerrarModal(){
   document.getElementById('modalResumen').classList.remove('open');
   document.body.style.overflow='';
 }
