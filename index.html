@@ -7,6 +7,8 @@
 <script>(function(){const t=localStorage.getItem('theme')||'light';document.documentElement.setAttribute('data-theme',t);})();</script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
 <script>
 const _fbConfig={
   apiKey:"AIzaSyB2UayVDH7Z6zswyNPmf8c8cOKv9elgxCw",
@@ -366,6 +368,30 @@ select.badge-select{border:none;background:transparent;font-family:var(--font);f
 ::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:4px}
 ::-webkit-scrollbar-thumb:hover{background:var(--text3)}
 
+/* ── SETUP OVERLAY ── */
+.setup-overlay{position:fixed;inset:0;background:var(--bg);z-index:10000;display:none;align-items:center;justify-content:center;flex-direction:column;gap:20px;padding:20px}
+.setup-overlay.visible{display:flex}
+.setup-overlay .spinner{width:36px;height:36px;border-width:3px}
+.setup-overlay p{color:var(--text2);font-size:14px;text-align:center;max-width:300px;line-height:1.6}
+
+/* ── ROLE PILLS ── */
+.role-pill{display:inline-block;font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px;text-transform:uppercase;letter-spacing:.5px}
+.role-maestro{background:rgba(124,58,237,.18);color:#a78bfa}
+.role-editor{background:rgba(5,150,105,.18);color:#34d399}
+.role-visor{background:rgba(107,114,128,.18);color:#9ca3af}
+
+/* ── USER BADGE sidebar ── */
+.user-badge{padding:10px 14px;background:rgba(255,255,255,.07);border-radius:var(--radius-sm);margin-bottom:10px;display:flex;align-items:center;gap:10px}
+.user-badge-avatar{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#a78bfa,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:#fff;flex-shrink:0}
+.user-badge-info{min-width:0}
+.user-badge-name{font-size:13px;font-weight:600;color:var(--sb-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.user-badge-role{margin-top:2px}
+
+/* ── CHARTS ── */
+.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:20px}
+.chart-container{position:relative;height:260px;margin-top:12px}
+@media(max-width:900px){.chart-grid{grid-template-columns:1fr}}
+
 /* ── AUTH ── */
 .auth-overlay{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;flex-direction:column;gap:16px}
 .auth-card{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:44px 40px;width:100%;max-width:400px;box-shadow:var(--shadow-md);text-align:center}
@@ -388,14 +414,25 @@ select.badge-select{border:none;background:transparent;font-family:var(--font);f
 </style>
 </head>
 <body>
+<!-- SETUP OVERLAY (primera ejecución) -->
+<div class="setup-overlay" id="setupOverlay">
+  <div class="auth-logo" style="width:60px;height:60px;border-radius:18px;background:linear-gradient(135deg,#a78bfa,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto;box-shadow:0 8px 28px rgba(124,58,237,.32)">⬡</div>
+  <div class="spinner" style="width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite"></div>
+  <p id="setupOverlayMsg">Configurando el sistema por primera vez…<br><small style="opacity:.6">Esto solo tarda unos segundos.</small></p>
+</div>
+
 <!-- AUTH OVERLAY -->
 <div class="auth-overlay" id="authOverlay">
-  <!-- LOGIN FORM -->
-  <div id="loginForm" style="width:100%;max-width:400px">
+  <div style="width:100%;max-width:400px">
     <div class="auth-card">
       <div class="auth-logo">⬡</div>
       <div class="auth-title">Print3D · Cotizador</div>
-      <div class="auth-sub">Ingresá tu contraseña para continuar</div>
+      <div class="auth-sub">Iniciá sesión con tu cuenta</div>
+      <div class="auth-field">
+        <label>Correo electrónico</label>
+        <input type="email" id="login_email" placeholder="usuario@cotizador3d.app" autocomplete="email"
+          onkeydown="if(event.key==='Enter')document.getElementById('login_pw').focus()">
+      </div>
       <div class="auth-field">
         <label>Contraseña</label>
         <div class="auth-pw-wrap">
@@ -404,36 +441,9 @@ select.badge-select{border:none;background:transparent;font-family:var(--font);f
           <button class="auth-pw-eye" type="button" onclick="togglePwVis('login_pw',this)">👁</button>
         </div>
       </div>
-      <div class="auth-error" id="loginError">Contraseña incorrecta. Intentá de nuevo.</div>
+      <div class="auth-error" id="loginError">Correo o contraseña incorrectos.</div>
       <div class="auth-actions">
-        <button class="btn btn-primary" style="width:100%;padding:12px" onclick="doLogin()">Entrar →</button>
-      </div>
-    </div>
-  </div>
-  <!-- SETUP FORM (primera vez) -->
-  <div id="setupForm" style="display:none;width:100%;max-width:400px">
-    <div class="auth-card">
-      <div class="auth-logo">🔑</div>
-      <div class="auth-title">Primera vez</div>
-      <div class="auth-sub">Establecé una contraseña para proteger el acceso a tu cotizador</div>
-      <div class="auth-field">
-        <label>Nueva contraseña (mín. 4 caracteres)</label>
-        <div class="auth-pw-wrap">
-          <input type="password" id="setup_pw" placeholder="••••••••" autocomplete="new-password">
-          <button class="auth-pw-eye" type="button" onclick="togglePwVis('setup_pw',this)">👁</button>
-        </div>
-      </div>
-      <div class="auth-field">
-        <label>Confirmá la contraseña</label>
-        <div class="auth-pw-wrap">
-          <input type="password" id="setup_pw2" placeholder="••••••••" autocomplete="new-password"
-            onkeydown="if(event.key==='Enter')setupPassword()">
-          <button class="auth-pw-eye" type="button" onclick="togglePwVis('setup_pw2',this)">👁</button>
-        </div>
-      </div>
-      <div class="auth-error" id="setupError"></div>
-      <div class="auth-actions">
-        <button class="btn btn-primary" style="width:100%;padding:12px" onclick="setupPassword()">Crear contraseña</button>
+        <button class="btn btn-primary" id="btnLogin" style="width:100%;padding:12px" onclick="doLogin()">Entrar →</button>
       </div>
     </div>
   </div>
@@ -468,17 +478,25 @@ select.badge-select{border:none;background:transparent;font-family:var(--font);f
     </div>
     <div class="logo-sub">Cotizador · Costa Rica</div>
   </div>
+  <div class="user-badge" id="userBadge">
+    <div class="user-badge-avatar" id="userBadgeAvatar">?</div>
+    <div class="user-badge-info">
+      <div class="user-badge-name" id="userBadgeName">—</div>
+      <div class="user-badge-role"><span class="role-pill" id="userBadgeRol">—</span></div>
+    </div>
+  </div>
   <nav>
     <div class="nav-label">Menú</div>
-    <div class="nav-item active" onclick="showPage('cotizador',this);closeMenu()"><span class="nav-icon">🖨️</span> Cotizador</div>
+    <div class="nav-item active" onclick="showPage('cotizador',this);closeMenu()" id="navCotizador"><span class="nav-icon">🖨️</span> Cotizador</div>
     <div class="nav-item" onclick="showPage('trabajos',this);closeMenu()"><span class="nav-icon">📂</span> Trabajos</div>
     <div class="nav-item" onclick="showPage('inventario',this);closeMenu()"><span class="nav-icon">🧵</span> Inventario</div>
-    <div class="nav-item" onclick="showPage('configuracion',this);closeMenu()"><span class="nav-icon">⚙️</span> Configuración</div>
+    <div class="nav-item" onclick="showPage('reportes',this);closeMenu()"><span class="nav-icon">📊</span> Reportes</div>
+    <div class="nav-item" onclick="showPage('configuracion',this);closeMenu()" id="navConfig"><span class="nav-icon">⚙️</span> Configuración</div>
     <button class="nav-logout" onclick="logout()"><span class="nav-icon">🚪</span> Cerrar sesión</button>
   </nav>
   <div class="sidebar-footer">
     <span class="status-dot" id="statusDot"></span>
-    <span id="statusText">Sin conectar</span>
+    <span id="statusText">Conectando…</span>
     <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()">🌙 Oscuro</button>
   </div>
 </aside>
@@ -700,6 +718,38 @@ select.badge-select{border:none;background:transparent;font-family:var(--font);f
   </div>
 </div>
 
+<!-- ══ REPORTES ══ -->
+<div class="page" id="page-reportes">
+  <div class="page-header">
+    <h1 class="page-title">📊 <span>Reportes</span></h1>
+    <p class="page-desc">Estadísticas y análisis de tu negocio de impresión 3D.</p>
+  </div>
+  <div class="stats">
+    <div class="stat-card"><div class="stat-val" id="r_totalMes">0</div><div class="stat-label">Proyectos este mes</div></div>
+    <div class="stat-card"><div class="stat-val" id="r_ingresosMes">₡0</div><div class="stat-label">Ingresos este mes</div></div>
+    <div class="stat-card"><div class="stat-val" id="r_promedio">₡0</div><div class="stat-label">Precio promedio</div></div>
+    <div class="stat-card"><div class="stat-val" id="r_mejorCliente">—</div><div class="stat-label">Cliente principal</div></div>
+  </div>
+  <div class="chart-grid">
+    <div class="card">
+      <div class="card-title">💰 Ingresos mensuales (últimos 6 meses)</div>
+      <div class="chart-container"><canvas id="chartIngresos"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">🧩 Proyectos por categoría</div>
+      <div class="chart-container"><canvas id="chartCategoria"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">🔄 Proyectos por estado</div>
+      <div class="chart-container"><canvas id="chartEstado"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">📈 Proyectos por mes</div>
+      <div class="chart-container"><canvas id="chartProyectos"></canvas></div>
+    </div>
+  </div>
+</div>
+
 <!-- ══ CONFIGURACIÓN ══ -->
 <div class="page" id="page-configuracion">
   <div class="page-header">
@@ -772,17 +822,10 @@ select.badge-select{border:none;background:transparent;font-family:var(--font);f
   </div>
 
   <div class="card">
-    <div class="card-title">🔒 Seguridad</div>
+    <div class="card-title">🔒 Seguridad de cuenta</div>
     <div class="grid">
       <div class="field">
-        <label>Contraseña actual</label>
-        <div class="auth-pw-wrap">
-          <input type="password" id="sec_current" placeholder="••••••••">
-          <button class="auth-pw-eye" type="button" onclick="togglePwVis('sec_current',this)">👁</button>
-        </div>
-      </div>
-      <div class="field">
-        <label>Nueva contraseña</label>
+        <label>Nueva contraseña (mín. 6 caracteres)</label>
         <div class="auth-pw-wrap">
           <input type="password" id="sec_new" placeholder="••••••••">
           <button class="auth-pw-eye" type="button" onclick="togglePwVis('sec_new',this)">👁</button>
@@ -790,12 +833,42 @@ select.badge-select{border:none;background:transparent;font-family:var(--font);f
       </div>
     </div>
     <div class="actions" style="margin-top:16px">
-      <button class="btn btn-primary btn-sm" onclick="cambiarContrasena()">🔑 Cambiar contraseña</button>
+      <button class="btn btn-primary btn-sm" onclick="cambiarContrasena()">🔑 Cambiar mi contraseña</button>
     </div>
   </div>
+
+  <!-- Gestión de usuarios — solo maestros -->
+  <div class="card" id="cardUsuarios" style="display:none">
+    <div class="card-title">👥 Gestión de usuarios</div>
+    <div class="grid" style="margin-bottom:16px">
+      <div class="field"><label>Nombre</label><input type="text" id="u_nombre" placeholder="Ana García"></div>
+      <div class="field"><label>Correo electrónico</label><input type="email" id="u_email" placeholder="ana@empresa.com"></div>
+      <div class="field">
+        <label>Contraseña temporal</label>
+        <div class="auth-pw-wrap">
+          <input type="password" id="u_pw" placeholder="mín. 6 caracteres">
+          <button class="auth-pw-eye" type="button" onclick="togglePwVis('u_pw',this)">👁</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>Rol</label>
+        <select id="u_rol">
+          <option value="editor">Editor — puede cotizar y gestionar inventario</option>
+          <option value="visor">Visor — solo lectura</option>
+          <option value="maestro">Maestro — acceso total</option>
+        </select>
+      </div>
+    </div>
+    <div class="actions" style="margin-bottom:20px">
+      <button class="btn btn-primary btn-sm" onclick="crearUsuario()">➕ Crear usuario</button>
+    </div>
+    <p style="font-size:12px;color:var(--text3);margin-bottom:16px">⚠️ Al crear un usuario nuevo se cerrará tu sesión. Volvé a ingresar de inmediato.</p>
+    <div id="listaUsuarios"><div class="loading"><div class="spinner"></div>Cargando usuarios…</div></div>
+  </div>
+
   <div class="actions">
-    <button class="btn btn-primary" onclick="guardarConfiguracion()">💾 Guardar en Sheets</button>
-    <button class="btn btn-ghost" onclick="cargarConfiguracion()">🔄 Recargar desde Sheets</button>
+    <button class="btn btn-primary" onclick="guardarConfiguracion()">💾 Guardar configuración</button>
+    <button class="btn btn-ghost" onclick="cargarConfiguracion()">🔄 Recargar desde Firebase</button>
   </div>
 </div>
 
@@ -825,94 +898,137 @@ select.badge-select{border:none;background:transparent;font-family:var(--font);f
 <div class="toast-container" id="toastContainer"></div>
 
 <script>
-/* ── AUTH ── */
-const AUTH_PW_KEY='p3d_pw_hash', AUTH_SESS_KEY='p3d_session', AUTH_SESS_H=24;
+/* ── AUTH FIREBASE ── */
+let currentUser=null, currentUserProfile=null;
 
-async function hashPw(pw){
-  const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(pw));
-  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+function mostrarConfigurando(msg){
+  document.getElementById('setupOverlayMsg').innerHTML=msg||'Configurando el sistema…<br><small style="opacity:.6">Esto solo tarda unos segundos.</small>';
+  document.getElementById('setupOverlay').classList.add('visible');
 }
-function hasSession(){
-  const s=JSON.parse(localStorage.getItem(AUTH_SESS_KEY)||'null');
-  if(!s) return false;
-  if(Date.now()>s.exp){ localStorage.removeItem(AUTH_SESS_KEY); return false; }
-  return true;
+function ocultarConfigurando(){ document.getElementById('setupOverlay').classList.remove('visible'); }
+
+async function setupMaestros(){
+  const maestros=[
+    {nombre:'Luis',   email:'luis@cotizador3d.app',    pw:'Luchovc0814*'},
+    {nombre:'Shaslyn',email:'shaslyn@cotizador3d.app', pw:'$$imbA2689'}
+  ];
+  for(const m of maestros){
+    try{
+      const c=await firebase.auth().createUserWithEmailAndPassword(m.email,m.pw);
+      await db.collection('usuarios').doc(c.user.uid).set({
+        nombre:m.nombre,email:m.email,rol:'maestro',activo:true,creadoEn:new Date().toISOString()
+      });
+    }catch(e){ if(e.code!=='auth/email-already-in-use') console.warn('setup:',e.message); }
+  }
+  await db.collection('configuracion').doc('setup').set({maestrosCreados:true},{merge:true});
+  try{ await firebase.auth().signOut(); }catch(e){}
 }
-function saveSession(){
-  localStorage.setItem(AUTH_SESS_KEY,JSON.stringify({exp:Date.now()+AUTH_SESS_H*3600000}));
-}
+
 function showApp(){
   document.getElementById('authOverlay').style.display='none';
   document.getElementById('mainLayout').style.display='flex';
 }
 function showLoginScreen(){
   document.getElementById('authOverlay').style.display='flex';
-  document.getElementById('loginForm').style.display='';
-  document.getElementById('setupForm').style.display='none';
   document.getElementById('mainLayout').style.display='none';
-  setTimeout(()=>document.getElementById('login_pw')?.focus(),50);
+  setTimeout(()=>document.getElementById('login_email')?.focus(),80);
 }
-function showSetupScreen(){
-  document.getElementById('authOverlay').style.display='flex';
-  document.getElementById('loginForm').style.display='none';
-  document.getElementById('setupForm').style.display='';
-  document.getElementById('mainLayout').style.display='none';
-  setTimeout(()=>document.getElementById('setup_pw')?.focus(),50);
-}
+
 async function initAuth(){
-  if(hasSession()){ showApp(); return; }
-  if(localStorage.getItem(AUTH_PW_KEY)){ showLoginScreen(); }
-  else { showSetupScreen(); }
+  try{
+    const s=await db.collection('configuracion').doc('setup').get();
+    if(!s.exists||!s.data().maestrosCreados){
+      mostrarConfigurando('Configurando el sistema por primera vez…<br><small style="opacity:.6">Creando usuarios maestros.</small>');
+      await setupMaestros();
+      ocultarConfigurando();
+    }
+  }catch(e){ /* sin acceso aún, continúa */ }
+
+  firebase.auth().onAuthStateChanged(async(user)=>{
+    if(user){
+      currentUser=user;
+      try{
+        const snap=await db.collection('usuarios').doc(user.uid).get();
+        currentUserProfile=snap.exists?{...snap.data(),uid:user.uid}:{nombre:user.email.split('@')[0],rol:'maestro',uid:user.uid};
+        if(currentUserProfile.activo===false){
+          await firebase.auth().signOut();
+          toast('Tu cuenta está desactivada.','error'); return;
+        }
+      }catch(e){ currentUserProfile={nombre:user.email.split('@')[0],rol:'maestro',uid:user.uid}; }
+      FB_READY=true; actualizarStatus();
+      showApp(); actualizarUserBadge(); aplicarRol();
+    }else{
+      currentUser=null; currentUserProfile=null; showLoginScreen();
+    }
+  });
 }
+
 async function doLogin(){
+  const email=document.getElementById('login_email').value.trim();
   const pw=document.getElementById('login_pw').value;
-  if(!pw) return;
-  const hash=await hashPw(pw);
-  if(hash===localStorage.getItem(AUTH_PW_KEY)){
-    saveSession(); showApp();
+  const err=document.getElementById('loginError');
+  err.classList.remove('visible');
+  if(!email||!pw){ err.textContent='Completá todos los campos.'; err.classList.add('visible'); return; }
+  const btn=document.getElementById('btnLogin');
+  btn.disabled=true; btn.textContent='Ingresando…';
+  try{
+    await firebase.auth().signInWithEmailAndPassword(email,pw);
     document.getElementById('login_pw').value='';
-    document.getElementById('loginError').classList.remove('visible');
-  } else {
-    document.getElementById('loginError').classList.add('visible');
-    document.getElementById('login_pw').value='';
+  }catch(e){
+    let msg='Correo o contraseña incorrectos.';
+    if(e.code==='auth/too-many-requests') msg='Demasiados intentos. Intentá más tarde.';
+    err.textContent=msg; err.classList.add('visible');
     document.getElementById('login_pw').classList.add('shake');
     setTimeout(()=>document.getElementById('login_pw').classList.remove('shake'),400);
     document.getElementById('login_pw').focus();
-  }
+  }finally{ btn.disabled=false; btn.textContent='Entrar →'; }
 }
-async function setupPassword(){
-  const pw=document.getElementById('setup_pw').value;
-  const pw2=document.getElementById('setup_pw2').value;
-  const err=document.getElementById('setupError');
-  if(pw.length<4){ err.textContent='Mínimo 4 caracteres.'; err.classList.add('visible'); return; }
-  if(pw!==pw2){ err.textContent='Las contraseñas no coinciden.'; err.classList.add('visible'); return; }
-  err.classList.remove('visible');
-  localStorage.setItem(AUTH_PW_KEY,await hashPw(pw));
-  saveSession(); showApp();
-  toast('✅ Contraseña creada. ¡Bienvenido!','success');
-}
+
 async function cambiarContrasena(){
-  const cur=document.getElementById('sec_current').value;
   const nw=document.getElementById('sec_new').value;
-  if(!cur||!nw){ toast('Completá ambos campos.','error'); return; }
-  if(nw.length<4){ toast('La nueva contraseña debe tener mínimo 4 caracteres.','error'); return; }
-  if(await hashPw(cur)!==localStorage.getItem(AUTH_PW_KEY)){
-    toast('La contraseña actual es incorrecta.','error'); return;
+  if(!nw||nw.length<6){ toast('La contraseña debe tener mínimo 6 caracteres.','error'); return; }
+  try{
+    await currentUser.updatePassword(nw);
+    document.getElementById('sec_new').value='';
+    toast('✅ Contraseña actualizada.','success');
+  }catch(e){
+    if(e.code==='auth/requires-recent-login') toast('Cerrá sesión y volvé a ingresar antes de cambiar la contraseña.','error');
+    else toast('❌ '+e.message,'error');
   }
-  localStorage.setItem(AUTH_PW_KEY,await hashPw(nw));
-  document.getElementById('sec_current').value='';
-  document.getElementById('sec_new').value='';
-  toast('✅ Contraseña actualizada.','success');
 }
-function logout(){
+
+async function logout(){
   if(!confirm('¿Cerrar sesión?')) return;
-  localStorage.removeItem(AUTH_SESS_KEY);
-  showLoginScreen();
+  await firebase.auth().signOut();
 }
+
 function togglePwVis(id,btn){
   const inp=document.getElementById(id);
   if(inp.type==='password'){ inp.type='text'; btn.textContent='🙈'; }
-  else { inp.type='password'; btn.textContent='👁'; }
+  else{ inp.type='password'; btn.textContent='👁'; }
+}
+
+function actualizarUserBadge(){
+  if(!currentUserProfile) return;
+  const nombre=currentUserProfile.nombre||'Usuario';
+  const rol=currentUserProfile.rol||'editor';
+  const rolLabel={maestro:'Maestro',editor:'Editor',visor:'Visor'}[rol]||rol;
+  const el=document.getElementById('userBadgeName');
+  const rolEl=document.getElementById('userBadgeRol');
+  const av=document.getElementById('userBadgeAvatar');
+  if(el) el.textContent=nombre;
+  if(av) av.textContent=nombre.charAt(0).toUpperCase();
+  if(rolEl){ rolEl.textContent=rolLabel; rolEl.className='role-pill role-'+rol; }
+}
+
+function aplicarRol(){
+  const rol=currentUserProfile?.rol||'visor';
+  const navConfig=document.getElementById('navConfig');
+  if(navConfig) navConfig.style.display=(rol==='maestro')?'':'none';
+  const navCot=document.getElementById('navCotizador');
+  if(navCot&&rol==='visor') navCot.style.display='none';
+  const cardU=document.getElementById('cardUsuarios');
+  if(cardU) cardU.style.display=(rol==='maestro')?'':'none';
 }
 
 /* ── TEMA ── */
@@ -977,9 +1093,10 @@ function showPage(id, el) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('page-' + id).classList.add('active');
   if (el) el.classList.add('active');
-  if (id === 'trabajos')     cargarTrabajos();
-  if (id === 'inventario')   cargarInventario();
+  if (id === 'trabajos')      cargarTrabajos();
+  if (id === 'inventario')    cargarInventario();
   if (id === 'configuracion') cargarConfiguracion();
+  if (id === 'reportes')      cargarReportes();
 }
 
 /* ── CONFIG ── */
@@ -1553,6 +1670,7 @@ async function cargarConfiguracion(){
     });
     calcCfg(); toast('✅ Config cargada desde Firebase.','success');
   } catch(e){}
+  if(currentUserProfile?.rol==='maestro') cargarUsuarios();
 }
 function toggleMenu(){
   const sidebar=document.getElementById('sidebar');
@@ -1807,6 +1925,164 @@ function toast(msg,type='info'){
   t.innerHTML=`<span>${icons[type]}</span> ${msg}`;
   c.appendChild(t);
   setTimeout(()=>{t.style.opacity='0';t.style.transform='translateX(20px)';t.style.transition='all .3s';setTimeout(()=>t.remove(),300);},3500);
+}
+
+/* ── USUARIOS ── */
+async function crearUsuario(){
+  const nombre=document.getElementById('u_nombre').value.trim();
+  const email=document.getElementById('u_email').value.trim();
+  const pw=document.getElementById('u_pw').value;
+  const rol=document.getElementById('u_rol').value;
+  if(!nombre||!email||!pw){ toast('Completá todos los campos.','error'); return; }
+  if(pw.length<6){ toast('La contraseña debe tener mínimo 6 caracteres.','error'); return; }
+  if(!confirm(`¿Crear usuario "${nombre}"?\nSe cerrará tu sesión temporalmente — volvé a ingresar de inmediato.`)) return;
+  try{
+    const cred=await firebase.auth().createUserWithEmailAndPassword(email,pw);
+    await db.collection('usuarios').doc(cred.user.uid).set({
+      nombre,email,rol,activo:true,creadoEn:new Date().toISOString()
+    });
+    toast('✅ Usuario creado. Iniciá sesión de nuevo.','success');
+    await firebase.auth().signOut();
+  }catch(e){
+    const msg=e.code==='auth/email-already-in-use'?'Ese correo ya está registrado.':e.message;
+    toast('❌ '+msg,'error');
+  }
+}
+
+async function cargarUsuarios(){
+  if(currentUserProfile?.rol!=='maestro') return;
+  const cont=document.getElementById('listaUsuarios');
+  if(!cont) return;
+  cont.innerHTML='<div class="loading"><div class="spinner"></div>Cargando…</div>';
+  try{
+    const snap=await db.collection('usuarios').get();
+    const lista=snap.docs.map(d=>({uid:d.id,...d.data()}));
+    const rows=lista.map(u=>{
+      const rc='role-'+(u.rol||'visor');
+      const rl={maestro:'Maestro',editor:'Editor',visor:'Visor'}[u.rol]||u.rol;
+      const activo=u.activo!==false;
+      return `<tr>
+        <td><strong>${u.nombre||'—'}</strong></td>
+        <td style="font-size:12px;color:var(--text2)">${u.email||'—'}</td>
+        <td><span class="role-pill ${rc}">${rl}</span></td>
+        <td style="font-size:12px;color:${activo?'var(--success)':'var(--danger)'}">${activo?'Activo':'Inactivo'}</td>
+        <td style="white-space:nowrap">
+          <select class="btn btn-ghost btn-sm" onchange="cambiarRolUsuario('${u.uid}',this.value)" style="font-size:11px;padding:3px 8px">
+            <option value="maestro"${u.rol==='maestro'?' selected':''}>Maestro</option>
+            <option value="editor"${u.rol==='editor'?' selected':''}>Editor</option>
+            <option value="visor"${u.rol==='visor'?' selected':''}>Visor</option>
+          </select>
+          <button class="btn btn-sm" style="font-size:11px;border:1px solid var(--border);background:transparent;color:${activo?'var(--danger)':'var(--success)'}"
+            onclick="toggleUsuario('${u.uid}',${activo})">${activo?'Desactivar':'Activar'}</button>
+        </td>
+      </tr>`;
+    }).join('');
+    cont.innerHTML=rows.length?`<div class="table-wrap"><table>
+      <thead><tr><th>Nombre</th><th>Correo</th><th>Rol</th><th>Estado</th><th>Acciones</th></tr></thead>
+      <tbody>${rows}</tbody></table></div>`
+      :'<p style="color:var(--text3);text-align:center;padding:20px">Sin usuarios registrados.</p>';
+  }catch(e){ cont.innerHTML='<p style="color:var(--danger);padding:16px">Error cargando usuarios: '+e.message+'</p>'; }
+}
+
+async function toggleUsuario(uid,isActivo){
+  if(!confirm((isActivo?'¿Desactivar':'¿Activar')+' este usuario?')) return;
+  await db.collection('usuarios').doc(uid).update({activo:!isActivo});
+  toast('✅ Usuario '+(isActivo?'desactivado':'activado')+'.','success');
+  cargarUsuarios();
+}
+
+async function cambiarRolUsuario(uid,nuevoRol){
+  await db.collection('usuarios').doc(uid).update({rol:nuevoRol});
+  toast('✅ Rol actualizado.','success');
+}
+
+/* ── REPORTES ── */
+let _charts={};
+function _destroyCharts(){ Object.values(_charts).forEach(c=>{try{c.destroy();}catch(e){}}); _charts={}; }
+
+async function cargarReportes(){
+  if(!todosLosTrabajos.length){
+    try{ todosLosTrabajos=await fbGetAll('cotizaciones'); todosLosTrabajos.sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||'')); }
+    catch(e){ todosLosTrabajos=JSON.parse(localStorage.getItem('historial')||'[]'); }
+  }
+  _calcResumenReportes();
+  _renderCharts();
+}
+
+function _calcResumenReportes(){
+  const ahora=new Date();
+  const mes=`${ahora.getFullYear()}-${String(ahora.getMonth()+1).padStart(2,'0')}`;
+  const estesMes=todosLosTrabajos.filter(d=>(d.fecha||'').startsWith(mes));
+  const ingresosMes=estesMes.filter(d=>['Aprobado','Entregado'].includes(d.estado))
+    .reduce((s,d)=>s+(parseFloat(d.precioFinal)||0),0);
+  document.getElementById('r_totalMes').textContent=estesMes.length;
+  document.getElementById('r_ingresosMes').textContent='₡'+ingresosMes.toLocaleString('es-CR',{maximumFractionDigits:0});
+  const aprobados=todosLosTrabajos.filter(d=>['Aprobado','Entregado'].includes(d.estado));
+  const prom=aprobados.length?aprobados.reduce((s,d)=>s+(parseFloat(d.precioFinal)||0),0)/aprobados.length:0;
+  document.getElementById('r_promedio').textContent='₡'+Math.round(prom).toLocaleString('es-CR');
+  const porCliente={};
+  aprobados.forEach(d=>{ if(d.cliente) porCliente[d.cliente]=(porCliente[d.cliente]||0)+(parseFloat(d.precioFinal)||0); });
+  const mejor=Object.entries(porCliente).sort((a,b)=>b[1]-a[1])[0];
+  document.getElementById('r_mejorCliente').textContent=mejor?mejor[0]:'—';
+}
+
+function _getLast6Months(){
+  const meses=[],labels=[];
+  for(let i=5;i>=0;i--){
+    const d=new Date(new Date().getFullYear(),new Date().getMonth()-i,1);
+    meses.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`);
+    labels.push(d.toLocaleDateString('es-CR',{month:'short',year:'2-digit'}));
+  }
+  return{meses,labels};
+}
+
+function _renderCharts(){
+  _destroyCharts();
+  const dark=document.documentElement.getAttribute('data-theme')==='dark';
+  const tc=dark?'rgba(255,255,255,.65)':'rgba(0,0,0,.55)';
+  const gc=dark?'rgba(255,255,255,.07)':'rgba(0,0,0,.06)';
+  const bg=dark?'#1e1e2e':'#ffffff';
+  const scalesXY={x:{ticks:{color:tc},grid:{color:gc}},y:{ticks:{color:tc},grid:{color:gc}}};
+  const {meses,labels}=_getLast6Months();
+
+  // 1. Ingresos mensuales
+  const ingrMes=meses.map(m=>todosLosTrabajos.filter(d=>(d.fecha||'').startsWith(m)&&['Aprobado','Entregado'].includes(d.estado))
+    .reduce((s,d)=>s+(parseFloat(d.precioFinal)||0),0));
+  _charts.ingresos=new Chart(document.getElementById('chartIngresos'),{
+    type:'bar',
+    data:{labels,datasets:[{label:'Ingresos (₡)',data:ingrMes,backgroundColor:'rgba(124,58,237,.75)',borderColor:'#7c3aed',borderWidth:1,borderRadius:6}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:tc,font:{family:'Inter',size:11}}}},
+      scales:{...scalesXY,y:{...scalesXY.y,ticks:{...scalesXY.y.ticks,callback:v=>'₡'+v.toLocaleString('es-CR')}}}}
+  });
+
+  // 2. Por categoría
+  const cats=['Funcional','Decorativa','Prototipo','Educativo','Repuesto','Personalizado','Otro'];
+  const catColors=['#7c3aed','#059669','#d97706','#dc2626','#2563eb','#db2777','#6b7280'];
+  _charts.cat=new Chart(document.getElementById('chartCategoria'),{
+    type:'doughnut',
+    data:{labels:cats,datasets:[{data:cats.map(c=>todosLosTrabajos.filter(d=>d.categoria===c).length),
+      backgroundColor:catColors,borderWidth:2,borderColor:bg}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'55%',plugins:{legend:{labels:{color:tc,font:{family:'Inter',size:11}}}}}
+  });
+
+  // 3. Por estado
+  const ests=['Cotizado','Aprobado','Rechazado','Entregado','Cancelado'];
+  const estColors=['#6b7280','#059669','#dc2626','#2563eb','#d97706'];
+  _charts.est=new Chart(document.getElementById('chartEstado'),{
+    type:'pie',
+    data:{labels:ests,datasets:[{data:ests.map(e=>todosLosTrabajos.filter(d=>d.estado===e).length),
+      backgroundColor:estColors,borderWidth:2,borderColor:bg}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:tc,font:{family:'Inter',size:11}}}}}
+  });
+
+  // 4. Proyectos por mes
+  _charts.proy=new Chart(document.getElementById('chartProyectos'),{
+    type:'line',
+    data:{labels,datasets:[{label:'Proyectos',data:meses.map(m=>todosLosTrabajos.filter(d=>(d.fecha||'').startsWith(m)).length),
+      borderColor:'#059669',backgroundColor:'rgba(5,150,105,.12)',tension:.4,fill:true,pointBackgroundColor:'#059669',pointRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:tc,font:{family:'Inter',size:11}}}},
+      scales:{...scalesXY,y:{...scalesXY.y,min:0,ticks:{...scalesXY.y.ticks,stepSize:1}}}}
+  });
 }
 </script>
 </body>
