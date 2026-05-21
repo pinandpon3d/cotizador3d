@@ -868,7 +868,10 @@ function renderTrabajos(datos){
             `<option value="${e}"${d.estado===e?' selected':''}>${e}</option>`).join('')}
         </select>
       </td>
-      <td><button class="btn btn-ghost btn-sm" onclick='verTrabajo(${JSON.stringify(JSON.stringify(d))})' title="Ver resumen">👁</button></td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-ghost btn-sm" onclick='verTrabajo(${JSON.stringify(JSON.stringify(d))})' title="Ver resumen">👁</button>
+        <button class="btn btn-sm" style="border:1px solid var(--border);color:var(--danger);background:transparent" onclick="eliminarTrabajo(${i})" title="Eliminar">✕</button>
+      </td>
     </tr>`;
   }).join('');
 
@@ -900,6 +903,26 @@ async function cambiarEstado(idx,nuevoEstado,sel){
     }
     toast('Estado → '+nuevoEstado,'success');
   }
+}
+
+function eliminarTrabajo(idx){
+  if(!confirm('¿Eliminar este trabajo?')) return;
+  const hist=JSON.parse(localStorage.getItem('historial')||'[]');
+  hist.splice(idx,1);
+  localStorage.setItem('historial',JSON.stringify(hist));
+  todosLosTrabajos=hist;
+  actualizarStats(hist);
+  renderTrabajos(hist);
+  toast('Trabajo eliminado.','info');
+}
+
+function eliminarFilamento(idx){
+  if(!confirm('¿Eliminar este filamento del inventario?')) return;
+  const inv=JSON.parse(localStorage.getItem('inventario')||'[]');
+  inv.splice(idx,1);
+  localStorage.setItem('inventario',JSON.stringify(inv));
+  cargarInventario();
+  toast('Filamento eliminado.','info');
 }
 
 /* ── INVENTARIO ── */
@@ -934,7 +957,7 @@ async function cargarInventario(){
     cont.innerHTML='<div class="empty"><span class="empty-icon">🧵</span><p>No hay filamentos registrados. Agregá uno arriba.</p></div>';
     return;
   }
-  const rows=datos.map(d=>`<tr>
+  const rows=datos.map((d,i)=>`<tr>
     <td><span class="badge" style="background:var(--accent-soft);color:var(--accent)">${d.tipo||'—'}</span></td>
     <td>${d.color||'—'}</td><td>${d.marca||'—'}</td>
     <td style="font-family:var(--mono)">₡${(+d.precio||0).toLocaleString('es-CR')}</td>
@@ -944,10 +967,11 @@ async function cargarInventario(){
     <td style="font-family:var(--mono);color:var(--success)">₡${(+d.valorRestante||0).toLocaleString('es-CR',{maximumFractionDigits:0})}</td>
     <td>${d.proveedor||'—'}</td>
     <td style="font-size:12px;color:var(--text3)">${d.fechaCompra||''}</td>
+    <td><button class="btn btn-sm" style="border:1px solid var(--border);color:var(--danger);background:transparent" onclick="eliminarFilamento(${i})" title="Eliminar">✕</button></td>
   </tr>`).join('');
   cont.innerHTML=`<div class="table-wrap"><table>
     <thead><tr><th>Tipo</th><th>Color</th><th>Marca</th><th>Precio</th><th>Peso</th>
-    <th>Costo/g</th><th>Disponible</th><th>Valor rest.</th><th>Proveedor</th><th>Compra</th></tr></thead>
+    <th>Costo/g</th><th>Disponible</th><th>Valor rest.</th><th>Proveedor</th><th>Compra</th><th></th></tr></thead>
     <tbody>${rows}</tbody></table></div>`;
 }
 
