@@ -664,6 +664,53 @@ function fv(id){ return parseFloat(document.getElementById(id)?.value)||0; }
 function fmt(n){ return '₡'+(n||0).toLocaleString('es-CR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function set(id,v){ const e=document.getElementById(id); if(e) e.textContent=v; }
 
+function formatFecha(f){
+  if(!f) return '—';
+  // Maneja ISO string (2026-05-19T06:00:00.000Z) y fecha simple (2026-05-19)
+  const d=new Date(f);
+  if(isNaN(d)) return String(f).slice(0,10);
+  return d.toLocaleDateString('es-CR',{day:'2-digit',month:'2-digit',year:'numeric'});
+}
+
+function verTrabajo(jsonStr){
+  const d=JSON.parse(jsonStr);
+  const catClass=CAT_BADGE[d.categoria]||'badge-otro';
+  const catIcon=CAT_ICON[d.categoria]||'📦';
+  const estadoClass=ESTADO_BADGE[d.estado]||'badge-cotizado';
+  document.getElementById('modal-pieza').textContent=d.pieza||'Sin nombre';
+  document.getElementById('modal-meta').textContent=
+    `${d.cliente||'Sin cliente'} · ${formatFecha(d.fecha)}`;
+  document.getElementById('modal-breakdown').innerHTML=`
+    <div class="breakdown">
+      <div class="breakdown-row">
+        <span class="breakdown-label">Categoría</span>
+        <span class="breakdown-val"><span class="badge ${catClass}">${catIcon} ${d.categoria||'—'}</span></span>
+      </div>
+      <div class="breakdown-row">
+        <span class="breakdown-label">Filamento usado</span>
+        <span class="breakdown-val" style="font-family:var(--mono)">${d.gramos||0} g</span>
+      </div>
+      <div class="breakdown-row">
+        <span class="breakdown-label">Tiempo de impresión</span>
+        <span class="breakdown-val" style="font-family:var(--mono)">${d.horas||0} h</span>
+      </div>
+      <div class="breakdown-row subtotal">
+        <span class="breakdown-label">Costo total (con fallos)</span>
+        <span class="breakdown-val" style="font-family:var(--mono)">₡${(parseFloat(d.costoTotal)||0).toLocaleString('es-CR',{maximumFractionDigits:0})}</span>
+      </div>
+      <div class="breakdown-row total">
+        <span class="breakdown-label">💲 Precio final</span>
+        <span class="breakdown-val">₡${(parseFloat(d.precioFinal)||0).toLocaleString('es-CR',{maximumFractionDigits:0})}</span>
+      </div>
+      ${d.notas?`<div class="breakdown-row"><span class="breakdown-label">Notas</span><span class="breakdown-val" style="font-size:12px;color:var(--text2);text-align:right;max-width:60%;white-space:normal">${d.notas}</span></div>`:''}
+    </div>
+    <div style="padding:14px 20px">
+      <span class="badge ${estadoClass}" style="font-size:12px;padding:5px 14px">Estado: ${d.estado||'Cotizado'}</span>
+    </div>`;
+  document.getElementById('modalResumen').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+
 function limpiarCotizador(){
   ['c_pieza','c_cliente','c_notas','c_gramos','c_horas','c_horasMO',
    'c_horasDis','c_disFijo','c_post','c_otros']
@@ -728,7 +775,7 @@ async function guardarCotizacion(){
 function mostrarResumen(datos, desglose){
   document.getElementById('modal-pieza').textContent = datos.pieza;
   document.getElementById('modal-meta').textContent =
-    `${datos.cliente||'Sin cliente'} · ${datos.categoria} · ${datos.fecha}`;
+    `${datos.cliente||'Sin cliente'} · ${datos.categoria} · ${formatFecha(datos.fecha)}`;
   document.getElementById('modal-breakdown').innerHTML =
     `<div class="breakdown">${desglose.map(r=>`
       <div class="breakdown-row${r.total?' total':''}${r.sub?' subtotal':''}">
@@ -818,11 +865,11 @@ function renderTrabajos(datos){
     const catClass=CAT_BADGE[d.categoria]||'badge-otro';
     const catIcon=CAT_ICON[d.categoria]||'📦';
     return `<tr>
-      <td style="color:var(--text3);font-size:12px">${d.fecha||''}</td>
+      <td style="color:var(--text2);font-size:12px;white-space:nowrap">${formatFecha(d.fecha)}</td>
       <td><strong>${d.cliente||'—'}</strong></td>
       <td>${d.pieza||'—'}</td>
       <td><span class="badge ${catClass}">${catIcon} ${d.categoria||'—'}</span></td>
-      <td style="font-family:var(--mono);font-size:12px">${d.gramos||0}g / ${d.horas||0}h</td>
+      <td style="font-family:var(--mono);font-size:12px;white-space:nowrap">${d.gramos||0}g / ${d.horas||0}h</td>
       <td style="font-family:var(--mono)">₡${(parseFloat(d.costoTotal)||0).toLocaleString('es-CR',{maximumFractionDigits:0})}</td>
       <td style="font-family:var(--mono);font-weight:600;color:var(--success)">₡${(parseFloat(d.precioFinal)||0).toLocaleString('es-CR',{maximumFractionDigits:0})}</td>
       <td>
@@ -832,7 +879,7 @@ function renderTrabajos(datos){
             `<option value="${e}"${d.estado===e?' selected':''}>${e}</option>`).join('')}
         </select>
       </td>
-      <td style="color:var(--text3);font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${d.notas||''}</td>
+      <td><button class="btn btn-ghost btn-sm" onclick='verTrabajo(${JSON.stringify(JSON.stringify(d))})' title="Ver resumen">👁</button></td>
     </tr>`;
   }).join('');
 
@@ -841,7 +888,7 @@ function renderTrabajos(datos){
       <table>
         <thead><tr>
           <th>Fecha</th><th>Cliente</th><th>Pieza</th><th>Categoría</th>
-          <th>Gramos/Horas</th><th>Costo</th><th>Precio final</th><th>Estado</th><th>Notas</th>
+          <th>Gramos/Horas</th><th>Costo</th><th>Precio final</th><th>Estado</th><th></th>
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>
