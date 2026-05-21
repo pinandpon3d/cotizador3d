@@ -906,7 +906,7 @@ async function cambiarEstado(idx,nuevoEstado,sel){
   }
 }
 
-function eliminarTrabajo(fecha, pieza){
+async function eliminarTrabajo(fecha, pieza){
   if(!confirm('¿Eliminar este trabajo?')) return;
   todosLosTrabajos=todosLosTrabajos.filter(d=>!(String(d.fecha)===String(fecha)&&String(d.pieza||'')===String(pieza)));
   const hist=JSON.parse(localStorage.getItem('historial')||'[]');
@@ -914,14 +914,17 @@ function eliminarTrabajo(fecha, pieza){
   localStorage.setItem('historial',JSON.stringify(newHist));
   actualizarStats(todosLosTrabajos);
   renderTrabajos(todosLosTrabajos);
+  if(API_URL){ try{ await apiCall('eliminarCotizacion',{fecha,pieza}); }catch(e){} }
   toast('Trabajo eliminado.','info');
 }
 
-function eliminarFilamento(idx){
+async function eliminarFilamento(idx){
   if(!confirm('¿Eliminar este filamento del inventario?')) return;
+  const item=todosLosFilamentos[idx];
   todosLosFilamentos.splice(idx,1);
   localStorage.setItem('inventario',JSON.stringify(todosLosFilamentos));
   renderInventario(todosLosFilamentos);
+  if(API_URL&&item){ try{ await apiCall('eliminarFilamento',item); }catch(e){} }
   toast('Filamento eliminado.','info');
 }
 
