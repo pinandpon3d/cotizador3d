@@ -494,6 +494,11 @@ select.badge-select{border:none;background:transparent;font-family:var(--font);f
         <input type="date" id="c_fecha">
       </div>
       <div class="field">
+        <label>Cantidad de piezas</label>
+        <input type="number" id="c_cantidad" value="1" min="1" step="1" oninput="calcular()">
+        <span class="hint">Ej: 3 para cotizar 3 unidades</span>
+      </div>
+      <div class="field">
         <label>Categoría del trabajo</label>
         <select id="c_categoria" oninput="calcular()">
           <option value="Funcional">⚙️ Funcional</option>
@@ -505,7 +510,7 @@ select.badge-select{border:none;background:transparent;font-family:var(--font);f
           <option value="Otro">📦 Otro</option>
         </select>
       </div>
-      <div class="field full">
+      <div class="field">
         <label>Notas</label>
         <input type="text" id="c_notas" placeholder="Observaciones opcionales">
       </div>
@@ -583,7 +588,9 @@ select.badge-select{border:none;background:transparent;font-family:var(--font);f
       <div class="breakdown-row"><span class="breakdown-label">+ Ganancia</span><span class="breakdown-val" id="r_ganancia">₡0.00</span></div>
       <div class="breakdown-row"><span class="breakdown-label">Precio antes de impuesto</span><span class="breakdown-val" id="r_antesIVA">₡0.00</span></div>
       <div class="breakdown-row"><span class="breakdown-label">+ IVA</span><span class="breakdown-val" id="r_ivaMonto">₡0.00</span></div>
-      <div class="breakdown-row total"><span class="breakdown-label">💲 PRECIO FINAL (redondeado ₡100)</span><span class="breakdown-val" id="r_final">₡0</span></div>
+      <div class="breakdown-row total"><span class="breakdown-label" id="r_final_label">💲 PRECIO FINAL (redondeado ₡100)</span><span class="breakdown-val" id="r_final">₡0</span></div>
+      <div class="breakdown-row" id="row_cant" style="display:none"><span class="breakdown-label">✕ Cantidad de piezas</span><span class="breakdown-val" id="r_cant_val"></span></div>
+      <div class="breakdown-row total" id="row_total_multi" style="display:none"><span class="breakdown-label">💲 TOTAL (todas las piezas)</span><span class="breakdown-val" id="r_total_multi">₡0</span></div>
     </div>
     <div id="editModeBanner" class="edit-mode-banner" style="display:none">
       <div>
@@ -1022,6 +1029,7 @@ function calcular() {
   const G=fv('c_gramos'), H=fv('c_horas'), Ho=fv('c_horasMO'),
         Hd=fv('c_horasDis'), Df=fv('c_disFijo'), P=fv('c_post'), O=fv('c_otros'),
         F=fv('c_fallos')/100, M=fv('c_margen')/100, IVA=fv('c_iva')/100;
+  const Q=Math.max(1,Math.round(fv('c_cantidad'))||1);
 
   const mat=G*(c.costoGramo||0), elec=(c.kw||0)*H*(c.kwhPrecio||0),
         deg=H*(c.desgasteH||0), mo=Ho*(c.tarifaMO||0),
@@ -1038,6 +1046,21 @@ function calcular() {
   set('r_ganancia',fmt(gan)); set('r_antesIVA',fmt(antesIVA));
   set('r_ivaMonto',fmt(ivaMonto));
   set('r_final','₡'+red.toLocaleString('es-CR'));
+
+  const lbl=document.getElementById('r_final_label');
+  const rowC=document.getElementById('row_cant');
+  const rowT=document.getElementById('row_total_multi');
+  if(Q>1){
+    if(lbl) lbl.textContent='💲 PRECIO UNITARIO (redondeado ₡100)';
+    set('r_cant_val','× '+Q+' piezas');
+    set('r_total_multi','₡'+(red*Q).toLocaleString('es-CR'));
+    if(rowC) rowC.style.display='';
+    if(rowT) rowT.style.display='';
+  } else {
+    if(lbl) lbl.textContent='💲 PRECIO FINAL (redondeado ₡100)';
+    if(rowC) rowC.style.display='none';
+    if(rowT) rowT.style.display='none';
+  }
 }
 
 function fv(id){ return parseFloat(document.getElementById(id)?.value)||0; }
@@ -1062,6 +1085,7 @@ function limpiarCotizador(){
    'c_horasDis','c_disFijo','c_post','c_otros']
     .forEach(id=>document.getElementById(id).value='');
   document.getElementById('c_fecha').value=today();
+  document.getElementById('c_cantidad').value=1;
   calcular();
 }
 
@@ -1070,8 +1094,9 @@ async function guardarCotizacion(){
   const pieza=document.getElementById('c_pieza').value.trim();
   if(!pieza){ toast('Ingresá el nombre de la pieza.','error'); return; }
 
-  const redText=document.getElementById('r_final').textContent;
-  const precioFinal=parseInt(redText.replace(/[^0-9]/g,''))||0;
+  const Q=Math.max(1,Math.round(fv('c_cantidad'))||1);
+  const precioUnit=parseInt((document.getElementById('r_final').textContent||'').replace(/[^0-9]/g,''))||0;
+  const precioFinal=precioUnit*Q;
   const costoTexto=document.getElementById('r_costoFallos').textContent;
   const costoTotal=parseFloat(costoTexto.replace(/[₡\s]/g,'').replace(',','.'))||0;
 
@@ -1089,7 +1114,11 @@ async function guardarCotizacion(){
     {label:'+ Ganancia',              val:document.getElementById('r_ganancia').textContent},
     {label:'Precio antes de IVA',     val:document.getElementById('r_antesIVA').textContent},
     {label:'+ IVA',                   val:document.getElementById('r_ivaMonto').textContent},
-    {label:'PRECIO FINAL',            val:document.getElementById('r_final').textContent, total:true},
+    {label:Q>1?'PRECIO UNITARIO':'PRECIO FINAL', val:document.getElementById('r_final').textContent, total:Q===1},
+    ...(Q>1?[
+      {label:'× Cantidad de piezas', val:'× '+Q+' piezas'},
+      {label:'TOTAL ('+Q+' piezas)', val:'₡'+precioFinal.toLocaleString('es-CR'), total:true},
+    ]:[]),
   ];
 
   if(editingTrabajoId){
@@ -1104,7 +1133,7 @@ async function guardarCotizacion(){
       pieza,
       categoria:document.getElementById('c_categoria').value,
       gramos:fv('c_gramos'), horas:fv('c_horas'),
-      costoTotal, precioFinal,
+      costoTotal, precioFinal, cantidad:Q,
       estado:estadoActual,
       notas:document.getElementById('c_notas').value,
       _desglose:desglose
@@ -1134,7 +1163,7 @@ async function guardarCotizacion(){
       pieza,
       categoria:document.getElementById('c_categoria').value,
       gramos:fv('c_gramos'), horas:fv('c_horas'),
-      costoTotal, precioFinal, iva:fv('c_iva'), estado:'Cotizado',
+      costoTotal, precioFinal, cantidad:Q, iva:fv('c_iva'), estado:'Cotizado',
       notas:document.getElementById('c_notas').value,
       _desglose:desglose
     };
@@ -1160,6 +1189,7 @@ function editarTrabajo(id){
   document.getElementById('c_categoria').value=trabajo.categoria||'Funcional';
   document.getElementById('c_gramos').value=trabajo.gramos||'';
   document.getElementById('c_horas').value=trabajo.horas||'';
+  document.getElementById('c_cantidad').value=trabajo.cantidad||1;
   ['c_horasMO','c_horasDis','c_disFijo','c_post','c_otros']
     .forEach(id=>document.getElementById(id).value='');
   document.getElementById('c_notas').value=trabajo.notas||'';
@@ -1304,9 +1334,9 @@ function renderTrabajos(datos){
       <td><strong>${d.cliente||'—'}</strong></td>
       <td>${d.pieza||'—'}</td>
       <td><span class="badge ${catClass}">${catIcon} ${d.categoria||'—'}</span></td>
-      <td style="font-family:var(--mono);font-size:12px;white-space:nowrap">${d.gramos||0}g / ${d.horas||0}h</td>
+      <td style="font-family:var(--mono);font-size:12px;white-space:nowrap">${d.gramos||0}g / ${d.horas||0}h${(d.cantidad&&d.cantidad>1)?` <span style="color:var(--accent);font-weight:600">×${d.cantidad}</span>`:''}</td>
       <td style="font-family:var(--mono)">₡${(parseFloat(d.costoTotal)||0).toLocaleString('es-CR',{maximumFractionDigits:0})}</td>
-      <td style="font-family:var(--mono);font-weight:600;color:var(--success)">₡${(parseFloat(d.precioFinal)||0).toLocaleString('es-CR',{maximumFractionDigits:0})}</td>
+      <td style="font-family:var(--mono);font-weight:600;color:var(--success)">₡${(parseFloat(d.precioFinal)||0).toLocaleString('es-CR',{maximumFractionDigits:0})}${(d.cantidad&&d.cantidad>1)?`<div style="font-size:10px;font-weight:400;color:var(--text3)">×${d.cantidad} uds</div>`:''}</td>
       <td>
         <select class="badge ${estadoClass} badge-select"
           onchange="cambiarEstado('${rid}',this.value,this)">
@@ -1630,9 +1660,10 @@ function escHtml(s){
 function generarPDFCotizador(){
   const pieza=document.getElementById('c_pieza').value.trim();
   if(!pieza){ toast('Ingresá el nombre de la pieza primero.','error'); return; }
-  const precioFinal=parseInt((document.getElementById('r_final').textContent||'').replace(/[^0-9]/g,''))||0;
-  const precioSinIVA=parseInt((document.getElementById('r_antesIVA').textContent||'').replace(/[^0-9]/g,''))||precioFinal;
-  const ivaAmt=parseInt((document.getElementById('r_ivaMonto').textContent||'').replace(/[^0-9]/g,''))||0;
+  const Q=Math.max(1,Math.round(fv('c_cantidad'))||1);
+  const precioUnit=parseInt((document.getElementById('r_final').textContent||'').replace(/[^0-9]/g,''))||0;
+  const precioSinIVA=parseInt((document.getElementById('r_antesIVA').textContent||'').replace(/[^0-9]/g,''))||precioUnit;
+  const ivaAmtUnit=parseInt((document.getElementById('r_ivaMonto').textContent||'').replace(/[^0-9]/g,''))||0;
   const ivaP=fv('c_iva');
   generarPDF({
     pieza,
@@ -1640,25 +1671,34 @@ function generarPDFCotizador(){
     fecha:     document.getElementById('c_fecha').value,
     categoria: document.getElementById('c_categoria').value,
     notas:     document.getElementById('c_notas').value,
-    gramos:    fv('c_gramos'), horas: fv('c_horas'),
-    precioFinal, precioSinIVA, ivaAmt, ivaP,
+    gramos:    fv('c_gramos'), horas:fv('c_horas'),
+    cantidad:Q,
+    precioUnit,
+    precioFinal:precioUnit*Q,
+    precioSinIVA:precioSinIVA*Q,
+    ivaAmt:ivaAmtUnit*Q,
+    ivaP,
   });
 }
 
 function generarPDFTrabajo(id){
   const t=todosLosTrabajos.find(d=>d.id===id);
   if(!t){ toast('No se encontró el trabajo.','error'); return; }
-  let precioSinIVA=t.precioFinal||0, ivaAmt=0, ivaP=t.iva||0;
+  const Q=t.cantidad||1;
+  let ivaAmt=0, ivaP=t.iva||0;
+  let precioSinIVA=t.precioFinal||0;
+  // Try to extract per-unit IVA from desglose
   if(t._desglose){
     const rA=t._desglose.find(r=>r.label==='Precio antes de IVA');
     const rI=t._desglose.find(r=>r.label==='+  IVA')||t._desglose.find(r=>r.label==='+ IVA');
-    if(rA) precioSinIVA=parseInt(String(rA.val).replace(/[^0-9]/g,''))||precioSinIVA;
-    if(rI) ivaAmt=parseInt(String(rI.val).replace(/[^0-9]/g,''))||0;
+    if(rA){ const v=parseInt(String(rA.val).replace(/[^0-9]/g,''))||0; precioSinIVA=v*Q; }
+    if(rI){ const v=parseInt(String(rI.val).replace(/[^0-9]/g,''))||0; ivaAmt=v*Q; }
   } else if(ivaP>0){
     precioSinIVA=Math.round(t.precioFinal/(1+ivaP/100));
     ivaAmt=t.precioFinal-precioSinIVA;
   }
-  generarPDF({...t, precioSinIVA, ivaAmt, ivaP});
+  const precioUnit=Q>1?Math.round(t.precioFinal/Q):t.precioFinal;
+  generarPDF({...t, precioUnit, precioSinIVA, ivaAmt, ivaP, cantidad:Q});
 }
 
 function generarPDF(datos){
@@ -1667,10 +1707,12 @@ function generarPDF(datos){
   const notaTxt=emp.nota||'Esta cotización es válida por 7 días.';
   const fechaD=datos.fecha?new Date(datos.fecha):new Date();
   const fechaStr=fechaD.toLocaleDateString('es-CR',{day:'numeric',month:'long',year:'numeric'});
+  const Q=Math.max(1,parseInt(datos.cantidad)||1);
   const pSinIVA=datos.precioSinIVA||datos.precioFinal||0;
   const ivaAmt=datos.ivaAmt||0;
   const ivaP=datos.ivaP||0;
   const pFinal=datos.precioFinal||0;
+  const pUnitSinIVA=Q>1?Math.round(pSinIVA/Q):pSinIVA;
 
   const html=`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
 <title>Cotización – ${escHtml(datos.pieza||'')}</title>
@@ -1750,8 +1792,8 @@ tbody tr:last-child td{border-bottom:none}
       ${datos.categoria?`<div><span class="cat-badge">${escHtml(datos.categoria)}</span></div>`:''}
       ${(datos.gramos||datos.horas)?`<div class="td-sub">${datos.gramos?datos.gramos+' g filamento':''}${datos.gramos&&datos.horas?' · ':''}${datos.horas?datos.horas+' h impresión':''}</div>`:''}
     </td>
-    <td class="r">1</td>
-    <td class="r">₡${pSinIVA.toLocaleString('es-CR')}</td>
+    <td class="r">${Q}</td>
+    <td class="r">₡${pUnitSinIVA.toLocaleString('es-CR')}</td>
     <td class="r">₡${pSinIVA.toLocaleString('es-CR')}</td>
   </tr></tbody>
 </table>
