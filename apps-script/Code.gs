@@ -30,7 +30,6 @@ function getSheet(name, headers) {
     headerRange.setFontColor('#ffffff');
     sheet.setFrozenRows(1);
   } else {
-    // If row 1 doesn't match expected headers, insert them at the top
     const existing = sheet.getRange(1, 1, 1, headers.length).getValues()[0];
     const hasHeaders = headers.every((h, i) => existing[i] === h);
     if (!hasHeaders) {
@@ -97,8 +96,14 @@ function doPost(e) {
       case 'guardarCotizacion':
         guardarCotizacion(body);
         return jsonOut({ status: 'ok' });
+      case 'actualizarCotizacion':
+        actualizarCotizacion(body);
+        return jsonOut({ status: 'ok' });
       case 'guardarFilamento':
         guardarFilamento(body);
+        return jsonOut({ status: 'ok' });
+      case 'actualizarFilamento':
+        actualizarFilamento(body);
         return jsonOut({ status: 'ok' });
       case 'guardarConfiguracion':
         guardarConfiguracion(body);
@@ -123,16 +128,29 @@ function doPost(e) {
 // ── Cotizaciones ─────────────────────────────────────────────────────
 
 const COT_HEADERS = [
-  'fecha', 'cliente', 'pieza', 'categoria',
+  'id', 'fecha', 'cliente', 'pieza', 'categoria',
   'gramos', 'horas', 'costoTotal', 'precioFinal', 'estado', 'notas'
 ];
 
 function guardarCotizacion(d) {
   const sheet = getSheet('Cotizaciones', COT_HEADERS);
-  // Inserta debajo del encabezado para que los más recientes queden arriba
   sheet.insertRowAfter(1);
   sheet.getRange(2, 1, 1, COT_HEADERS.length)
        .setValues([COT_HEADERS.map(k => (d[k] !== undefined ? d[k] : ''))]);
+}
+
+function actualizarCotizacion(d) {
+  const sheet   = getSheet('Cotizaciones', COT_HEADERS);
+  const data    = sheet.getDataRange().getValues();
+  const headers = data[0];
+  const iId     = headers.indexOf('id');
+  for (let r = 1; r < data.length; r++) {
+    if (String(data[r][iId]) === String(d.id)) {
+      sheet.getRange(r + 1, 1, 1, COT_HEADERS.length)
+           .setValues([COT_HEADERS.map(k => (d[k] !== undefined ? d[k] : ''))]);
+      return;
+    }
+  }
 }
 
 function getHistorial() {
@@ -143,11 +161,15 @@ function eliminarCotizacion(d) {
   const sheet   = getSheet('Cotizaciones', COT_HEADERS);
   const data    = sheet.getDataRange().getValues();
   const headers = data[0];
+  const iId     = headers.indexOf('id');
   const iFecha  = headers.indexOf('fecha');
   const iPieza  = headers.indexOf('pieza');
   for (let r = 1; r < data.length; r++) {
-    if (String(data[r][iFecha]) === String(d.fecha) &&
-        String(data[r][iPieza]) === String(d.pieza)) {
+    const matchById = d.id && String(data[r][iId]) === String(d.id);
+    const matchByFechaPieza = !d.id &&
+      String(data[r][iFecha]) === String(d.fecha) &&
+      String(data[r][iPieza]) === String(d.pieza);
+    if (matchById || matchByFechaPieza) {
       sheet.deleteRow(r + 1);
       return;
     }
@@ -158,13 +180,16 @@ function actualizarEstado(d) {
   const sheet   = getSheet('Cotizaciones', COT_HEADERS);
   const data    = sheet.getDataRange().getValues();
   const headers = data[0];
+  const iId     = headers.indexOf('id');
   const iFecha  = headers.indexOf('fecha');
   const iPieza  = headers.indexOf('pieza');
   const iEstado = headers.indexOf('estado');
-
   for (let r = 1; r < data.length; r++) {
-    if (String(data[r][iFecha]) === String(d.fecha) &&
-        String(data[r][iPieza]) === String(d.pieza)) {
+    const matchById = d.id && String(data[r][iId]) === String(d.id);
+    const matchByFechaPieza = !d.id &&
+      String(data[r][iFecha]) === String(d.fecha) &&
+      String(data[r][iPieza]) === String(d.pieza);
+    if (matchById || matchByFechaPieza) {
       sheet.getRange(r + 1, iEstado + 1).setValue(d.estado);
       return;
     }
@@ -174,7 +199,7 @@ function actualizarEstado(d) {
 // ── Inventario ───────────────────────────────────────────────────────
 
 const INV_HEADERS = [
-  'tipo', 'color', 'marca', 'precio', 'peso',
+  'id', 'tipo', 'color', 'marca', 'precio', 'peso',
   'disponibles', 'costoGramo', 'valorRestante', 'proveedor', 'fechaCompra', 'notas'
 ];
 
@@ -185,6 +210,20 @@ function guardarFilamento(d) {
        .setValues([INV_HEADERS.map(k => (d[k] !== undefined ? d[k] : ''))]);
 }
 
+function actualizarFilamento(d) {
+  const sheet   = getSheet('Inventario', INV_HEADERS);
+  const data    = sheet.getDataRange().getValues();
+  const headers = data[0];
+  const iId     = headers.indexOf('id');
+  for (let r = 1; r < data.length; r++) {
+    if (String(data[r][iId]) === String(d.id)) {
+      sheet.getRange(r + 1, 1, 1, INV_HEADERS.length)
+           .setValues([INV_HEADERS.map(k => (d[k] !== undefined ? d[k] : ''))]);
+      return;
+    }
+  }
+}
+
 function getInventario() {
   return sheetToArray(getSheet('Inventario', INV_HEADERS));
 }
@@ -193,15 +232,19 @@ function eliminarFilamento(d) {
   const sheet  = getSheet('Inventario', INV_HEADERS);
   const data   = sheet.getDataRange().getValues();
   const h      = data[0];
+  const iId    = h.indexOf('id');
   const iTipo  = h.indexOf('tipo');
   const iColor = h.indexOf('color');
   const iMarca = h.indexOf('marca');
   const iFecha = h.indexOf('fechaCompra');
   for (let r = 1; r < data.length; r++) {
-    if (String(data[r][iTipo])  === String(d.tipo)  &&
-        String(data[r][iColor]) === String(d.color) &&
-        String(data[r][iMarca]) === String(d.marca) &&
-        String(data[r][iFecha]) === String(d.fechaCompra)) {
+    const matchById = d.id && String(data[r][iId]) === String(d.id);
+    const matchByFields = !d.id &&
+      String(data[r][iTipo])  === String(d.tipo)  &&
+      String(data[r][iColor]) === String(d.color) &&
+      String(data[r][iMarca]) === String(d.marca) &&
+      String(data[r][iFecha]) === String(d.fechaCompra);
+    if (matchById || matchByFields) {
       sheet.deleteRow(r + 1);
       return;
     }

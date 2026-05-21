@@ -13,23 +13,31 @@
 
 /* ══ TEMA CLARO (default) ══ */
 :root{
-  --bg:#f5f3ff;--surface:#ffffff;--surface2:#faf5ff;--surface3:#ede9fe;
+  --bg:#f4f6fb;--surface:#ffffff;--surface2:#f8f9fc;--surface3:#ede9fe;
   --border:#e5e7eb;--border-strong:#d1d5db;
   --accent:#7c3aed;--accent2:#6d28d9;--accent-soft:rgba(124,58,237,.09);--accent-glow:rgba(124,58,237,.22);
   --success:#059669;--success-soft:rgba(5,150,105,.1);
   --warn:#d97706;--danger:#dc2626;--danger-soft:rgba(220,38,38,.1);
   --text:#111827;--text2:#6b7280;--text3:#9ca3af;
   --input-bg:#ffffff;--radius:12px;--radius-sm:8px;--radius-xs:5px;
-  --shadow:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.04);
+  --shadow:0 1px 3px rgba(0,0,0,.07),0 1px 2px rgba(0,0,0,.04);
   --shadow-md:0 4px 12px rgba(0,0,0,.08),0 2px 4px rgba(0,0,0,.04);
   --shadow-accent:0 4px 14px rgba(124,58,237,.25);
   --font:'Inter',-apple-system,sans-serif;--mono:'JetBrains Mono',monospace;
   --transition:all .16s ease;
-  /* Sidebar morada — igual en ambos temas */
-  --sb-bg:#2e1065;--sb-border:rgba(255,255,255,.08);
-  --sb-text:rgba(255,255,255,.6);--sb-text-active:#fff;
-  --sb-hover:rgba(255,255,255,.09);--sb-active:rgba(255,255,255,.14);
-  --sb-active-border:rgba(255,255,255,.22);
+  /* ── Sidebar LIGHT: blanca con acentos morados ── */
+  --sb-bg:#ffffff;--sb-w:240px;
+  --sb-border:#e5e7eb;
+  --sb-logo-color:#111827;--sb-logo-sub:#9ca3af;
+  --sb-nav-label:#c4c9d4;
+  --sb-text:#6b7280;--sb-text-hover:#111827;
+  --sb-text-active:#7c3aed;
+  --sb-hover:#f5f3ff;--sb-active:#ede9fe;
+  --sb-active-border:rgba(124,58,237,.18);--sb-active-bar:#7c3aed;
+  --sb-footer-border:#f3f4f6;--sb-footer-text:#9ca3af;
+  --sb-logout-color:#9ca3af;--sb-logout-hover-bg:rgba(220,38,38,.07);--sb-logout-hover-color:#dc2626;
+  --ham-color:#374151;
+  --topbar-bg:#ffffff;--topbar-border:#e5e7eb;
 }
 
 /* ══ TEMA OSCURO ══ */
@@ -43,9 +51,19 @@
   --input-bg:#0e0f1a;
   --shadow:0 4px 24px rgba(0,0,0,.4);--shadow-md:0 8px 32px rgba(0,0,0,.5);
   --shadow-accent:0 4px 20px rgba(139,92,246,.2);
-  --sb-bg:#160830;--sb-border:rgba(255,255,255,.06);
-  --sb-text:rgba(255,255,255,.5);--sb-active:rgba(139,92,246,.2);
-  --sb-active-border:rgba(139,92,246,.35);
+  /* ── Sidebar DARK: morado profundo ── */
+  --sb-bg:#1a0640;
+  --sb-border:rgba(255,255,255,.07);
+  --sb-logo-color:#ffffff;--sb-logo-sub:rgba(255,255,255,.32);
+  --sb-nav-label:rgba(255,255,255,.22);
+  --sb-text:rgba(255,255,255,.5);--sb-text-hover:#ffffff;
+  --sb-text-active:#c4b5fd;
+  --sb-hover:rgba(255,255,255,.06);--sb-active:rgba(139,92,246,.18);
+  --sb-active-border:rgba(139,92,246,.32);--sb-active-bar:#a78bfa;
+  --sb-footer-border:rgba(255,255,255,.07);--sb-footer-text:rgba(255,255,255,.35);
+  --sb-logout-color:rgba(255,255,255,.38);--sb-logout-hover-bg:rgba(248,113,113,.12);--sb-logout-hover-color:#fca5a5;
+  --ham-color:#ffffff;
+  --topbar-bg:#13141f;--topbar-border:#252838;
 }
 
 html{scroll-behavior:smooth}
@@ -53,41 +71,84 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 
 /* ── LAYOUT ── */
 .layout{display:flex;min-height:100vh}
-.sidebar{width:248px;min-height:100vh;background:var(--sb-bg);border-right:1px solid var(--sb-border);display:flex;flex-direction:column;position:sticky;top:0;z-index:100;flex-shrink:0}
+.sidebar{width:var(--sb-w);min-height:100vh;background:var(--sb-bg);border-right:1px solid var(--sb-border);display:flex;flex-direction:column;position:sticky;top:0;z-index:100;flex-shrink:0;transition:background .2s}
 
 /* ── LOGO ── */
-.logo{padding:26px 20px 20px;border-bottom:1px solid var(--sb-border)}
-.logo-mark{font-size:16px;font-weight:700;color:#fff;display:flex;align-items:center;gap:10px;line-height:1;letter-spacing:-.2px}
-.logo-icon{width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,#a78bfa,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;box-shadow:0 4px 12px rgba(124,58,237,.45)}
-.logo-sub{font-size:10.5px;color:rgba(255,255,255,.32);font-weight:500;letter-spacing:.4px;margin-top:8px;padding-left:42px;text-transform:uppercase}
+.logo{padding:22px 20px 18px;border-bottom:1px solid var(--sb-border)}
+.logo-mark{font-size:15px;font-weight:700;color:var(--sb-logo-color);display:flex;align-items:center;gap:10px;line-height:1;letter-spacing:-.2px}
+.logo-icon{width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,#a78bfa,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;box-shadow:0 4px 12px rgba(124,58,237,.38)}
+.logo-sub{font-size:10px;color:var(--sb-logo-sub);font-weight:500;letter-spacing:.4px;margin-top:7px;padding-left:42px;text-transform:uppercase}
+
+/* ── SIDEBAR PROFILE ── */
+.sidebar-profile{margin:12px 12px 0;padding:12px 10px;border-radius:var(--radius-sm);display:flex;align-items:center;gap:10px;background:var(--sb-hover);border:1px solid var(--sb-active-border)}
+.sidebar-avatar{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#a78bfa,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;flex-shrink:0;letter-spacing:-.5px}
+.sidebar-profile-name{font-size:12.5px;font-weight:600;color:var(--sb-text-hover);line-height:1.2}
+.sidebar-profile-role{font-size:11px;color:var(--sb-text);margin-top:2px}
 
 /* ── NAV ── */
-nav{padding:14px 10px;flex:1}
-.nav-label{font-size:10px;font-weight:600;color:rgba(255,255,255,.28);letter-spacing:1.5px;text-transform:uppercase;padding:8px 12px 6px;margin-bottom:4px}
-.nav-item{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:var(--radius-sm);cursor:pointer;transition:var(--transition);font-size:13.5px;font-weight:500;color:var(--sb-text);margin-bottom:2px;position:relative;border:1px solid transparent}
-.nav-item:hover{background:var(--sb-hover);color:#fff}
-.nav-item.active{background:var(--sb-active);color:var(--sb-text-active);border-color:var(--sb-active-border)}
-.nav-item.active::before{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);width:3px;height:55%;background:#a78bfa;border-radius:0 3px 3px 0}
+nav{padding:12px 10px;flex:1}
+.nav-label{font-size:10px;font-weight:600;color:var(--sb-nav-label);letter-spacing:1.5px;text-transform:uppercase;padding:8px 12px 6px;margin-bottom:2px}
+.nav-item{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:var(--radius-sm);cursor:pointer;transition:var(--transition);font-size:13.5px;font-weight:500;color:var(--sb-text);margin-bottom:1px;position:relative;border:1px solid transparent}
+.nav-item:hover{background:var(--sb-hover);color:var(--sb-text-hover)}
+.nav-item.active{background:var(--sb-active);color:var(--sb-text-active);border-color:var(--sb-active-border);font-weight:600}
+.nav-item.active::before{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);width:3px;height:60%;background:var(--sb-active-bar);border-radius:0 3px 3px 0}
 .nav-icon{font-size:16px;width:20px;text-align:center;flex-shrink:0}
 
 /* ── SIDEBAR FOOTER ── */
-.sidebar-footer{padding:13px 16px;border-top:1px solid var(--sb-border);display:flex;align-items:center;gap:7px;font-size:11px;color:rgba(255,255,255,.38)}
-.status-dot{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.25);transition:var(--transition);flex-shrink:0}
+.sidebar-footer{padding:12px 14px;border-top:1px solid var(--sb-footer-border);display:flex;align-items:center;gap:7px;font-size:11px;color:var(--sb-footer-text)}
+.status-dot{width:7px;height:7px;border-radius:50%;background:var(--sb-footer-text);transition:var(--transition);flex-shrink:0}
 .status-dot.connected{background:#34d399;box-shadow:0 0 8px #34d399}
-.theme-toggle{margin-left:auto;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);border-radius:20px;cursor:pointer;padding:4px 11px;font-size:11px;font-family:var(--font);font-weight:500;color:rgba(255,255,255,.72);display:flex;align-items:center;gap:5px;transition:var(--transition);white-space:nowrap;line-height:1}
-.theme-toggle:hover{background:rgba(255,255,255,.18);color:#fff}
+.theme-toggle{margin-left:auto;background:var(--sb-hover);border:1px solid var(--sb-active-border);border-radius:20px;cursor:pointer;padding:4px 11px;font-size:11px;font-family:var(--font);font-weight:500;color:var(--sb-text);display:flex;align-items:center;gap:5px;transition:var(--transition);white-space:nowrap;line-height:1}
+.theme-toggle:hover{color:var(--sb-text-active);border-color:var(--sb-active-bar)}
+.nav-logout{width:100%;display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:var(--radius-sm);cursor:pointer;transition:var(--transition);font-size:13.5px;font-weight:500;color:var(--sb-logout-color);border:none;background:none;font-family:var(--font);margin-top:2px;text-align:left}
+.nav-logout:hover{background:var(--sb-logout-hover-bg);color:var(--sb-logout-hover-color)}
+
+/* ── MAIN WRAP + TOPBAR ── */
+.main-wrap{flex:1;display:flex;flex-direction:column;min-width:0;overflow:hidden}
+.topbar{background:var(--topbar-bg);border-bottom:1px solid var(--topbar-border);padding:16px 44px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;transition:background .2s}
+.topbar-left{}
+.topbar-title{font-size:20px;font-weight:700;color:var(--text);letter-spacing:-.4px;line-height:1.1}
+.topbar-date{font-size:12.5px;color:var(--text3);margin-top:3px}
+.topbar-right{display:flex;align-items:center;gap:12px}
+.status-pill{display:inline-flex;align-items:center;gap:6px;padding:5px 13px;border-radius:20px;font-size:11.5px;font-weight:500;background:var(--surface2);border:1px solid var(--border);color:var(--text3)}
+.status-pill.connected{background:rgba(5,150,105,.08);border-color:rgba(5,150,105,.2);color:var(--success)}
+[data-theme="dark"] .status-pill.connected{background:rgba(52,211,153,.1);border-color:rgba(52,211,153,.2);color:#34d399}
+.status-pill-dot{width:6px;height:6px;border-radius:50%;background:currentColor}
 
 /* ── MAIN ── */
-.main{flex:1;overflow:hidden;position:relative;min-width:0}
-.page{display:none;padding:40px 48px;animation:fadeIn .22s ease;max-width:1160px}
+.main{flex:1;overflow-y:auto;overflow-x:hidden;position:relative;min-width:0}
+.page{display:none;padding:32px 44px 48px;animation:fadeIn .22s ease;max-width:1160px}
 .page.active{display:block}
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 
 /* ── PAGE HEADER ── */
-.page-header{margin-bottom:32px;padding-bottom:24px;border-bottom:1px solid var(--border)}
-.page-title{font-size:26px;font-weight:700;letter-spacing:-.6px;line-height:1.2;color:var(--text)}
+.page-header{margin-bottom:28px}
+.page-title{font-size:22px;font-weight:700;letter-spacing:-.5px;line-height:1.2;color:var(--text)}
 .page-title span{background:linear-gradient(90deg,var(--accent),#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-.page-desc{color:var(--text2);font-size:14px;margin-top:7px}
+.page-desc{color:var(--text2);font-size:13.5px;margin-top:5px}
+
+/* ── WELCOME BANNER ── */
+.welcome-banner{background:linear-gradient(135deg,#7c3aed 0%,#4f46e5 50%,#6d28d9 100%);border-radius:16px;padding:28px 32px;margin-bottom:24px;color:#fff;display:flex;align-items:center;justify-content:space-between;position:relative;overflow:hidden}
+.welcome-banner::before{content:'';position:absolute;top:-40px;right:-40px;width:200px;height:200px;border-radius:50%;background:rgba(255,255,255,.07)}
+.welcome-banner::after{content:'';position:absolute;bottom:-30px;right:100px;width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,.05)}
+.welcome-title{font-size:22px;font-weight:700;margin-bottom:6px;position:relative}
+.welcome-sub{font-size:13px;opacity:.8;position:relative}
+.welcome-stats{display:flex;gap:16px;position:relative;z-index:1}
+.welcome-stat{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.2);border-radius:12px;padding:14px 20px;text-align:center;min-width:80px;backdrop-filter:blur(4px)}
+.welcome-stat-val{font-size:24px;font-weight:700;line-height:1;font-family:var(--mono)}
+.welcome-stat-label{font-size:10px;opacity:.75;margin-top:5px;text-transform:uppercase;letter-spacing:.8px;font-weight:600}
+
+/* ── QUICK ACTIONS ── */
+.quick-actions{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px}
+.quick-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:22px 16px;text-align:center;cursor:pointer;transition:var(--transition);box-shadow:var(--shadow)}
+.quick-card:hover{border-color:var(--accent);box-shadow:var(--shadow-md);transform:translateY(-2px)}
+.quick-card-icon{width:48px;height:48px;border-radius:14px;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;font-size:22px}
+.quick-card-label{font-size:13px;font-weight:600;color:var(--text)}
+.quick-card-sub{font-size:11.5px;color:var(--text3);margin-top:3px}
+.icon-purple{background:rgba(124,58,237,.12)}
+.icon-blue{background:rgba(37,99,235,.1)}
+.icon-green{background:rgba(5,150,105,.1)}
+.icon-orange{background:rgba(234,88,12,.1)}
 
 /* ── CARDS ── */
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:18px;box-shadow:var(--shadow);transition:border-color .2s,box-shadow .2s}
@@ -130,6 +191,12 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
 
 /* ── DIVISOR ── */
 .divider{height:1px;background:var(--border);margin:22px 0}
+
+/* ── EDIT MODE BANNER ── */
+.edit-mode-banner{background:linear-gradient(135deg,rgba(124,58,237,.1),rgba(79,70,229,.08));border:1.5px solid rgba(124,58,237,.25);border-radius:var(--radius);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:18px}
+.edit-mode-banner-text{font-size:13px;font-weight:600;color:var(--accent)}
+.edit-mode-banner-sub{font-size:12px;color:var(--text2);margin-top:2px}
+[data-theme="dark"] .edit-mode-banner{background:linear-gradient(135deg,rgba(139,92,246,.12),rgba(79,70,229,.08));border-color:rgba(139,92,246,.3)}
 
 /* ── BREAKDOWN ── */
 .breakdown{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);margin-top:18px;overflow:hidden}
@@ -520,8 +587,15 @@ select.badge-select{border:none;background:transparent;font-family:var(--font);f
       <div class="breakdown-row"><span class="breakdown-label">+ IVA</span><span class="breakdown-val" id="r_ivaMonto">₡0.00</span></div>
       <div class="breakdown-row total"><span class="breakdown-label">💲 PRECIO FINAL (redondeado ₡100)</span><span class="breakdown-val" id="r_final">₡0</span></div>
     </div>
+    <div id="editModeBanner" class="edit-mode-banner" style="display:none">
+      <div>
+        <div class="edit-mode-banner-text">✏️ Modo edición activo</div>
+        <div class="edit-mode-banner-sub" id="editModeBannerSub"></div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="cancelarEdicionTrabajo()">✕ Cancelar edición</button>
+    </div>
     <div class="actions">
-      <button class="btn btn-success" onclick="guardarCotizacion()">💾 Guardar trabajo</button>
+      <button class="btn btn-success" id="btnGuardarCotizacion" onclick="guardarCotizacion()">💾 Guardar trabajo</button>
       <button class="btn btn-ghost" onclick="limpiarCotizador()">🔄 Nueva cotización</button>
     </div>
   </div>
@@ -589,7 +663,16 @@ select.badge-select{border:none;background:transparent;font-family:var(--font);f
       <div class="field"><label>Fecha de compra</label><input type="date" id="inv_fecha"></div>
       <div class="field"><label>Notas</label><input type="text" id="inv_notas" placeholder="Opcional"></div>
     </div>
-    <div class="actions"><button class="btn btn-primary" onclick="guardarFilamento()">➕ Agregar al inventario</button></div>
+    <div id="editModeFilBanner" class="edit-mode-banner" style="display:none">
+      <div>
+        <div class="edit-mode-banner-text">✏️ Editando filamento</div>
+        <div class="edit-mode-banner-sub" id="editModeFilBannerSub"></div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="cancelarEdicionFilamento()">✕ Cancelar</button>
+    </div>
+    <div class="actions">
+      <button class="btn btn-primary" id="btnGuardarFilamento" onclick="guardarFilamento()">➕ Agregar al inventario</button>
+    </div>
   </div>
   <div class="card">
     <div class="card-title">🧵 Rollos en inventario</div>
@@ -830,6 +913,17 @@ let API_URL = localStorage.getItem('api_url') || '';
 let CFG = {};
 let todosLosTrabajos = [];
 let todosLosFilamentos = [];
+let editingTrabajoId = null;
+let editingFilamentoId = null;
+
+function genId() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+function migrarIds(arr) {
+  let changed = false;
+  arr.forEach(item => { if (!item.id) { item.id = genId(); changed = true; } });
+  return changed;
+}
 
 /* ── INIT ── */
 document.addEventListener('DOMContentLoaded', () => {
@@ -949,6 +1043,7 @@ function verTrabajo(jsonStr){
 }
 
 function limpiarCotizador(){
+  cancelarEdicionTrabajo();
   ['c_pieza','c_cliente','c_notas','c_gramos','c_horas','c_horasMO',
    'c_horasDis','c_disFijo','c_post','c_otros']
     .forEach(id=>document.getElementById(id).value='');
@@ -956,7 +1051,7 @@ function limpiarCotizador(){
   calcular();
 }
 
-/* ── GUARDAR COTIZACIÓN ── */
+/* ── GUARDAR / ACTUALIZAR COTIZACIÓN ── */
 async function guardarCotizacion(){
   const pieza=document.getElementById('c_pieza').value.trim();
   if(!pieza){ toast('Ingresá el nombre de la pieza.','error'); return; }
@@ -966,7 +1061,6 @@ async function guardarCotizacion(){
   const costoTexto=document.getElementById('r_costoFallos').textContent;
   const costoTotal=parseFloat(costoTexto.replace(/[₡\s]/g,'').replace(',','.'))||0;
 
-  // Desglose completo guardado localmente
   const desglose=[
     {label:'Material',               val:document.getElementById('r_material').textContent},
     {label:'Electricidad',            val:document.getElementById('r_elec').textContent},
@@ -984,27 +1078,91 @@ async function guardarCotizacion(){
     {label:'PRECIO FINAL',            val:document.getElementById('r_final').textContent, total:true},
   ];
 
-  const datos={
-    fecha:document.getElementById('c_fecha').value,
-    cliente:document.getElementById('c_cliente').value,
-    pieza,
-    categoria:document.getElementById('c_categoria').value,
-    gramos:fv('c_gramos'), horas:fv('c_horas'),
-    costoTotal, precioFinal, estado:'Cotizado',
-    notas:document.getElementById('c_notas').value,
-    _desglose:desglose   // guardado solo en localStorage
-  };
-
-  const hist=JSON.parse(localStorage.getItem('historial')||'[]');
-  hist.unshift(datos);
-  localStorage.setItem('historial',JSON.stringify(hist));
-
-  abrirModal(datos);
-
-  if(API_URL){
-    const {_desglose,...datosSheets}=datos;
-    try{ await apiCall('guardarCotizacion',datosSheets); }catch(e){}
+  if(editingTrabajoId){
+    const hist=JSON.parse(localStorage.getItem('historial')||'[]');
+    const idx=hist.findIndex(d=>d.id===editingTrabajoId);
+    if(idx===-1){ toast('No se encontró el trabajo a actualizar.','error'); return; }
+    const estadoActual=hist[idx].estado;
+    const datos={
+      id:editingTrabajoId,
+      fecha:document.getElementById('c_fecha').value,
+      cliente:document.getElementById('c_cliente').value,
+      pieza,
+      categoria:document.getElementById('c_categoria').value,
+      gramos:fv('c_gramos'), horas:fv('c_horas'),
+      costoTotal, precioFinal,
+      estado:estadoActual,
+      notas:document.getElementById('c_notas').value,
+      _desglose:desglose
+    };
+    hist[idx]=datos;
+    localStorage.setItem('historial',JSON.stringify(hist));
+    todosLosTrabajos=hist;
+    cancelarEdicionTrabajo();
+    actualizarStats(todosLosTrabajos);
+    renderTrabajos(todosLosTrabajos);
+    if(API_URL){
+      const {_desglose,...datosSheets}=datos;
+      try{
+        await apiCall('actualizarCotizacion',datosSheets);
+        toast('✅ Trabajo actualizado correctamente.','success');
+      } catch(e){
+        toast('Trabajo actualizado localmente, pero no se pudo sincronizar con Google Sheets.','info');
+      }
+    } else {
+      toast('✅ Trabajo actualizado correctamente.','success');
+    }
+  } else {
+    const datos={
+      id:genId(),
+      fecha:document.getElementById('c_fecha').value,
+      cliente:document.getElementById('c_cliente').value,
+      pieza,
+      categoria:document.getElementById('c_categoria').value,
+      gramos:fv('c_gramos'), horas:fv('c_horas'),
+      costoTotal, precioFinal, estado:'Cotizado',
+      notas:document.getElementById('c_notas').value,
+      _desglose:desglose
+    };
+    const hist=JSON.parse(localStorage.getItem('historial')||'[]');
+    hist.unshift(datos);
+    localStorage.setItem('historial',JSON.stringify(hist));
+    abrirModal(datos);
+    if(API_URL){
+      const {_desglose,...datosSheets}=datos;
+      try{ await apiCall('guardarCotizacion',datosSheets); }
+      catch(e){ toast('Guardado localmente. No se pudo sincronizar con Google Sheets.','info'); }
+    }
   }
+}
+
+function editarTrabajo(id){
+  const trabajo=todosLosTrabajos.find(d=>d.id===id);
+  if(!trabajo){ toast('No se encontró el trabajo.','error'); return; }
+  editingTrabajoId=id;
+  document.getElementById('c_pieza').value=trabajo.pieza||'';
+  document.getElementById('c_cliente').value=trabajo.cliente||'';
+  document.getElementById('c_fecha').value=trabajo.fecha||today();
+  document.getElementById('c_categoria').value=trabajo.categoria||'Funcional';
+  document.getElementById('c_gramos').value=trabajo.gramos||'';
+  document.getElementById('c_horas').value=trabajo.horas||'';
+  ['c_horasMO','c_horasDis','c_disFijo','c_post','c_otros']
+    .forEach(id=>document.getElementById(id).value='');
+  document.getElementById('c_notas').value=trabajo.notas||'';
+  document.getElementById('btnGuardarCotizacion').textContent='💾 Actualizar trabajo';
+  document.getElementById('editModeBanner').style.display='flex';
+  document.getElementById('editModeBannerSub').textContent=
+    'Editando: '+(trabajo.pieza||'sin nombre')+' · '+(trabajo.cliente||'sin cliente');
+  calcular();
+  showPage('cotizador',document.querySelectorAll('.nav-item')[0]);
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function cancelarEdicionTrabajo(){
+  if(!editingTrabajoId) return;
+  editingTrabajoId=null;
+  document.getElementById('btnGuardarCotizacion').textContent='💾 Guardar trabajo';
+  document.getElementById('editModeBanner').style.display='none';
 }
 
 function abrirModal(d){
@@ -1063,6 +1221,7 @@ async function cargarTrabajos(){
   } else {
     todosLosTrabajos=JSON.parse(localStorage.getItem('historial')||'[]');
   }
+  if(migrarIds(todosLosTrabajos)) localStorage.setItem('historial',JSON.stringify(todosLosTrabajos));
   actualizarStats(todosLosTrabajos);
   renderTrabajos(todosLosTrabajos);
 }
@@ -1121,10 +1280,11 @@ function renderTrabajos(datos){
     cont.innerHTML=`<div class="empty"><span class="empty-icon">📭</span><p>No hay trabajos que coincidan con los filtros.</p></div>`;
     return;
   }
-  const rows=datos.map((d,i)=>{
+  const rows=datos.map((d)=>{
     const estadoClass=ESTADO_BADGE[d.estado]||'badge-cotizado';
     const catClass=CAT_BADGE[d.categoria]||'badge-otro';
     const catIcon=CAT_ICON[d.categoria]||'📦';
+    const idEsc=JSON.stringify(String(d.id||''));
     return `<tr>
       <td style="color:var(--text2);font-size:12px;white-space:nowrap">${formatFecha(d.fecha)}</td>
       <td><strong>${d.cliente||'—'}</strong></td>
@@ -1135,14 +1295,15 @@ function renderTrabajos(datos){
       <td style="font-family:var(--mono);font-weight:600;color:var(--success)">₡${(parseFloat(d.precioFinal)||0).toLocaleString('es-CR',{maximumFractionDigits:0})}</td>
       <td>
         <select class="badge ${estadoClass} badge-select"
-          onchange="cambiarEstado(${i},this.value,this)">
+          onchange="cambiarEstado(${idEsc},this.value,this)">
           ${['Cotizado','Aprobado','Rechazado','Entregado','Cancelado'].map(e=>
             `<option value="${e}"${d.estado===e?' selected':''}>${e}</option>`).join('')}
         </select>
       </td>
       <td style="white-space:nowrap">
         <button class="btn btn-ghost btn-sm" onclick='verTrabajo(${JSON.stringify(JSON.stringify(d))})' title="Ver resumen">👁</button>
-        <button class="btn btn-sm" style="border:1px solid var(--border);color:var(--danger);background:transparent" onclick="eliminarTrabajo(${JSON.stringify(String(d.fecha))},${JSON.stringify(String(d.pieza||''))})" title="Eliminar">✕</button>
+        <button class="btn btn-ghost btn-sm" style="color:var(--accent)" onclick="editarTrabajo(${idEsc})" title="Editar">✏️</button>
+        <button class="btn btn-sm" style="border:1px solid var(--border);color:var(--danger);background:transparent" onclick="eliminarTrabajo(${idEsc})" title="Eliminar">✕</button>
       </td>
     </tr>`;
   }).join('');
@@ -1159,66 +1320,147 @@ function renderTrabajos(datos){
     </div>`;
 }
 
-async function cambiarEstado(idx,nuevoEstado,sel){
+async function cambiarEstado(id,nuevoEstado,sel){
   const hist=JSON.parse(localStorage.getItem('historial')||'[]');
-  if(hist[idx]){
-    const item=hist[idx];
+  const item=hist.find(d=>d.id===id);
+  if(item){
     item.estado=nuevoEstado;
     localStorage.setItem('historial',JSON.stringify(hist));
-    todosLosTrabajos=hist;
+    const localItem=todosLosTrabajos.find(d=>d.id===id);
+    if(localItem) localItem.estado=nuevoEstado;
+    actualizarStats(hist);
     const cls=ESTADO_BADGE[nuevoEstado]||'badge-cotizado';
     sel.className=`badge ${cls} badge-select`;
-    actualizarStats(hist);
     if(API_URL){
-      try{ await apiCall('actualizarEstado',{fecha:item.fecha,pieza:item.pieza,estado:nuevoEstado}); }
-      catch(e){}
+      try{ await apiCall('actualizarEstado',{id,fecha:item.fecha,pieza:item.pieza,estado:nuevoEstado}); }
+      catch(e){ toast('Estado actualizado localmente. No se pudo sincronizar con Google Sheets.','info'); return; }
     }
     toast('Estado → '+nuevoEstado,'success');
   }
 }
 
-async function eliminarTrabajo(fecha, pieza){
+async function eliminarTrabajo(id){
   if(!confirm('¿Eliminar este trabajo?')) return;
-  todosLosTrabajos=todosLosTrabajos.filter(d=>!(String(d.fecha)===String(fecha)&&String(d.pieza||'')===String(pieza)));
   const hist=JSON.parse(localStorage.getItem('historial')||'[]');
-  const newHist=hist.filter(d=>!(String(d.fecha)===String(fecha)&&String(d.pieza||'')===String(pieza)));
+  const newHist=hist.filter(d=>d.id!==id);
   localStorage.setItem('historial',JSON.stringify(newHist));
+  todosLosTrabajos=newHist;
   actualizarStats(todosLosTrabajos);
   renderTrabajos(todosLosTrabajos);
-  if(API_URL){ try{ await apiCall('eliminarCotizacion',{fecha,pieza}); }catch(e){} }
-  toast('Trabajo eliminado.','info');
-}
-
-async function eliminarFilamento(idx){
-  if(!confirm('¿Eliminar este filamento del inventario?')) return;
-  const item=todosLosFilamentos[idx];
-  todosLosFilamentos.splice(idx,1);
-  localStorage.setItem('inventario',JSON.stringify(todosLosFilamentos));
-  renderInventario(todosLosFilamentos);
-  if(API_URL&&item){ try{ await apiCall('eliminarFilamento',item); }catch(e){} }
-  toast('Filamento eliminado.','info');
+  if(API_URL){
+    try{ await apiCall('eliminarCotizacion',{id}); toast('✅ Trabajo eliminado correctamente.','success'); }
+    catch(e){ toast('Trabajo eliminado localmente, pero no se pudo sincronizar con Google Sheets.','info'); }
+  } else {
+    toast('✅ Trabajo eliminado correctamente.','success');
+  }
 }
 
 /* ── INVENTARIO ── */
 async function guardarFilamento(){
-  const datos={
-    tipo:        document.getElementById('inv_tipo').value,
-    color:       document.getElementById('inv_color').value,
-    marca:       document.getElementById('inv_marca').value,
-    precio:      +document.getElementById('inv_precio').value||0,
-    peso:        +document.getElementById('inv_peso').value||1000,
-    disponibles: +document.getElementById('inv_disponibles').value||0,
-    proveedor:   document.getElementById('inv_proveedor').value,
-    fechaCompra: document.getElementById('inv_fecha').value,
-    notas:       document.getElementById('inv_notas').value,
-  };
-  datos.costoGramo=datos.peso>0?datos.precio/datos.peso:0;
-  datos.valorRestante=datos.costoGramo*datos.disponibles;
+  if(editingFilamentoId){
+    const inv=JSON.parse(localStorage.getItem('inventario')||'[]');
+    const idx=inv.findIndex(d=>d.id===editingFilamentoId);
+    if(idx===-1){ toast('No se encontró el filamento a actualizar.','error'); return; }
+    const datos={
+      id:editingFilamentoId,
+      tipo:        document.getElementById('inv_tipo').value,
+      color:       document.getElementById('inv_color').value,
+      marca:       document.getElementById('inv_marca').value,
+      precio:      +document.getElementById('inv_precio').value||0,
+      peso:        +document.getElementById('inv_peso').value||1000,
+      disponibles: +document.getElementById('inv_disponibles').value||0,
+      proveedor:   document.getElementById('inv_proveedor').value,
+      fechaCompra: document.getElementById('inv_fecha').value,
+      notas:       document.getElementById('inv_notas').value,
+    };
+    datos.costoGramo=datos.peso>0?datos.precio/datos.peso:0;
+    datos.valorRestante=datos.costoGramo*datos.disponibles;
+    inv[idx]=datos;
+    localStorage.setItem('inventario',JSON.stringify(inv));
+    todosLosFilamentos=inv;
+    cancelarEdicionFilamento();
+    renderInventario(todosLosFilamentos);
+    if(API_URL){
+      try{
+        await apiCall('actualizarFilamento',datos);
+        toast('✅ Filamento actualizado correctamente.','success');
+      } catch(e){
+        toast('Filamento actualizado localmente, pero no se pudo sincronizar con Google Sheets.','info');
+      }
+    } else {
+      toast('✅ Filamento actualizado correctamente.','success');
+    }
+  } else {
+    const datos={
+      id:genId(),
+      tipo:        document.getElementById('inv_tipo').value,
+      color:       document.getElementById('inv_color').value,
+      marca:       document.getElementById('inv_marca').value,
+      precio:      +document.getElementById('inv_precio').value||0,
+      peso:        +document.getElementById('inv_peso').value||1000,
+      disponibles: +document.getElementById('inv_disponibles').value||0,
+      proveedor:   document.getElementById('inv_proveedor').value,
+      fechaCompra: document.getElementById('inv_fecha').value,
+      notas:       document.getElementById('inv_notas').value,
+    };
+    datos.costoGramo=datos.peso>0?datos.precio/datos.peso:0;
+    datos.valorRestante=datos.costoGramo*datos.disponibles;
+    const inv=JSON.parse(localStorage.getItem('inventario')||'[]');
+    inv.unshift(datos);
+    localStorage.setItem('inventario',JSON.stringify(inv));
+    if(API_URL){
+      try{ await apiCall('guardarFilamento',datos); }
+      catch(e){ toast('Guardado localmente. No se pudo sincronizar con Google Sheets.','info'); }
+    }
+    toast('✅ Filamento agregado.','success');
+    cargarInventario();
+  }
+}
+
+function editarFilamento(id){
+  const fil=todosLosFilamentos.find(d=>d.id===id);
+  if(!fil){ toast('No se encontró el filamento.','error'); return; }
+  editingFilamentoId=id;
+  document.getElementById('inv_tipo').value=fil.tipo||'PLA';
+  document.getElementById('inv_color').value=fil.color||'';
+  document.getElementById('inv_marca').value=fil.marca||'';
+  document.getElementById('inv_precio').value=fil.precio||'';
+  document.getElementById('inv_peso').value=fil.peso||'';
+  document.getElementById('inv_disponibles').value=fil.disponibles||'';
+  document.getElementById('inv_proveedor').value=fil.proveedor||'';
+  document.getElementById('inv_fecha').value=fil.fechaCompra||today();
+  document.getElementById('inv_notas').value=fil.notas||'';
+  document.getElementById('btnGuardarFilamento').textContent='💾 Actualizar filamento';
+  document.getElementById('editModeFilBanner').style.display='flex';
+  document.getElementById('editModeFilBannerSub').textContent=
+    'Editando: '+(fil.tipo||'')+' '+(fil.color||'')+' · '+(fil.marca||'');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function cancelarEdicionFilamento(){
+  if(!editingFilamentoId) return;
+  editingFilamentoId=null;
+  document.getElementById('btnGuardarFilamento').textContent='➕ Agregar al inventario';
+  document.getElementById('editModeFilBanner').style.display='none';
+  ['inv_color','inv_marca','inv_precio','inv_peso','inv_disponibles','inv_proveedor','inv_notas']
+    .forEach(id=>document.getElementById(id).value='');
+  document.getElementById('inv_tipo').value='PLA';
+  document.getElementById('inv_fecha').value=today();
+}
+
+async function eliminarFilamento(id){
+  if(!confirm('¿Eliminar este filamento del inventario?')) return;
   const inv=JSON.parse(localStorage.getItem('inventario')||'[]');
-  inv.unshift(datos); localStorage.setItem('inventario',JSON.stringify(inv));
-  if(API_URL){ try{ await apiCall('guardarFilamento',datos); }catch(e){} }
-  toast('✅ Filamento agregado.','success');
-  cargarInventario();
+  const newInv=inv.filter(d=>d.id!==id);
+  localStorage.setItem('inventario',JSON.stringify(newInv));
+  todosLosFilamentos=newInv;
+  renderInventario(todosLosFilamentos);
+  if(API_URL){
+    try{ await apiCall('eliminarFilamento',{id}); toast('✅ Filamento eliminado correctamente.','success'); }
+    catch(e){ toast('Filamento eliminado localmente, pero no se pudo sincronizar con Google Sheets.','info'); }
+  } else {
+    toast('✅ Filamento eliminado correctamente.','success');
+  }
 }
 
 async function cargarInventario(){
@@ -1226,6 +1468,7 @@ async function cargarInventario(){
   cont.innerHTML='<div class="loading"><div class="spinner"></div>Cargando…</div>';
   if(API_URL){ try{ todosLosFilamentos=await apiGet('inventario'); }catch(e){ todosLosFilamentos=JSON.parse(localStorage.getItem('inventario')||'[]'); } }
   else todosLosFilamentos=JSON.parse(localStorage.getItem('inventario')||'[]');
+  if(migrarIds(todosLosFilamentos)) localStorage.setItem('inventario',JSON.stringify(todosLosFilamentos));
   renderInventario(todosLosFilamentos);
 }
 
@@ -1235,7 +1478,9 @@ function renderInventario(datos){
     cont.innerHTML='<div class="empty"><span class="empty-icon">🧵</span><p>No hay filamentos registrados. Agregá uno arriba.</p></div>';
     return;
   }
-  const rows=datos.map((d,i)=>`<tr>
+  const rows=datos.map((d)=>{
+    const idEsc=JSON.stringify(String(d.id||''));
+    return `<tr>
     <td><span class="badge" style="background:var(--accent-soft);color:var(--accent)">${d.tipo||'—'}</span></td>
     <td>${d.color||'—'}</td><td>${d.marca||'—'}</td>
     <td style="font-family:var(--mono)">₡${(+d.precio||0).toLocaleString('es-CR')}</td>
@@ -1245,8 +1490,12 @@ function renderInventario(datos){
     <td style="font-family:var(--mono);color:var(--success)">₡${(+d.valorRestante||0).toLocaleString('es-CR',{maximumFractionDigits:0})}</td>
     <td>${d.proveedor||'—'}</td>
     <td style="font-size:12px;color:var(--text3)">${d.fechaCompra||''}</td>
-    <td><button class="btn btn-sm" style="border:1px solid var(--border);color:var(--danger);background:transparent" onclick="eliminarFilamento(${i})" title="Eliminar">✕</button></td>
-  </tr>`).join('');
+    <td style="white-space:nowrap">
+      <button class="btn btn-ghost btn-sm" style="color:var(--accent)" onclick="editarFilamento(${idEsc})" title="Editar">✏️</button>
+      <button class="btn btn-sm" style="border:1px solid var(--border);color:var(--danger);background:transparent" onclick="eliminarFilamento(${idEsc})" title="Eliminar">✕</button>
+    </td>
+  </tr>`;
+  }).join('');
   cont.innerHTML=`<div class="table-wrap"><table>
     <thead><tr><th>Tipo</th><th>Color</th><th>Marca</th><th>Precio</th><th>Peso</th>
     <th>Costo/g</th><th>Disponible</th><th>Valor rest.</th><th>Proveedor</th><th>Compra</th><th></th></tr></thead>
