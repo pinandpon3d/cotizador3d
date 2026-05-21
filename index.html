@@ -5,6 +5,20 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Cotizador 3D · CR</title>
 <script>(function(){const t=localStorage.getItem('theme')||'light';document.documentElement.setAttribute('data-theme',t);})();</script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script>
+const _fbConfig={
+  apiKey:"AIzaSyB2UayVDH7Z6zswyNPmf8c8cOKv9elgxCw",
+  authDomain:"cotizador3d-d984c.firebaseapp.com",
+  projectId:"cotizador3d-d984c",
+  storageBucket:"cotizador3d-d984c.firebasestorage.app",
+  messagingSenderId:"549722817821",
+  appId:"1:549722817821:web:b307a539e1eac9a4cb4df4"
+};
+firebase.initializeApp(_fbConfig);
+const db=firebase.firestore();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -693,17 +707,11 @@ select.badge-select{border:none;background:transparent;font-family:var(--font);f
     <p class="page-desc">Parámetros globales que afectan todos los cálculos.</p>
   </div>
   <div class="setup-banner">
-    <div class="icon">🔗</div>
+    <div class="icon">🔥</div>
     <div>
-      <h3>Conectar con Google Sheets</h3>
-      <p>
-        <strong>Paso 1:</strong> Abrí tu planilla → <strong>Extensiones → Apps Script</strong> → pegá el contenido de <code>apps-script/Code.gs</code> y guardá.<br>
-        <strong>Paso 2:</strong> <strong>Implementar → Nueva implementación</strong> · Tipo: <em>Aplicación web</em> · Ejecutar como: <em>Yo</em> · Acceso: <em>Cualquier persona</em>.<br>
-        <strong>Paso 3:</strong> Copiá la URL resultante y pegala aquí abajo.
-      </p>
+      <h3>Base de datos Firebase</h3>
+      <p>Los datos se sincronizan automáticamente con Firebase Firestore. El almacenamiento local funciona como respaldo offline.</p>
       <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-        <input type="text" id="cfg_apiUrl" placeholder="https://script.google.com/macros/s/XXX/exec" style="max-width:420px;font-family:var(--mono);font-size:12px">
-        <button class="btn btn-primary btn-sm" onclick="guardarApiUrl()">💾 Guardar URL</button>
         <button class="btn btn-ghost btn-sm" onclick="testConexion()">🔌 Probar conexión</button>
       </div>
     </div>
@@ -930,7 +938,7 @@ function applyThemeLabels(){
 }
 
 /* ── ESTADO GLOBAL ── */
-let API_URL = localStorage.getItem('api_url') || '';
+let FB_READY = false;
 let CFG = {};
 let todosLosTrabajos = [];
 let todosLosFilamentos = [];
@@ -952,11 +960,12 @@ document.addEventListener('DOMContentLoaded', () => {
   applyThemeLabels();
   document.getElementById('c_fecha').value = today();
   document.getElementById('inv_fecha').value = today();
-  if (API_URL) document.getElementById('cfg_apiUrl').value = API_URL;
   cargarCfgLocal();
   calcCfg();
   calcular();
-  actualizarStatus();
+  db.collection('cotizaciones').limit(1).get()
+    .then(()=>{ FB_READY=true; actualizarStatus(); })
+    .catch(()=>{ actualizarStatus(); });
   initAuth();
 });
 
@@ -1144,16 +1153,11 @@ async function guardarCotizacion(){
     cancelarEdicionTrabajo();
     actualizarStats(todosLosTrabajos);
     renderTrabajos(todosLosTrabajos);
-    if(API_URL){
-      const {_desglose,...datosSheets}=datos;
-      try{
-        await apiCall('actualizarCotizacion',datosSheets);
-        toast('✅ Trabajo actualizado correctamente.','success');
-      } catch(e){
-        toast('Trabajo actualizado localmente, pero no se pudo sincronizar con Google Sheets.','info');
-      }
-    } else {
+    try{
+      await fbSet('cotizaciones',datos.id,datos);
       toast('✅ Trabajo actualizado correctamente.','success');
+    } catch(e){
+      toast('Actualizado localmente. Error Firebase: '+e.message,'info');
     }
   } else {
     const datos={
@@ -1170,11 +1174,8 @@ async function guardarCotizacion(){
     todosLosTrabajos.unshift(datos);
     localStorage.setItem('historial',JSON.stringify(todosLosTrabajos));
     abrirModal(datos);
-    if(API_URL){
-      const {_desglose,...datosSheets}=datos;
-      try{ await apiCall('guardarCotizacion',datosSheets); }
-      catch(e){ toast('Guardado localmente. No se pudo sincronizar con Google Sheets.','info'); }
-    }
+    try{ await fbSet('cotizaciones',datos.id,datos); }
+    catch(e){ toast('Guardado localmente. Error Firebase: '+e.message,'info'); }
   }
 }
 
@@ -1258,10 +1259,11 @@ function cerrarModal(){
 async function cargarTrabajos(){
   document.getElementById('trabajosContent').innerHTML=
     '<div class="loading"><div class="spinner"></div>Cargando trabajos…</div>';
-  if(API_URL){
-    try{ todosLosTrabajos=await apiGet('historial'); }
-    catch(e){ todosLosTrabajos=JSON.parse(localStorage.getItem('historial')||'[]'); }
-  } else {
+  try{
+    todosLosTrabajos=await fbGetAll('cotizaciones');
+    todosLosTrabajos.sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
+    localStorage.setItem('historial',JSON.stringify(todosLosTrabajos));
+  } catch(e){
     todosLosTrabajos=JSON.parse(localStorage.getItem('historial')||'[]');
   }
   if(migrarIds(todosLosTrabajos)) localStorage.setItem('historial',JSON.stringify(todosLosTrabajos));
@@ -1372,10 +1374,8 @@ async function cambiarEstado(id,nuevoEstado,sel){
     actualizarStats(todosLosTrabajos);
     const cls=ESTADO_BADGE[nuevoEstado]||'badge-cotizado';
     sel.className=`badge ${cls} badge-select`;
-    if(API_URL){
-      try{ await apiCall('actualizarEstado',{id,fecha:item.fecha,pieza:item.pieza,estado:nuevoEstado}); }
-      catch(e){ toast('Estado actualizado localmente. No se pudo sincronizar con Google Sheets.','info'); return; }
-    }
+    try{ await fbUpdate('cotizaciones',id,{estado:nuevoEstado}); }
+    catch(e){ toast('Estado actualizado localmente. Error Firebase: '+e.message,'info'); return; }
     toast('Estado → '+nuevoEstado,'success');
   }
 }
@@ -1386,12 +1386,8 @@ async function eliminarTrabajo(id){
   localStorage.setItem('historial',JSON.stringify(todosLosTrabajos));
   actualizarStats(todosLosTrabajos);
   renderTrabajos(todosLosTrabajos);
-  if(API_URL){
-    try{ await apiCall('eliminarCotizacion',{id}); toast('✅ Trabajo eliminado correctamente.','success'); }
-    catch(e){ toast('Trabajo eliminado localmente, pero no se pudo sincronizar con Google Sheets.','info'); }
-  } else {
-    toast('✅ Trabajo eliminado correctamente.','success');
-  }
+  try{ await fbDelete('cotizaciones',id); toast('✅ Trabajo eliminado correctamente.','success'); }
+  catch(e){ toast('Eliminado localmente. Error Firebase: '+e.message,'info'); }
 }
 
 /* ── INVENTARIO ── */
@@ -1417,15 +1413,11 @@ async function guardarFilamento(){
     localStorage.setItem('inventario',JSON.stringify(todosLosFilamentos));
     cancelarEdicionFilamento();
     renderInventario(todosLosFilamentos);
-    if(API_URL){
-      try{
-        await apiCall('actualizarFilamento',datos);
-        toast('✅ Filamento actualizado correctamente.','success');
-      } catch(e){
-        toast('Filamento actualizado localmente, pero no se pudo sincronizar con Google Sheets.','info');
-      }
-    } else {
+    try{
+      await fbSet('inventario',datos.id,datos);
       toast('✅ Filamento actualizado correctamente.','success');
+    } catch(e){
+      toast('Actualizado localmente. Error Firebase: '+e.message,'info');
     }
   } else {
     const datos={
@@ -1444,10 +1436,8 @@ async function guardarFilamento(){
     datos.valorRestante=datos.costoGramo*datos.disponibles;
     todosLosFilamentos.unshift(datos);
     localStorage.setItem('inventario',JSON.stringify(todosLosFilamentos));
-    if(API_URL){
-      try{ await apiCall('guardarFilamento',datos); }
-      catch(e){ toast('Guardado localmente. No se pudo sincronizar con Google Sheets.','info'); }
-    }
+    try{ await fbSet('inventario',datos.id,datos); }
+    catch(e){ toast('Guardado localmente. Error Firebase: '+e.message,'info'); }
     toast('✅ Filamento agregado.','success');
     cargarInventario();
   }
@@ -1489,19 +1479,19 @@ async function eliminarFilamento(id){
   todosLosFilamentos=todosLosFilamentos.filter(d=>d.id!==id);
   localStorage.setItem('inventario',JSON.stringify(todosLosFilamentos));
   renderInventario(todosLosFilamentos);
-  if(API_URL){
-    try{ await apiCall('eliminarFilamento',{id}); toast('✅ Filamento eliminado correctamente.','success'); }
-    catch(e){ toast('Filamento eliminado localmente, pero no se pudo sincronizar con Google Sheets.','info'); }
-  } else {
-    toast('✅ Filamento eliminado correctamente.','success');
-  }
+  try{ await fbDelete('inventario',id); toast('✅ Filamento eliminado correctamente.','success'); }
+  catch(e){ toast('Eliminado localmente. Error Firebase: '+e.message,'info'); }
 }
 
 async function cargarInventario(){
   const cont=document.getElementById('inventarioContent');
   cont.innerHTML='<div class="loading"><div class="spinner"></div>Cargando…</div>';
-  if(API_URL){ try{ todosLosFilamentos=await apiGet('inventario'); }catch(e){ todosLosFilamentos=JSON.parse(localStorage.getItem('inventario')||'[]'); } }
-  else todosLosFilamentos=JSON.parse(localStorage.getItem('inventario')||'[]');
+  try{
+    todosLosFilamentos=await fbGetAll('inventario');
+    localStorage.setItem('inventario',JSON.stringify(todosLosFilamentos));
+  } catch(e){
+    todosLosFilamentos=JSON.parse(localStorage.getItem('inventario')||'[]');
+  }
   if(migrarIds(todosLosFilamentos)) localStorage.setItem('inventario',JSON.stringify(todosLosFilamentos));
   renderInventario(todosLosFilamentos);
 }
@@ -1536,40 +1526,32 @@ function renderInventario(datos){
     <tbody>${rows}</tbody></table></div>`;
 }
 
-/* ── CONFIG SHEETS ── */
-function guardarApiUrl(){
-  API_URL=document.getElementById('cfg_apiUrl').value.trim();
-  localStorage.setItem('api_url',API_URL);
-  actualizarStatus(); toast('URL guardada.','info');
-}
+/* ── CONFIG FIREBASE ── */
 async function testConexion(){
-  if(!API_URL){ toast('Ingresá la URL primero.','error'); return; }
-  toast('Probando conexión…','info');
+  toast('Probando conexión con Firebase…','info');
   try{
-    const res=await apiGet('ping');
-    if(res&&res.status==='ok'){ toast('✅ Conexión exitosa con Google Sheets.','success'); actualizarStatus(); }
-    else{ toast('❌ Respuesta inesperada: '+(res.error||JSON.stringify(res)),'error'); }
+    await db.collection('cotizaciones').limit(1).get();
+    FB_READY=true; actualizarStatus();
+    toast('✅ Firebase conectado correctamente.','success');
   }
-  catch(e){ toast('❌ No se pudo conectar: '+e.message,'error'); }
+  catch(e){ toast('❌ Error: '+e.message,'error'); }
 }
 async function guardarConfiguracion(){
   guardarCfgLocal();
-  if(!API_URL){ toast('Configuración guardada localmente.','info'); return; }
-  try{ await apiCall('guardarConfiguracion',getCfg()); toast('✅ Guardado en Sheets.','success'); }
-  catch(e){ toast('⚠️ Solo guardado local.','info'); }
+  try{ await fbSetConfig(getCfg()); toast('✅ Configuración guardada en Firebase.','success'); }
+  catch(e){ toast('⚠️ Solo guardado local: '+e.message,'info'); }
 }
 async function cargarConfiguracion(){
   cargarEmpresa();
-  if(API_URL) document.getElementById('cfg_apiUrl').value=API_URL;
-  if(!API_URL){ return; }
   try{
-    const datos=await apiGet('configuracion');
+    const datos=await fbGetConfig();
+    if(!datos){ return; }
     ['precioRollo','pesoRollo','watts','kwhPrecio','compraPrint',
      'vidaUtil','mantenimiento','tarifaMO','tarifaDis','fallos','margen','iva'].forEach(f=>{
       const el=document.getElementById('cfg_'+f);
       if(el&&datos[f]!=null) el.value=datos[f];
     });
-    calcCfg(); toast('✅ Config cargada desde Sheets.','success');
+    calcCfg(); toast('✅ Config cargada desde Firebase.','success');
   } catch(e){}
 }
 function toggleMenu(){
@@ -1591,30 +1573,36 @@ function closeMenu(){
 function actualizarStatus(){
   const dot=document.getElementById('statusDot'),text=document.getElementById('statusText');
   const dotM=document.getElementById('statusDotMobile'),textM=document.getElementById('statusTextMobile');
-  if(API_URL){
-    dot.className='status-dot connected'; text.textContent='Conectado a Sheets';
-    dotM.className='status-dot connected'; textM.textContent='Conectado';
+  if(FB_READY){
+    dot.className='status-dot connected'; text.textContent='Firebase conectado';
+    dotM.className='status-dot connected'; textM.textContent='Firebase';
   } else {
-    dot.className='status-dot'; text.textContent='Sin conectar';
-    dotM.className='status-dot'; textM.textContent='Sin conectar';
+    dot.className='status-dot'; text.textContent='Conectando…';
+    dotM.className='status-dot'; textM.textContent='…';
   }
 }
 
-/* ── API ── */
-async function apiCall(accion,datos){
-  if(!API_URL) throw new Error('Sin URL');
-  // Enviamos los datos como query string para evitar problemas con no-cors+body
-  const params=new URLSearchParams();
-  params.append('accion',accion);
-  params.append('data',JSON.stringify(datos||{}));
-  await fetch(API_URL+'?'+params.toString(),{method:'POST',mode:'no-cors'});
-  return {ok:true};
+/* ── FIREBASE API ── */
+async function fbGetAll(coleccion){
+  const snap=await db.collection(coleccion).get();
+  return snap.docs.map(d=>({...d.data(),id:d.id}));
 }
-async function apiGet(accion,params=''){
-  if(!API_URL) throw new Error('Sin URL');
-  const res=await fetch(API_URL+'?accion='+accion+params);
-  if(!res.ok) throw new Error('HTTP '+res.status);
-  return res.json();
+async function fbSet(coleccion,id,datos){
+  const {_desglose,...clean}=datos;
+  await db.collection(coleccion).doc(String(id)).set(clean);
+}
+async function fbUpdate(coleccion,id,campos){
+  await db.collection(coleccion).doc(String(id)).update(campos);
+}
+async function fbDelete(coleccion,id){
+  await db.collection(coleccion).doc(String(id)).delete();
+}
+async function fbGetConfig(){
+  const snap=await db.collection('configuracion').doc('settings').get();
+  return snap.exists?snap.data():null;
+}
+async function fbSetConfig(datos){
+  await db.collection('configuracion').doc('settings').set(datos);
 }
 
 /* ── EMPRESA CONFIG ── */
