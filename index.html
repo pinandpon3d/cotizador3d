@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Cotizador 3D · CR</title>
+<script>(function(){const t=localStorage.getItem('theme')||'light';document.documentElement.setAttribute('data-theme',t);})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -283,9 +284,83 @@ select.badge-select{border:none;background:transparent;font-family:var(--font);f
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:4px}
 ::-webkit-scrollbar-thumb:hover{background:var(--text3)}
+
+/* ── AUTH ── */
+.auth-overlay{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;flex-direction:column;gap:16px}
+.auth-card{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:44px 40px;width:100%;max-width:400px;box-shadow:var(--shadow-md);text-align:center}
+.auth-logo{width:60px;height:60px;border-radius:18px;background:linear-gradient(135deg,#a78bfa,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 22px;box-shadow:0 8px 28px rgba(124,58,237,.32)}
+.auth-title{font-size:22px;font-weight:700;color:var(--text);letter-spacing:-.4px;margin-bottom:6px}
+.auth-sub{font-size:13.5px;color:var(--text2);margin-bottom:30px;line-height:1.5}
+.auth-field{text-align:left;margin-bottom:14px}
+.auth-field label{font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px;letter-spacing:.2px}
+.auth-pw-wrap{position:relative}
+.auth-pw-wrap input{padding-right:44px}
+.auth-pw-eye{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:16px;color:var(--text3);padding:0;line-height:1;transition:color .15s}
+.auth-pw-eye:hover{color:var(--text2)}
+.auth-actions{margin-top:22px;display:flex;flex-direction:column;gap:10px}
+.auth-error{font-size:12.5px;color:var(--danger);background:var(--danger-soft);border:1px solid rgba(220,38,38,.15);padding:9px 14px;border-radius:var(--radius-sm);text-align:center;margin-top:10px;display:none}
+.auth-error.visible{display:block}
+.auth-theme-toggle{background:var(--surface2);border:1px solid var(--border);border-radius:20px;cursor:pointer;padding:5px 14px;font-size:12px;font-family:var(--font);font-weight:500;color:var(--text2);transition:var(--transition)}
+.auth-theme-toggle:hover{border-color:var(--accent);color:var(--accent)}
+@keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-7px)}40%,80%{transform:translateX(7px)}}
+.shake{animation:shake .38s ease}
+.nav-logout{width:100%;display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:var(--radius-sm);cursor:pointer;transition:var(--transition);font-size:13.5px;font-weight:500;color:rgba(255,255,255,.45);border:none;background:none;font-family:var(--font);margin-top:4px}
+.nav-logout:hover{background:rgba(248,113,113,.15);color:#fca5a5}
 </style>
 </head>
 <body>
+<!-- AUTH OVERLAY -->
+<div class="auth-overlay" id="authOverlay">
+  <!-- LOGIN FORM -->
+  <div id="loginForm" style="width:100%;max-width:400px">
+    <div class="auth-card">
+      <div class="auth-logo">⬡</div>
+      <div class="auth-title">Print3D · Cotizador</div>
+      <div class="auth-sub">Ingresá tu contraseña para continuar</div>
+      <div class="auth-field">
+        <label>Contraseña</label>
+        <div class="auth-pw-wrap">
+          <input type="password" id="login_pw" placeholder="••••••••" autocomplete="current-password"
+            onkeydown="if(event.key==='Enter')doLogin()">
+          <button class="auth-pw-eye" type="button" onclick="togglePwVis('login_pw',this)">👁</button>
+        </div>
+      </div>
+      <div class="auth-error" id="loginError">Contraseña incorrecta. Intentá de nuevo.</div>
+      <div class="auth-actions">
+        <button class="btn btn-primary" style="width:100%;padding:12px" onclick="doLogin()">Entrar →</button>
+      </div>
+    </div>
+  </div>
+  <!-- SETUP FORM (primera vez) -->
+  <div id="setupForm" style="display:none;width:100%;max-width:400px">
+    <div class="auth-card">
+      <div class="auth-logo">🔑</div>
+      <div class="auth-title">Primera vez</div>
+      <div class="auth-sub">Establecé una contraseña para proteger el acceso a tu cotizador</div>
+      <div class="auth-field">
+        <label>Nueva contraseña (mín. 4 caracteres)</label>
+        <div class="auth-pw-wrap">
+          <input type="password" id="setup_pw" placeholder="••••••••" autocomplete="new-password">
+          <button class="auth-pw-eye" type="button" onclick="togglePwVis('setup_pw',this)">👁</button>
+        </div>
+      </div>
+      <div class="auth-field">
+        <label>Confirmá la contraseña</label>
+        <div class="auth-pw-wrap">
+          <input type="password" id="setup_pw2" placeholder="••••••••" autocomplete="new-password"
+            onkeydown="if(event.key==='Enter')setupPassword()">
+          <button class="auth-pw-eye" type="button" onclick="togglePwVis('setup_pw2',this)">👁</button>
+        </div>
+      </div>
+      <div class="auth-error" id="setupError"></div>
+      <div class="auth-actions">
+        <button class="btn btn-primary" style="width:100%;padding:12px" onclick="setupPassword()">Crear contraseña</button>
+      </div>
+    </div>
+  </div>
+  <button class="auth-theme-toggle" onclick="toggleTheme()">🌙 Cambiar tema</button>
+</div>
+
 <!-- MOBILE TOPBAR -->
 <div class="mobile-topbar">
   <button class="hamburger" id="hamburger" onclick="toggleMenu()" aria-label="Menú">
@@ -303,7 +378,7 @@ select.badge-select{border:none;background:transparent;font-family:var(--font);f
 </div>
 <div class="drawer-overlay" id="drawerOverlay" onclick="closeMenu()"></div>
 
-<div class="layout">
+<div class="layout" id="mainLayout" style="display:none">
 
 <!-- SIDEBAR -->
 <aside class="sidebar" id="sidebar">
@@ -320,6 +395,7 @@ select.badge-select{border:none;background:transparent;font-family:var(--font);f
     <div class="nav-item" onclick="showPage('trabajos',this);closeMenu()"><span class="nav-icon">📂</span> Trabajos</div>
     <div class="nav-item" onclick="showPage('inventario',this);closeMenu()"><span class="nav-icon">🧵</span> Inventario</div>
     <div class="nav-item" onclick="showPage('configuracion',this);closeMenu()"><span class="nav-icon">⚙️</span> Configuración</div>
+    <button class="nav-logout" onclick="logout()"><span class="nav-icon">🚪</span> Cerrar sesión</button>
   </nav>
   <div class="sidebar-footer">
     <span class="status-dot" id="statusDot"></span>
@@ -583,6 +659,28 @@ select.badge-select{border:none;background:transparent;font-family:var(--font);f
       <div class="field"><label>% IVA</label><input type="number" id="cfg_iva" value="0" min="0" max="50" oninput="guardarCfgLocal()"><span class="hint">13 si emitís factura</span></div>
     </div>
   </div>
+  <div class="card">
+    <div class="card-title">🔒 Seguridad</div>
+    <div class="grid">
+      <div class="field">
+        <label>Contraseña actual</label>
+        <div class="auth-pw-wrap">
+          <input type="password" id="sec_current" placeholder="••••••••">
+          <button class="auth-pw-eye" type="button" onclick="togglePwVis('sec_current',this)">👁</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>Nueva contraseña</label>
+        <div class="auth-pw-wrap">
+          <input type="password" id="sec_new" placeholder="••••••••">
+          <button class="auth-pw-eye" type="button" onclick="togglePwVis('sec_new',this)">👁</button>
+        </div>
+      </div>
+    </div>
+    <div class="actions" style="margin-top:16px">
+      <button class="btn btn-primary btn-sm" onclick="cambiarContrasena()">🔑 Cambiar contraseña</button>
+    </div>
+  </div>
   <div class="actions">
     <button class="btn btn-primary" onclick="guardarConfiguracion()">💾 Guardar en Sheets</button>
     <button class="btn btn-ghost" onclick="cargarConfiguracion()">🔄 Recargar desde Sheets</button>
@@ -615,12 +713,97 @@ select.badge-select{border:none;background:transparent;font-family:var(--font);f
 <div class="toast-container" id="toastContainer"></div>
 
 <script>
-/* ── TEMA ── */
-(function(){
-  const t=localStorage.getItem('theme')||'light';
-  document.documentElement.setAttribute('data-theme',t);
-})();
+/* ── AUTH ── */
+const AUTH_PW_KEY='p3d_pw_hash', AUTH_SESS_KEY='p3d_session', AUTH_SESS_H=24;
 
+async function hashPw(pw){
+  const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(pw));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+function hasSession(){
+  const s=JSON.parse(localStorage.getItem(AUTH_SESS_KEY)||'null');
+  if(!s) return false;
+  if(Date.now()>s.exp){ localStorage.removeItem(AUTH_SESS_KEY); return false; }
+  return true;
+}
+function saveSession(){
+  localStorage.setItem(AUTH_SESS_KEY,JSON.stringify({exp:Date.now()+AUTH_SESS_H*3600000}));
+}
+function showApp(){
+  document.getElementById('authOverlay').style.display='none';
+  document.getElementById('mainLayout').style.display='flex';
+}
+function showLoginScreen(){
+  document.getElementById('authOverlay').style.display='flex';
+  document.getElementById('loginForm').style.display='';
+  document.getElementById('setupForm').style.display='none';
+  document.getElementById('mainLayout').style.display='none';
+  setTimeout(()=>document.getElementById('login_pw')?.focus(),50);
+}
+function showSetupScreen(){
+  document.getElementById('authOverlay').style.display='flex';
+  document.getElementById('loginForm').style.display='none';
+  document.getElementById('setupForm').style.display='';
+  document.getElementById('mainLayout').style.display='none';
+  setTimeout(()=>document.getElementById('setup_pw')?.focus(),50);
+}
+async function initAuth(){
+  if(hasSession()){ showApp(); return; }
+  if(localStorage.getItem(AUTH_PW_KEY)){ showLoginScreen(); }
+  else { showSetupScreen(); }
+}
+async function doLogin(){
+  const pw=document.getElementById('login_pw').value;
+  if(!pw) return;
+  const hash=await hashPw(pw);
+  if(hash===localStorage.getItem(AUTH_PW_KEY)){
+    saveSession(); showApp();
+    document.getElementById('login_pw').value='';
+    document.getElementById('loginError').classList.remove('visible');
+  } else {
+    document.getElementById('loginError').classList.add('visible');
+    document.getElementById('login_pw').value='';
+    document.getElementById('login_pw').classList.add('shake');
+    setTimeout(()=>document.getElementById('login_pw').classList.remove('shake'),400);
+    document.getElementById('login_pw').focus();
+  }
+}
+async function setupPassword(){
+  const pw=document.getElementById('setup_pw').value;
+  const pw2=document.getElementById('setup_pw2').value;
+  const err=document.getElementById('setupError');
+  if(pw.length<4){ err.textContent='Mínimo 4 caracteres.'; err.classList.add('visible'); return; }
+  if(pw!==pw2){ err.textContent='Las contraseñas no coinciden.'; err.classList.add('visible'); return; }
+  err.classList.remove('visible');
+  localStorage.setItem(AUTH_PW_KEY,await hashPw(pw));
+  saveSession(); showApp();
+  toast('✅ Contraseña creada. ¡Bienvenido!','success');
+}
+async function cambiarContrasena(){
+  const cur=document.getElementById('sec_current').value;
+  const nw=document.getElementById('sec_new').value;
+  if(!cur||!nw){ toast('Completá ambos campos.','error'); return; }
+  if(nw.length<4){ toast('La nueva contraseña debe tener mínimo 4 caracteres.','error'); return; }
+  if(await hashPw(cur)!==localStorage.getItem(AUTH_PW_KEY)){
+    toast('La contraseña actual es incorrecta.','error'); return;
+  }
+  localStorage.setItem(AUTH_PW_KEY,await hashPw(nw));
+  document.getElementById('sec_current').value='';
+  document.getElementById('sec_new').value='';
+  toast('✅ Contraseña actualizada.','success');
+}
+function logout(){
+  if(!confirm('¿Cerrar sesión?')) return;
+  localStorage.removeItem(AUTH_SESS_KEY);
+  showLoginScreen();
+}
+function togglePwVis(id,btn){
+  const inp=document.getElementById(id);
+  if(inp.type==='password'){ inp.type='text'; btn.textContent='🙈'; }
+  else { inp.type='password'; btn.textContent='👁'; }
+}
+
+/* ── TEMA ── */
 function toggleTheme(){
   const html=document.documentElement;
   const next=html.getAttribute('data-theme')==='dark'?'light':'dark';
@@ -650,6 +833,7 @@ let todosLosFilamentos = [];
 
 /* ── INIT ── */
 document.addEventListener('DOMContentLoaded', () => {
+  applyThemeLabels();
   document.getElementById('c_fecha').value = today();
   document.getElementById('inv_fecha').value = today();
   if (API_URL) document.getElementById('cfg_apiUrl').value = API_URL;
@@ -657,7 +841,7 @@ document.addEventListener('DOMContentLoaded', () => {
   calcCfg();
   calcular();
   actualizarStatus();
-  applyThemeLabels();
+  initAuth();
 });
 
 function today() { return new Date().toISOString().split('T')[0]; }
