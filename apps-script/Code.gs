@@ -82,7 +82,13 @@ function doGet(e) {
 
 function doPost(e) {
   let body = {};
-  try { body = JSON.parse(e.postData.contents); } catch (x) {}
+  try {
+    if (e.parameter && e.parameter.data) {
+      body = JSON.parse(e.parameter.data);
+    } else if (e.postData && e.postData.contents) {
+      body = JSON.parse(e.postData.contents);
+    }
+  } catch (x) {}
   const accion = (e.parameter && e.parameter.accion) || body.accion || '';
   try {
     switch (accion) {
@@ -99,6 +105,12 @@ function doPost(e) {
         return jsonOut({ status: 'ok' });
       case 'actualizarEstado':
         actualizarEstado(body);
+        return jsonOut({ status: 'ok' });
+      case 'eliminarCotizacion':
+        eliminarCotizacion(body);
+        return jsonOut({ status: 'ok' });
+      case 'eliminarFilamento':
+        eliminarFilamento(body);
         return jsonOut({ status: 'ok' });
       default:
         return jsonOut({ error: 'Acción desconocida: ' + accion });
@@ -125,6 +137,21 @@ function guardarCotizacion(d) {
 
 function getHistorial() {
   return sheetToArray(getSheet('Cotizaciones', COT_HEADERS));
+}
+
+function eliminarCotizacion(d) {
+  const sheet   = getSheet('Cotizaciones', COT_HEADERS);
+  const data    = sheet.getDataRange().getValues();
+  const headers = data[0];
+  const iFecha  = headers.indexOf('fecha');
+  const iPieza  = headers.indexOf('pieza');
+  for (let r = 1; r < data.length; r++) {
+    if (String(data[r][iFecha]) === String(d.fecha) &&
+        String(data[r][iPieza]) === String(d.pieza)) {
+      sheet.deleteRow(r + 1);
+      return;
+    }
+  }
 }
 
 function actualizarEstado(d) {
@@ -160,6 +187,25 @@ function guardarFilamento(d) {
 
 function getInventario() {
   return sheetToArray(getSheet('Inventario', INV_HEADERS));
+}
+
+function eliminarFilamento(d) {
+  const sheet  = getSheet('Inventario', INV_HEADERS);
+  const data   = sheet.getDataRange().getValues();
+  const h      = data[0];
+  const iTipo  = h.indexOf('tipo');
+  const iColor = h.indexOf('color');
+  const iMarca = h.indexOf('marca');
+  const iFecha = h.indexOf('fechaCompra');
+  for (let r = 1; r < data.length; r++) {
+    if (String(data[r][iTipo])  === String(d.tipo)  &&
+        String(data[r][iColor]) === String(d.color) &&
+        String(data[r][iMarca]) === String(d.marca) &&
+        String(data[r][iFecha]) === String(d.fechaCompra)) {
+      sheet.deleteRow(r + 1);
+      return;
+    }
+  }
 }
 
 // ── Configuración ────────────────────────────────────────────────────
