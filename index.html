@@ -936,6 +936,7 @@ let todosLosTrabajos = [];
 let todosLosFilamentos = [];
 let editingTrabajoId = null;
 let editingFilamentoId = null;
+let _lastCalc = { antesIVA: 0, ivaMonto: 0, red: 0 };
 
 function genId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -1038,6 +1039,7 @@ function calcular() {
   const fallosMonto=sub*F, costoF=sub+fallosMonto;
   const gan=costoF*M, antesIVA=costoF+gan, ivaMonto=antesIVA*IVA;
   const final=antesIVA+ivaMonto, red=Math.ceil(final/100)*100;
+  _lastCalc={antesIVA, ivaMonto, red};
 
   set('r_material',fmt(mat)); set('r_elec',fmt(elec)); set('r_desgaste',fmt(deg));
   set('r_mo',fmt(mo)); set('r_dis',fmt(dis)); set('r_post',fmt(post));
@@ -1095,10 +1097,10 @@ async function guardarCotizacion(){
   if(!pieza){ toast('Ingresá el nombre de la pieza.','error'); return; }
 
   const Q=Math.max(1,Math.round(fv('c_cantidad'))||1);
-  const precioUnit=parseInt((document.getElementById('r_final').textContent||'').replace(/[^0-9]/g,''))||0;
+  const precioUnit=_lastCalc.red||0;
   const precioFinal=precioUnit*Q;
   const costoTexto=document.getElementById('r_costoFallos').textContent;
-  const costoTotal=parseFloat(costoTexto.replace(/[₡\s]/g,'').replace(',','.'))||0;
+  const costoTotal=parseFloat(costoTexto.replace(/[₡\s ]/g,'').replace(',','.'))||0;
 
   const desglose=[
     {label:'Material',               val:document.getElementById('r_material').textContent},
@@ -1122,10 +1124,9 @@ async function guardarCotizacion(){
   ];
 
   if(editingTrabajoId){
-    const hist=JSON.parse(localStorage.getItem('historial')||'[]');
-    const idx=hist.findIndex(d=>d.id===editingTrabajoId);
+    const idx=todosLosTrabajos.findIndex(d=>d.id===editingTrabajoId);
     if(idx===-1){ toast('No se encontró el trabajo a actualizar.','error'); return; }
-    const estadoActual=hist[idx].estado;
+    const estadoActual=todosLosTrabajos[idx].estado;
     const datos={
       id:editingTrabajoId,
       fecha:document.getElementById('c_fecha').value,
@@ -1138,9 +1139,8 @@ async function guardarCotizacion(){
       notas:document.getElementById('c_notas').value,
       _desglose:desglose
     };
-    hist[idx]=datos;
-    localStorage.setItem('historial',JSON.stringify(hist));
-    todosLosTrabajos=hist;
+    todosLosTrabajos[idx]=datos;
+    localStorage.setItem('historial',JSON.stringify(todosLosTrabajos));
     cancelarEdicionTrabajo();
     actualizarStats(todosLosTrabajos);
     renderTrabajos(todosLosTrabajos);
@@ -1661,9 +1661,9 @@ function generarPDFCotizador(){
   const pieza=document.getElementById('c_pieza').value.trim();
   if(!pieza){ toast('Ingresá el nombre de la pieza primero.','error'); return; }
   const Q=Math.max(1,Math.round(fv('c_cantidad'))||1);
-  const precioUnit=parseInt((document.getElementById('r_final').textContent||'').replace(/[^0-9]/g,''))||0;
-  const precioSinIVA=parseInt((document.getElementById('r_antesIVA').textContent||'').replace(/[^0-9]/g,''))||precioUnit;
-  const ivaAmtUnit=parseInt((document.getElementById('r_ivaMonto').textContent||'').replace(/[^0-9]/g,''))||0;
+  const precioUnit=_lastCalc.red||0;
+  const precioSinIVA=_lastCalc.antesIVA||precioUnit;
+  const ivaAmtUnit=_lastCalc.ivaMonto||0;
   const ivaP=fv('c_iva');
   generarPDF({
     pieza,
