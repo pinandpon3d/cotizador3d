@@ -317,35 +317,35 @@ select.badge-select{border:none;background:transparent;font-family:var(--font);f
     <div class="grid-3">
       <div class="field">
         <label>Gramos de filamento (g)</label>
-        <input type="number" id="c_gramos" value="25" min="0" step="0.1" oninput="calcular()">
+        <input type="number" id="c_gramos" placeholder="0" min="0" step="0.1" oninput="calcular()">
         <span class="hint">Del slicer (Cura, Bambu…)</span>
       </div>
       <div class="field">
         <label>Horas de impresión (h)</label>
-        <input type="number" id="c_horas" value="3.5" min="0" step="0.1" oninput="calcular()">
+        <input type="number" id="c_horas" placeholder="0" min="0" step="0.1" oninput="calcular()">
         <span class="hint">Del slicer</span>
       </div>
       <div class="field">
         <label>Horas de mano de obra (h)</label>
-        <input type="number" id="c_horasMO" value="0.5" min="0" step="0.1" oninput="calcular()">
+        <input type="number" id="c_horasMO" placeholder="0" min="0" step="0.1" oninput="calcular()">
         <span class="hint">0 si no aplica</span>
       </div>
       <div class="field">
         <label>Horas de diseño (h)</label>
-        <input type="number" id="c_horasDis" value="0" min="0" step="0.1" oninput="calcular()">
+        <input type="number" id="c_horasDis" placeholder="0" min="0" step="0.1" oninput="calcular()">
       </div>
       <div class="field">
         <label>Costo fijo diseño (₡)</label>
-        <input type="number" id="c_disFijo" value="0" min="0" step="100" oninput="calcular()">
+        <input type="number" id="c_disFijo" placeholder="0" min="0" step="100" oninput="calcular()">
       </div>
       <div class="field">
         <label>Costo postprocesado (₡)</label>
-        <input type="number" id="c_post" value="0" min="0" step="100" oninput="calcular()">
+        <input type="number" id="c_post" placeholder="0" min="0" step="100" oninput="calcular()">
         <span class="hint">Lijado, pintura, etc.</span>
       </div>
       <div class="field">
         <label>Otros costos (₡)</label>
-        <input type="number" id="c_otros" value="0" min="0" step="100" oninput="calcular()">
+        <input type="number" id="c_otros" placeholder="0" min="0" step="100" oninput="calcular()">
       </div>
     </div>
     <div class="divider"></div>
@@ -447,9 +447,9 @@ select.badge-select{border:none;background:transparent;font-family:var(--font);f
       </div>
       <div class="field"><label>Color</label><input type="text" id="inv_color" placeholder="Blanco, Negro…"></div>
       <div class="field"><label>Marca</label><input type="text" id="inv_marca" placeholder="Bambu Lab, Sunlu…"></div>
-      <div class="field"><label>Precio del rollo (₡)</label><input type="number" id="inv_precio" value="6500" min="0"></div>
-      <div class="field"><label>Peso del rollo (g)</label><input type="number" id="inv_peso" value="1000" min="0"></div>
-      <div class="field"><label>Gramos disponibles</label><input type="number" id="inv_disponibles" value="1000" min="0"></div>
+      <div class="field"><label>Precio del rollo (₡)</label><input type="number" id="inv_precio" placeholder="0" min="0"></div>
+      <div class="field"><label>Peso del rollo (g)</label><input type="number" id="inv_peso" placeholder="1000" min="0"></div>
+      <div class="field"><label>Gramos disponibles</label><input type="number" id="inv_disponibles" placeholder="1000" min="0"></div>
       <div class="field"><label>Proveedor</label><input type="text" id="inv_proveedor" placeholder="3D Filamentos CR…"></div>
       <div class="field"><label>Fecha de compra</label><input type="date" id="inv_fecha"></div>
       <div class="field"><label>Notas</label><input type="text" id="inv_notas" placeholder="Opcional"></div>
@@ -665,10 +665,10 @@ function fmt(n){ return '₡'+(n||0).toLocaleString('es-CR',{minimumFractionDigi
 function set(id,v){ const e=document.getElementById(id); if(e) e.textContent=v; }
 
 function limpiarCotizador(){
-  ['c_pieza','c_cliente','c_notas'].forEach(id=>document.getElementById(id).value='');
+  ['c_pieza','c_cliente','c_notas','c_gramos','c_horas','c_horasMO',
+   'c_horasDis','c_disFijo','c_post','c_otros']
+    .forEach(id=>document.getElementById(id).value='');
   document.getElementById('c_fecha').value=today();
-  ['c_gramos','c_horas','c_horasMO','c_horasDis','c_disFijo','c_post','c_otros']
-    .forEach(id=>document.getElementById(id).value=0);
   calcular();
 }
 
