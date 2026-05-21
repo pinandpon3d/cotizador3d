@@ -869,7 +869,9 @@ function actualizarStatus(){
 /* ── API ── */
 async function apiCall(accion,datos){
   if(!API_URL) throw new Error('Sin URL');
-  await fetch(API_URL+'?accion='+accion,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify({accion,...datos})});
+  const fd=new FormData();
+  fd.append('data',JSON.stringify({accion,...datos}));
+  await fetch(API_URL+'?accion='+accion,{method:'POST',mode:'no-cors',body:fd});
   return {ok:true};
 }
 async function apiGet(accion,params=''){

@@ -82,7 +82,13 @@ function doGet(e) {
 
 function doPost(e) {
   let body = {};
-  try { body = JSON.parse(e.postData.contents); } catch (x) {}
+  try {
+    if (e.parameter && e.parameter.data) {
+      body = JSON.parse(e.parameter.data);
+    } else if (e.postData && e.postData.contents) {
+      body = JSON.parse(e.postData.contents);
+    }
+  } catch (x) {}
   const accion = (e.parameter && e.parameter.accion) || body.accion || '';
   try {
     switch (accion) {
