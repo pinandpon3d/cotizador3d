@@ -594,6 +594,7 @@ select.badge-select{border:none;background:transparent;font-family:var(--font);f
     </div>
     <div class="actions">
       <button class="btn btn-success" id="btnGuardarCotizacion" onclick="guardarCotizacion()">💾 Guardar trabajo</button>
+      <button class="btn btn-ghost" onclick="generarPDFCotizador()">📄 Generar PDF</button>
       <button class="btn btn-ghost" onclick="limpiarCotizador()">🔄 Nueva cotización</button>
     </div>
   </div>
@@ -740,6 +741,21 @@ select.badge-select{border:none;background:transparent;font-family:var(--font);f
       <div class="field"><label>% IVA</label><input type="number" id="cfg_iva" value="0" min="0" max="50" oninput="guardarCfgLocal()"><span class="hint">13 si emitís factura</span></div>
     </div>
   </div>
+  <div class="card">
+    <div class="card-title">🏢 Datos de empresa (para PDF)</div>
+    <div class="grid">
+      <div class="field"><label>Nombre de empresa</label><input type="text" id="emp_nombre" placeholder="Print3D Costa Rica"></div>
+      <div class="field"><label>Email</label><input type="text" id="emp_email" placeholder="info@empresa.com"></div>
+      <div class="field"><label>Teléfono</label><input type="text" id="emp_tel" placeholder="(506) 2234-5678"></div>
+      <div class="field"><label>Sitio web / Instagram</label><input type="text" id="emp_web" placeholder="@miempresa3d"></div>
+      <div class="field"><label>Cédula / RUC (firma)</label><input type="text" id="emp_cedula" placeholder="3-001-123456"></div>
+      <div class="field full"><label>Nota al pie de la cotización</label><input type="text" id="emp_nota" placeholder="Esta cotización es válida por 7 días. Los precios pueden variar."></div>
+    </div>
+    <div class="actions" style="margin-top:16px">
+      <button class="btn btn-primary btn-sm" onclick="guardarEmpresa()">💾 Guardar datos</button>
+    </div>
+  </div>
+
   <div class="card">
     <div class="card-title">🔒 Seguridad</div>
     <div class="grid">
@@ -1118,7 +1134,7 @@ async function guardarCotizacion(){
       pieza,
       categoria:document.getElementById('c_categoria').value,
       gramos:fv('c_gramos'), horas:fv('c_horas'),
-      costoTotal, precioFinal, estado:'Cotizado',
+      costoTotal, precioFinal, iva:fv('c_iva'), estado:'Cotizado',
       notas:document.getElementById('c_notas').value,
       _desglose:desglose
     };
@@ -1300,6 +1316,7 @@ function renderTrabajos(datos){
       </td>
       <td style="white-space:nowrap">
         <button class="btn btn-ghost btn-sm" onclick='verTrabajo(${JSON.stringify(JSON.stringify(d))})' title="Ver resumen">👁</button>
+        <button class="btn btn-ghost btn-sm" style="color:#059669" onclick="generarPDFTrabajo('${rid}')" title="Generar PDF">📄</button>
         <button class="btn btn-ghost btn-sm" style="color:var(--accent)" onclick="editarTrabajo('${rid}')" title="Editar">✏️</button>
         <button class="btn btn-sm" style="border:1px solid var(--border);color:var(--danger);background:transparent" onclick="eliminarTrabajo('${rid}')" title="Eliminar">✕</button>
       </td>
@@ -1523,6 +1540,7 @@ async function guardarConfiguracion(){
   catch(e){ toast('⚠️ Solo guardado local.','info'); }
 }
 async function cargarConfiguracion(){
+  cargarEmpresa();
   if(API_URL) document.getElementById('cfg_apiUrl').value=API_URL;
   if(!API_URL){ return; }
   try{
@@ -1578,6 +1596,187 @@ async function apiGet(accion,params=''){
   const res=await fetch(API_URL+'?accion='+accion+params);
   if(!res.ok) throw new Error('HTTP '+res.status);
   return res.json();
+}
+
+/* ── EMPRESA CONFIG ── */
+function getEmpresa(){ return JSON.parse(localStorage.getItem('cfg_empresa')||'{}'); }
+
+function guardarEmpresa(){
+  const emp={
+    nombre: document.getElementById('emp_nombre').value.trim(),
+    email:  document.getElementById('emp_email').value.trim(),
+    tel:    document.getElementById('emp_tel').value.trim(),
+    web:    document.getElementById('emp_web').value.trim(),
+    cedula: document.getElementById('emp_cedula').value.trim(),
+    nota:   document.getElementById('emp_nota').value.trim(),
+  };
+  localStorage.setItem('cfg_empresa',JSON.stringify(emp));
+  toast('✅ Datos de empresa guardados.','success');
+}
+
+function cargarEmpresa(){
+  const emp=getEmpresa();
+  const set=(id,v)=>{ const el=document.getElementById(id); if(el) el.value=v||''; };
+  set('emp_nombre',emp.nombre); set('emp_email',emp.email);
+  set('emp_tel',emp.tel);       set('emp_web',emp.web);
+  set('emp_cedula',emp.cedula); set('emp_nota',emp.nota);
+}
+
+/* ── PDF ── */
+function escHtml(s){
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function generarPDFCotizador(){
+  const pieza=document.getElementById('c_pieza').value.trim();
+  if(!pieza){ toast('Ingresá el nombre de la pieza primero.','error'); return; }
+  const precioFinal=parseInt((document.getElementById('r_final').textContent||'').replace(/[^0-9]/g,''))||0;
+  const precioSinIVA=parseInt((document.getElementById('r_antesIVA').textContent||'').replace(/[^0-9]/g,''))||precioFinal;
+  const ivaAmt=parseInt((document.getElementById('r_ivaMonto').textContent||'').replace(/[^0-9]/g,''))||0;
+  const ivaP=fv('c_iva');
+  generarPDF({
+    pieza,
+    cliente:   document.getElementById('c_cliente').value,
+    fecha:     document.getElementById('c_fecha').value,
+    categoria: document.getElementById('c_categoria').value,
+    notas:     document.getElementById('c_notas').value,
+    gramos:    fv('c_gramos'), horas: fv('c_horas'),
+    precioFinal, precioSinIVA, ivaAmt, ivaP,
+  });
+}
+
+function generarPDFTrabajo(id){
+  const t=todosLosTrabajos.find(d=>d.id===id);
+  if(!t){ toast('No se encontró el trabajo.','error'); return; }
+  let precioSinIVA=t.precioFinal||0, ivaAmt=0, ivaP=t.iva||0;
+  if(t._desglose){
+    const rA=t._desglose.find(r=>r.label==='Precio antes de IVA');
+    const rI=t._desglose.find(r=>r.label==='+  IVA')||t._desglose.find(r=>r.label==='+ IVA');
+    if(rA) precioSinIVA=parseInt(String(rA.val).replace(/[^0-9]/g,''))||precioSinIVA;
+    if(rI) ivaAmt=parseInt(String(rI.val).replace(/[^0-9]/g,''))||0;
+  } else if(ivaP>0){
+    precioSinIVA=Math.round(t.precioFinal/(1+ivaP/100));
+    ivaAmt=t.precioFinal-precioSinIVA;
+  }
+  generarPDF({...t, precioSinIVA, ivaAmt, ivaP});
+}
+
+function generarPDF(datos){
+  const emp=getEmpresa();
+  const empNombre=emp.nombre||'Mi Empresa';
+  const notaTxt=emp.nota||'Esta cotización es válida por 7 días.';
+  const fechaD=datos.fecha?new Date(datos.fecha):new Date();
+  const fechaStr=fechaD.toLocaleDateString('es-CR',{day:'numeric',month:'long',year:'numeric'});
+  const pSinIVA=datos.precioSinIVA||datos.precioFinal||0;
+  const ivaAmt=datos.ivaAmt||0;
+  const ivaP=datos.ivaP||0;
+  const pFinal=datos.precioFinal||0;
+
+  const html=`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+<title>Cotización – ${escHtml(datos.pieza||'')}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Helvetica Neue',Arial,sans-serif;color:#1a1a1a;padding:48px 56px;max-width:820px;margin:0 auto;font-size:13px}
+.print-btn{position:fixed;top:20px;right:20px;background:#7c3aed;color:#fff;border:none;padding:10px 22px;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;box-shadow:0 4px 14px rgba(124,58,237,.35)}
+.print-btn:hover{background:#6d28d9}
+.header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:44px;padding-bottom:22px;border-bottom:2.5px solid #1a1a1a}
+.brand-name{font-size:26px;font-weight:900;letter-spacing:-1px;line-height:1.1;color:#1a1a1a}
+.brand-sub{font-size:11px;color:#aaa;margin-top:5px}
+.header-right{text-align:right}
+.doc-type{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#7c3aed;margin-bottom:5px}
+.doc-date{font-size:16px;font-weight:700;color:#1a1a1a}
+.doc-ref{font-size:10px;color:#ccc;margin-top:4px;font-family:monospace}
+.client-section{margin-bottom:36px}
+.sec-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#bbb;margin-bottom:7px}
+.client-name{font-size:20px;font-weight:700;margin-bottom:3px}
+.client-detail{font-size:12px;color:#666;line-height:1.6}
+table{width:100%;border-collapse:collapse;margin-bottom:24px}
+thead tr{background:#1a1a1a}
+th{color:#fff;padding:10px 16px;font-size:10.5px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;text-align:left}
+th.r{text-align:right}
+td{padding:13px 16px;border-bottom:1px solid #eee;vertical-align:middle}
+td.r{text-align:right;font-family:monospace;font-weight:500}
+tbody tr:last-child td{border-bottom:none}
+.cat-badge{display:inline-block;background:#f3eeff;color:#7c3aed;font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px;margin-top:4px}
+.td-sub{font-size:11px;color:#999;margin-top:4px}
+.totals-wrap{display:flex;justify-content:flex-end;margin-bottom:36px}
+.totals-box{width:300px;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden}
+.t-row{display:flex;justify-content:space-between;padding:10px 16px;font-size:13px;border-bottom:1px solid #e5e7eb}
+.t-row:last-child{border-bottom:none}
+.t-row.final{background:#1a1a1a;color:#fff;font-weight:700;font-size:15px}
+.t-val{font-family:monospace;font-weight:600}
+.notes-box{margin-bottom:48px;padding:16px 20px;background:#f9f6ff;border-left:3px solid #7c3aed;border-radius:0 6px 6px 0}
+.notes-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#7c3aed;margin-bottom:5px}
+.notes-txt{font-size:12px;color:#555;line-height:1.65}
+.sig-wrap{display:flex;justify-content:flex-end;margin-bottom:40px}
+.sig-box{width:220px;text-align:center}
+.sig-space{height:56px}
+.sig-line{border-top:1.5px solid #333;padding-top:8px;font-size:12px;font-weight:600;color:#333}
+.sig-sub{font-size:10px;color:#aaa;margin-top:3px}
+.footer{border-top:1px solid #e5e7eb;padding-top:14px;display:flex;gap:22px;flex-wrap:wrap;font-size:11px;color:#aaa}
+@media print{
+  .print-btn{display:none}
+  body{padding:20px 28px}
+  @page{margin:.8cm;size:A4 portrait}
+}
+</style></head><body>
+<button class="print-btn" onclick="window.print()">🖨️ Guardar como PDF</button>
+<div class="header">
+  <div>
+    <div class="brand-name">${escHtml(empNombre)}</div>
+    ${emp.web?`<div class="brand-sub">${escHtml(emp.web)}</div>`:''}
+  </div>
+  <div class="header-right">
+    <div class="doc-type">Cotización</div>
+    <div class="doc-date">${escHtml(fechaStr)}</div>
+    ${datos.id?`<div class="doc-ref"># ${escHtml(String(datos.id))}</div>`:''}
+  </div>
+</div>
+<div class="client-section">
+  <div class="sec-label">Preparado para</div>
+  <div class="client-name">${escHtml(datos.cliente||'Cliente')}</div>
+  ${datos.notas?`<div class="client-detail">${escHtml(datos.notas)}</div>`:''}
+</div>
+<table>
+  <thead><tr>
+    <th>Descripción</th>
+    <th class="r">Cant.</th>
+    <th class="r">Precio unitario</th>
+    <th class="r">Total</th>
+  </tr></thead>
+  <tbody><tr>
+    <td>
+      <strong>${escHtml(datos.pieza||'—')}</strong>
+      ${datos.categoria?`<div><span class="cat-badge">${escHtml(datos.categoria)}</span></div>`:''}
+      ${(datos.gramos||datos.horas)?`<div class="td-sub">${datos.gramos?datos.gramos+' g filamento':''}${datos.gramos&&datos.horas?' · ':''}${datos.horas?datos.horas+' h impresión':''}</div>`:''}
+    </td>
+    <td class="r">1</td>
+    <td class="r">₡${pSinIVA.toLocaleString('es-CR')}</td>
+    <td class="r">₡${pSinIVA.toLocaleString('es-CR')}</td>
+  </tr></tbody>
+</table>
+<div class="totals-wrap"><div class="totals-box">
+  <div class="t-row"><span>Subtotal</span><span class="t-val">₡${pSinIVA.toLocaleString('es-CR')}</span></div>
+  ${ivaAmt>0?`<div class="t-row"><span>IVA (${ivaP}%)</span><span class="t-val">₡${ivaAmt.toLocaleString('es-CR')}</span></div>`:''}
+  <div class="t-row final"><span>TOTAL</span><span class="t-val">₡${pFinal.toLocaleString('es-CR')}</span></div>
+</div></div>
+${notaTxt?`<div class="notes-box"><div class="notes-lbl">Nota</div><div class="notes-txt">${escHtml(notaTxt)}</div></div>`:''}
+<div class="sig-wrap"><div class="sig-box">
+  <div class="sig-space"></div>
+  <div class="sig-line">${escHtml(empNombre)}</div>
+  ${emp.cedula?`<div class="sig-sub">C.C. / RUC: ${escHtml(emp.cedula)}</div>`:''}
+</div></div>
+<div class="footer">
+  ${emp.tel?`<span>📞 ${escHtml(emp.tel)}</span>`:''}
+  ${emp.email?`<span>✉️ ${escHtml(emp.email)}</span>`:''}
+  ${emp.web?`<span>🌐 ${escHtml(emp.web)}</span>`:''}
+</div>
+</body></html>`;
+
+  const win=window.open('','_blank','width=920,height=760');
+  if(!win){ toast('El navegador bloqueó la ventana emergente. Permitila para generar el PDF.','error'); return; }
+  win.document.write(html);
+  win.document.close();
 }
 
 /* ── TOASTS ── */
