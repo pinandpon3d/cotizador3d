@@ -71,7 +71,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 
 /* ── LAYOUT ── */
 .layout{display:flex;min-height:100vh}
-.sidebar{width:var(--sb-w);min-height:100vh;background:var(--sb-bg);border-right:1px solid var(--sb-border);display:flex;flex-direction:column;position:sticky;top:0;z-index:100;flex-shrink:0;transition:background .2s}
+.sidebar{width:var(--sb-w);height:100vh;background:var(--sb-bg);border-right:1px solid var(--sb-border);display:flex;flex-direction:column;position:sticky;top:0;z-index:100;flex-shrink:0;transition:background .2s;overflow:hidden}
 
 /* ── LOGO ── */
 .logo{padding:22px 20px 18px;border-bottom:1px solid var(--sb-border)}
@@ -86,7 +86,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .sidebar-profile-role{font-size:11px;color:var(--sb-text);margin-top:2px}
 
 /* ── NAV ── */
-nav{padding:12px 10px;flex:1}
+nav{padding:12px 10px;flex:1;overflow-y:auto;overflow-x:hidden}
 .nav-label{font-size:10px;font-weight:600;color:var(--sb-nav-label);letter-spacing:1.5px;text-transform:uppercase;padding:8px 12px 6px;margin-bottom:2px}
 .nav-item{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:var(--radius-sm);cursor:pointer;transition:var(--transition);font-size:13.5px;font-weight:500;color:var(--sb-text);margin-bottom:1px;position:relative;border:1px solid transparent}
 .nav-item:hover{background:var(--sb-hover);color:var(--sb-text-hover)}
@@ -95,7 +95,7 @@ nav{padding:12px 10px;flex:1}
 .nav-icon{font-size:16px;width:20px;text-align:center;flex-shrink:0}
 
 /* ── SIDEBAR FOOTER ── */
-.sidebar-footer{padding:12px 14px;border-top:1px solid var(--sb-footer-border);display:flex;align-items:center;gap:7px;font-size:11px;color:var(--sb-footer-text)}
+.sidebar-footer{padding:12px 14px;border-top:1px solid var(--sb-footer-border);display:flex;align-items:center;gap:7px;font-size:11px;color:var(--sb-footer-text);flex-shrink:0}
 .status-dot{width:7px;height:7px;border-radius:50%;background:var(--sb-footer-text);transition:var(--transition);flex-shrink:0}
 .status-dot.connected{background:#34d399;box-shadow:0 0 8px #34d399}
 .theme-toggle{margin-left:auto;background:var(--sb-hover);border:1px solid var(--sb-active-border);border-radius:20px;cursor:pointer;padding:4px 11px;font-size:11px;font-family:var(--font);font-weight:500;color:var(--sb-text);display:flex;align-items:center;gap:5px;transition:var(--transition);white-space:nowrap;line-height:1}
@@ -312,11 +312,11 @@ select.badge-select{border:none;background:transparent;font-family:var(--font);f
 /* ── MOBILE NAV ── */
 .mobile-topbar{display:none;position:fixed;top:0;left:0;right:0;height:56px;background:var(--sb-bg);border-bottom:1px solid var(--sb-border);z-index:200;align-items:center;padding:0 16px;gap:12px}
 .hamburger{background:none;border:none;cursor:pointer;padding:6px;border-radius:var(--radius-sm);display:flex;flex-direction:column;gap:5px;transition:var(--transition)}
-.hamburger span{display:block;width:20px;height:2px;background:#fff;border-radius:2px;transition:var(--transition)}
+.hamburger span{display:block;width:20px;height:2px;background:var(--ham-color);border-radius:2px;transition:var(--transition)}
 .hamburger.open span:nth-child(1){transform:translateY(7px) rotate(45deg)}
 .hamburger.open span:nth-child(2){opacity:0;transform:scaleX(0)}
 .hamburger.open span:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
-.mobile-logo{font-size:15px;font-weight:700;color:#fff;display:flex;align-items:center;gap:9px}
+.mobile-logo{font-size:15px;font-weight:700;color:var(--sb-logo-color);display:flex;align-items:center;gap:9px}
 .mobile-logo-icon{width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg,#a78bfa,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:13px}
 .mobile-status{margin-left:auto;display:flex;align-items:center;gap:6px;font-size:11px;color:rgba(255,255,255,.5)}
 .mobile-theme-btn{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);border-radius:20px;cursor:pointer;padding:5px 10px;font-size:12px;font-family:var(--font);font-weight:500;color:rgba(255,255,255,.8);transition:var(--transition);line-height:1}
@@ -371,8 +371,6 @@ select.badge-select{border:none;background:transparent;font-family:var(--font);f
 .auth-theme-toggle:hover{border-color:var(--accent);color:var(--accent)}
 @keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-7px)}40%,80%{transform:translateX(7px)}}
 .shake{animation:shake .38s ease}
-.nav-logout{width:100%;display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:var(--radius-sm);cursor:pointer;transition:var(--transition);font-size:13.5px;font-weight:500;color:rgba(255,255,255,.45);border:none;background:none;font-family:var(--font);margin-top:4px}
-.nav-logout:hover{background:rgba(248,113,113,.15);color:#fca5a5}
 </style>
 </head>
 <body>
@@ -1284,7 +1282,7 @@ function renderTrabajos(datos){
     const estadoClass=ESTADO_BADGE[d.estado]||'badge-cotizado';
     const catClass=CAT_BADGE[d.categoria]||'badge-otro';
     const catIcon=CAT_ICON[d.categoria]||'📦';
-    const idEsc=JSON.stringify(String(d.id||''));
+    const rid=String(d.id||'');
     return `<tr>
       <td style="color:var(--text2);font-size:12px;white-space:nowrap">${formatFecha(d.fecha)}</td>
       <td><strong>${d.cliente||'—'}</strong></td>
@@ -1295,15 +1293,15 @@ function renderTrabajos(datos){
       <td style="font-family:var(--mono);font-weight:600;color:var(--success)">₡${(parseFloat(d.precioFinal)||0).toLocaleString('es-CR',{maximumFractionDigits:0})}</td>
       <td>
         <select class="badge ${estadoClass} badge-select"
-          onchange="cambiarEstado(${idEsc},this.value,this)">
+          onchange="cambiarEstado('${rid}',this.value,this)">
           ${['Cotizado','Aprobado','Rechazado','Entregado','Cancelado'].map(e=>
             `<option value="${e}"${d.estado===e?' selected':''}>${e}</option>`).join('')}
         </select>
       </td>
       <td style="white-space:nowrap">
         <button class="btn btn-ghost btn-sm" onclick='verTrabajo(${JSON.stringify(JSON.stringify(d))})' title="Ver resumen">👁</button>
-        <button class="btn btn-ghost btn-sm" style="color:var(--accent)" onclick="editarTrabajo(${idEsc})" title="Editar">✏️</button>
-        <button class="btn btn-sm" style="border:1px solid var(--border);color:var(--danger);background:transparent" onclick="eliminarTrabajo(${idEsc})" title="Eliminar">✕</button>
+        <button class="btn btn-ghost btn-sm" style="color:var(--accent)" onclick="editarTrabajo('${rid}')" title="Editar">✏️</button>
+        <button class="btn btn-sm" style="border:1px solid var(--border);color:var(--danger);background:transparent" onclick="eliminarTrabajo('${rid}')" title="Eliminar">✕</button>
       </td>
     </tr>`;
   }).join('');
@@ -1479,7 +1477,7 @@ function renderInventario(datos){
     return;
   }
   const rows=datos.map((d)=>{
-    const idEsc=JSON.stringify(String(d.id||''));
+    const rid=String(d.id||'');
     return `<tr>
     <td><span class="badge" style="background:var(--accent-soft);color:var(--accent)">${d.tipo||'—'}</span></td>
     <td>${d.color||'—'}</td><td>${d.marca||'—'}</td>
@@ -1489,10 +1487,10 @@ function renderInventario(datos){
     <td style="font-family:var(--mono)">${d.disponibles||0} g</td>
     <td style="font-family:var(--mono);color:var(--success)">₡${(+d.valorRestante||0).toLocaleString('es-CR',{maximumFractionDigits:0})}</td>
     <td>${d.proveedor||'—'}</td>
-    <td style="font-size:12px;color:var(--text3)">${d.fechaCompra||''}</td>
+    <td style="font-size:12px;color:var(--text3)">${formatFecha(d.fechaCompra)}</td>
     <td style="white-space:nowrap">
-      <button class="btn btn-ghost btn-sm" style="color:var(--accent)" onclick="editarFilamento(${idEsc})" title="Editar">✏️</button>
-      <button class="btn btn-sm" style="border:1px solid var(--border);color:var(--danger);background:transparent" onclick="eliminarFilamento(${idEsc})" title="Eliminar">✕</button>
+      <button class="btn btn-ghost btn-sm" style="color:var(--accent)" onclick="editarFilamento('${rid}')" title="Editar">✏️</button>
+      <button class="btn btn-sm" style="border:1px solid var(--border);color:var(--danger);background:transparent" onclick="eliminarFilamento('${rid}')" title="Eliminar">✕</button>
     </td>
   </tr>`;
   }).join('');
