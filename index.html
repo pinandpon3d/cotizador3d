@@ -560,6 +560,7 @@ select.badge-select{border:none;background:transparent;font-family:var(--font);f
 let API_URL = localStorage.getItem('api_url') || '';
 let CFG = {};
 let todosLosTrabajos = [];
+let todosLosFilamentos = [];
 
 /* ── INIT ── */
 document.addEventListener('DOMContentLoaded', () => {
@@ -870,7 +871,7 @@ function renderTrabajos(datos){
       </td>
       <td style="white-space:nowrap">
         <button class="btn btn-ghost btn-sm" onclick='verTrabajo(${JSON.stringify(JSON.stringify(d))})' title="Ver resumen">👁</button>
-        <button class="btn btn-sm" style="border:1px solid var(--border);color:var(--danger);background:transparent" onclick="eliminarTrabajo(${i})" title="Eliminar">✕</button>
+        <button class="btn btn-sm" style="border:1px solid var(--border);color:var(--danger);background:transparent" onclick="eliminarTrabajo(${JSON.stringify(String(d.fecha))},${JSON.stringify(String(d.pieza||''))})" title="Eliminar">✕</button>
       </td>
     </tr>`;
   }).join('');
@@ -905,23 +906,22 @@ async function cambiarEstado(idx,nuevoEstado,sel){
   }
 }
 
-function eliminarTrabajo(idx){
+function eliminarTrabajo(fecha, pieza){
   if(!confirm('¿Eliminar este trabajo?')) return;
+  todosLosTrabajos=todosLosTrabajos.filter(d=>!(String(d.fecha)===String(fecha)&&String(d.pieza||'')===String(pieza)));
   const hist=JSON.parse(localStorage.getItem('historial')||'[]');
-  hist.splice(idx,1);
-  localStorage.setItem('historial',JSON.stringify(hist));
-  todosLosTrabajos=hist;
-  actualizarStats(hist);
-  renderTrabajos(hist);
+  const newHist=hist.filter(d=>!(String(d.fecha)===String(fecha)&&String(d.pieza||'')===String(pieza)));
+  localStorage.setItem('historial',JSON.stringify(newHist));
+  actualizarStats(todosLosTrabajos);
+  renderTrabajos(todosLosTrabajos);
   toast('Trabajo eliminado.','info');
 }
 
 function eliminarFilamento(idx){
   if(!confirm('¿Eliminar este filamento del inventario?')) return;
-  const inv=JSON.parse(localStorage.getItem('inventario')||'[]');
-  inv.splice(idx,1);
-  localStorage.setItem('inventario',JSON.stringify(inv));
-  cargarInventario();
+  todosLosFilamentos.splice(idx,1);
+  localStorage.setItem('inventario',JSON.stringify(todosLosFilamentos));
+  renderInventario(todosLosFilamentos);
   toast('Filamento eliminado.','info');
 }
 
@@ -950,9 +950,13 @@ async function guardarFilamento(){
 async function cargarInventario(){
   const cont=document.getElementById('inventarioContent');
   cont.innerHTML='<div class="loading"><div class="spinner"></div>Cargando…</div>';
-  let datos=[];
-  if(API_URL){ try{ datos=await apiGet('inventario'); }catch(e){ datos=JSON.parse(localStorage.getItem('inventario')||'[]'); } }
-  else datos=JSON.parse(localStorage.getItem('inventario')||'[]');
+  if(API_URL){ try{ todosLosFilamentos=await apiGet('inventario'); }catch(e){ todosLosFilamentos=JSON.parse(localStorage.getItem('inventario')||'[]'); } }
+  else todosLosFilamentos=JSON.parse(localStorage.getItem('inventario')||'[]');
+  renderInventario(todosLosFilamentos);
+}
+
+function renderInventario(datos){
+  const cont=document.getElementById('inventarioContent');
   if(!datos.length){
     cont.innerHTML='<div class="empty"><span class="empty-icon">🧵</span><p>No hay filamentos registrados. Agregá uno arriba.</p></div>';
     return;
