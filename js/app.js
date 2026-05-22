@@ -83,6 +83,14 @@ async function cambiarPassword() {
   toast('Contraseña actualizada', 'success');
 }
 
+function togglePw(id, btn) {
+  const inp = document.getElementById(id); if (!inp) return;
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+  btn.innerHTML = inp.type === 'text'
+    ? '<svg class="i14"><use href="#i-eye-off"/></svg>'
+    : '<svg class="i14"><use href="#i-eye"/></svg>';
+}
+
 function showLoginErr(msg) { const el=$('loginErr');    if(el){el.textContent=msg;el.style.display='block';} }
 function hideLoginErr()    { const el=$('loginErr');    if(el) el.style.display='none'; }
 function showSetupErr(msg) { const el=$('setupErrMsg'); if(el) el.textContent=msg; const e=$('setupErr'); if(e) e.style.display='block'; }

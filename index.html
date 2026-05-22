@@ -91,7 +91,7 @@
     </div>
     <h1 class="auth-title">Bienvenido de vuelta</h1>
     <p class="auth-subtitle">Ingresá tu contraseña para continuar.</p>
-    <form id="loginForm" autocomplete="off" onsubmit="return doLogin(event)">
+    <form id="loginForm" autocomplete="off" onsubmit="tryLogin();return false">
       <div class="auth-err" id="loginErr">
         <svg class="i14"><use href="#i-alert"/></svg>
         <span>Contraseña incorrecta. Intentá de nuevo.</span>
@@ -153,7 +153,7 @@
       </div>
     </div>
     <div style="height:16px"></div>
-    <button class="auth-btn" type="button" onclick="setupPassword()">
+    <button class="auth-btn" type="button" onclick="trySetup()">
       Crear acceso <svg class="i14"><use href="#i-arrow-r"/></svg>
     </button>
   </div>
@@ -830,7 +830,7 @@
             <div class="spacer-md"></div>
             <div class="row-between">
               <span class="muted" style="font-size:12px">Tu nombre: <strong id="cfg-display-name">—</strong></span>
-              <button class="btn btn-primary btn-sm" onclick="cambiarContrasena()">Cambiar contraseña</button>
+              <button class="btn btn-primary btn-sm" onclick="cambiarPassword()">Cambiar contraseña</button>
             </div>
           </div>
         </div>
