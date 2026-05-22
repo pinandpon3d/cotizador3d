@@ -62,6 +62,14 @@ async function trySetup() {
   showApp();
 }
 
+function resetAcceso() {
+  if (!confirm('¿Reiniciar acceso? Esto borrará tu contraseña guardada y tendrás que crear una nueva.')) return;
+  localStorage.removeItem(AUTH_PW_KEY);
+  localStorage.removeItem(AUTH_SESS_KEY);
+  localStorage.removeItem(AUTH_NAME_KEY);
+  routeAfterLogin();
+}
+
 function logout() {
   clearSession();
   const appEl  = document.querySelector('.app');
