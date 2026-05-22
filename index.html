@@ -1,897 +1,366 @@
 <!DOCTYPE html>
-<html lang="es" data-theme="dark" data-density="cozy" data-accent="violet">
+<html lang="es" data-theme="light">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Pin&Pon3D · Cotizador 3D</title>
-
-<!-- Tema aplicado antes de pintar para evitar flash -->
-<script>(function(){const t=localStorage.getItem('p3d_theme')||'dark';document.documentElement.setAttribute('data-theme',t);})();</script>
-
-<!-- Fuentes -->
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
-
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cotizador 3D · Costa Rica</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<!-- Capa de estilos -->
+<link rel="stylesheet" href="css/styles.css">
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-
-<!-- Estilos -->
-<link rel="stylesheet" href="css/styles.css" />
 </head>
 <body>
 
-<!-- ═══════════ ICON SPRITE ═══════════ -->
-<svg width="0" height="0" style="position:absolute" aria-hidden="true">
-<defs>
-  <symbol id="i-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></symbol>
-  <symbol id="i-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V8a4 4 0 1 1 8 0v3"/></symbol>
-  <symbol id="i-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
-  <symbol id="i-eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18"/><path d="M10.6 6.1A10.6 10.6 0 0 1 12 6c6.4 0 10 6 10 6a13.2 13.2 0 0 1-3.4 3.9"/><path d="M6.6 7.3A13.2 13.2 0 0 0 2 12s3.6 6 10 6a10.5 10.5 0 0 0 4.4-1"/><path d="M9.9 9.9a3 3 0 1 0 4.2 4.2"/></symbol>
-  <symbol id="i-arrow-r" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></symbol>
-  <symbol id="i-home" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l9-8 9 8"/><path d="M5 10v10h14V10"/></symbol>
-  <symbol id="i-calc" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 7h6M9 12h.01M12 12h.01M15 12h.01M9 16h.01M12 16h.01M15 16h.01"/></symbol>
-  <symbol id="i-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/></symbol>
-  <symbol id="i-spool" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/><path d="M4 13c4-1 9-1 16 1"/></symbol>
-  <symbol id="i-settings" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 4.6 15 1.7 1.7 0 0 0 3 14H3a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
-  <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></symbol>
-  <symbol id="i-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></symbol>
-  <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></symbol>
-  <symbol id="i-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></symbol>
-  <symbol id="i-edit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 1 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></symbol>
-  <symbol id="i-pdf" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h4"/></symbol>
-  <symbol id="i-save" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></symbol>
-  <symbol id="i-trend-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></symbol>
-  <symbol id="i-trend-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l6 6 4-4 8 8"/><path d="M14 17h7v-7"/></symbol>
-  <symbol id="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
-  <symbol id="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></symbol>
-  <symbol id="i-logout" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></symbol>
-  <symbol id="i-cube" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.7l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.7l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M3.3 7L12 12l8.7-5"/><path d="M12 22V12"/></symbol>
-  <symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
-  <symbol id="i-zap" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></symbol>
-  <symbol id="i-coin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9 11h6M9 14h6M12 8v9"/></symbol>
-  <symbol id="i-filter" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18l-7 9v6l-4-2v-4z"/></symbol>
-  <symbol id="i-grid" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></symbol>
-  <symbol id="i-list" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></symbol>
-  <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></symbol>
-  <symbol id="i-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v5h1"/></symbol>
-  <symbol id="i-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></symbol>
-  <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></symbol>
-  <symbol id="i-dots" viewBox="0 0 24 24" fill="currentColor"><circle cx="6" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18" cy="12" r="1.6"/></symbol>
-  <symbol id="i-printer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><rect x="3" y="9" width="18" height="9" rx="2"/><path d="M6 14h12v8H6z"/></symbol>
-  <symbol id="i-tag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0l-7.7-7.7a2 2 0 0 1-.6-1.4V4a2 2 0 0 1 2-2h7.5a2 2 0 0 1 1.4.6l7.7 7.7a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/></symbol>
-  <symbol id="i-sliders" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h11"/><circle cx="18" cy="6" r="2"/><path d="M4 12h2"/><circle cx="9" cy="12" r="2"/><path d="M13 12h7"/><path d="M4 18h7"/><circle cx="14" cy="18" r="2"/><path d="M18 18h2"/></symbol>
-  <symbol id="i-building" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 6h.01M15 6h.01M9 10h.01M15 10h.01M9 14h.01M15 14h.01M10 22v-4h4v4"/></symbol>
-  <symbol id="i-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 5v6c0 5 3.5 9.4 8 11 4.5-1.6 8-6 8-11V5l-8-3z"/></symbol>
-  <symbol id="i-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.1 0l3-3a5 5 0 0 0-7.1-7.1l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.1 0l-3 3a5 5 0 0 0 7.1 7.1l1.7-1.7"/></symbol>
-  <symbol id="i-google" viewBox="0 0 24 24"><path fill="#4285F4" d="M21.6 12.2c0-.7-.1-1.3-.2-1.9H12v3.7h5.4c-.2 1.2-.9 2.3-2 3v2.5h3.3c1.9-1.8 3-4.4 3-7.3z"/><path fill="#34A853" d="M12 22c2.7 0 5-.9 6.6-2.4l-3.3-2.5c-.9.6-2 1-3.4 1-2.6 0-4.8-1.7-5.6-4.1H3v2.6A10 10 0 0 0 12 22z"/><path fill="#FBBC04" d="M6.4 14c-.2-.6-.3-1.3-.3-2s.1-1.4.3-2V7.4H3a10 10 0 0 0 0 9.2L6.4 14z"/><path fill="#EA4335" d="M12 5.9c1.5 0 2.8.5 3.8 1.5l2.9-2.8A10 10 0 0 0 3 7.4L6.4 10c.8-2.3 3-4.1 5.6-4.1z"/></symbol>
-  <symbol id="i-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-6"/></symbol>
-</defs>
-</svg>
+<div id="toast-container"></div>
+<div class="overlay" id="overlay" onclick="closeSidebar()"></div>
 
-<!-- ═══════════ LOGIN ═══════════ -->
-<div class="auth-screen" id="authScreen">
-  <div class="auth-grid-bg" aria-hidden="true"></div>
-  <div class="auth-bg-orbs" aria-hidden="true"></div>
-  <div class="auth-aside-toggle">
-    <button class="auth-tt" id="themeBtnLogin" aria-label="Cambiar tema">
-      <svg class="i16"><use href="#i-moon"/></svg>
-    </button>
+<div class="layout">
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+  <div class="logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+    </div>
+    <div class="logo-text">
+      <strong>Cotizador 3D</strong>
+      <span>Costa Rica</span>
+    </div>
   </div>
-
-  <!-- LOGIN FORM -->
-  <div class="auth-card" id="loginCard">
-    <div class="auth-brand">
-      <div class="auth-brand-mark"><svg class="i16"><use href="#i-cube"/></svg></div>
-      <div>
-        <div class="auth-brand-text">Pin&amp;Pon3D</div>
-        <div class="auth-brand-sub">Cotizador 3D · Costa Rica</div>
-      </div>
+  <nav>
+    <div class="nav-item active" data-page="cotizador" onclick="navTo('cotizador')">
+      <svg viewBox="0 0 24 24"><path d="M9 7H6a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2v-3"/><path d="M16 5h2a1 1 0 0 1 1 1v2"/><path d="M12 12h5l-1.5-6"/><path d="m9 12 2 2 4-4"/></svg>
+      Cotizador
     </div>
-    <h1 class="auth-title">Bienvenido de vuelta</h1>
-    <p class="auth-subtitle">Ingresá tu contraseña para continuar.</p>
-    <form id="loginForm" autocomplete="off" onsubmit="tryLogin();return false">
-      <div class="auth-err" id="loginErr">
-        <svg class="i14"><use href="#i-alert"/></svg>
-        <span>Contraseña incorrecta. Intentá de nuevo.</span>
-      </div>
-      <div class="auth-field">
-        <div class="auth-field-label"><label for="login_pw">Contraseña</label></div>
-        <div class="auth-input-wrap">
-          <svg class="auth-input-icon"><use href="#i-lock"/></svg>
-          <input id="login_pw" class="auth-input with-icon" type="password" placeholder="••••••••" autocomplete="current-password" />
-          <button class="auth-eye" type="button" onclick="togglePw('login_pw',this)">
-            <svg class="i14"><use href="#i-eye"/></svg>
-          </button>
-        </div>
-      </div>
-      <div style="height:16px"></div>
-      <button class="auth-btn" type="submit">
-        Iniciar sesión <svg class="i14"><use href="#i-arrow-r"/></svg>
-      </button>
-      <p style="text-align:center;margin-top:14px;font-size:12px;color:var(--ink-3)">
-        <a href="#" onclick="resetAcceso();return false" style="color:var(--acc-5)">Olvidé mi contraseña / Reiniciar acceso</a>
-      </p>
-    </form>
-  </div>
-
-  <!-- SETUP FORM (primera vez) -->
-  <div class="auth-card" id="setupCard" style="display:none">
-    <div class="auth-brand">
-      <div class="auth-brand-mark"><svg class="i16"><use href="#i-cube"/></svg></div>
-      <div>
-        <div class="auth-brand-text">Pin&amp;Pon3D</div>
-        <div class="auth-brand-sub">Cotizador 3D · Costa Rica</div>
-      </div>
+    <div class="nav-item" data-page="trabajos" onclick="navTo('trabajos')">
+      <svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
+      Trabajos
     </div>
-    <h1 class="auth-title">Configurá tu acceso</h1>
-    <p class="auth-subtitle">Primera vez — creá tu contraseña para proteger la app.</p>
-    <div class="auth-err" id="setupErr" style="display:none">
-      <svg class="i14"><use href="#i-alert"/></svg>
-      <span id="setupErrMsg"></span>
+    <div class="nav-item" data-page="inventario" onclick="navTo('inventario')">
+      <svg viewBox="0 0 24 24"><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+      Inventario
     </div>
-    <div class="auth-field">
-      <div class="auth-field-label"><label>Tu nombre</label></div>
-      <div class="auth-input-wrap">
-        <svg class="auth-input-icon"><use href="#i-user"/></svg>
-        <input id="setup_name" class="auth-input with-icon" type="text" placeholder="Ej. Juan Morales" />
-      </div>
+    <div class="nav-item" data-page="configuracion" onclick="navTo('configuracion')">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      Configuración
     </div>
-    <div class="auth-field">
-      <div class="auth-field-label"><label>Contraseña (mín. 4 caracteres)</label></div>
-      <div class="auth-input-wrap">
-        <svg class="auth-input-icon"><use href="#i-lock"/></svg>
-        <input id="setup_pw" class="auth-input with-icon" type="password" placeholder="••••••••" />
-        <button class="auth-eye" type="button" onclick="togglePw('setup_pw',this)">
-          <svg class="i14"><use href="#i-eye"/></svg>
-        </button>
-      </div>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="fb-status">
+      <div class="status-dot" id="fb-dot"></div>
+      <span id="fb-status-text">Conectando…</span>
     </div>
-    <div class="auth-field">
-      <div class="auth-field-label"><label>Confirmá la contraseña</label></div>
-      <div class="auth-input-wrap">
-        <svg class="auth-input-icon"><use href="#i-lock"/></svg>
-        <input id="setup_pw2" class="auth-input with-icon" type="password" placeholder="••••••••" />
-      </div>
-    </div>
-    <div style="height:16px"></div>
-    <button class="auth-btn" type="button" onclick="trySetup()">
-      Crear acceso <svg class="i14"><use href="#i-arrow-r"/></svg>
-    </button>
-  </div>
-</div>
-<!-- ═══════════ APP ═══════════ -->
-<div class="app" id="app">
-
-  <!-- ── SIDEBAR ── -->
-  <aside class="sidebar">
-    <div class="sb-brand">
-      <div class="sb-mark"><svg class="i16"><use href="#i-cube"/></svg></div>
-      <div>
-        <div class="sb-name">Pin&amp;Pon3D</div>
-        <div class="sb-tag">Cotizador · CR</div>
-      </div>
-    </div>
-
-    <div class="sb-section">
-      <div class="sb-section-label">Workspace</div>
-      <div class="sb-item active" data-route="dashboard" onclick="route('dashboard',this)">
-        <svg class="ico"><use href="#i-home"/></svg> Dashboard
-      </div>
-      <div class="sb-item" data-route="cotizador" onclick="route('cotizador',this)">
-        <svg class="ico"><use href="#i-calc"/></svg> Cotizador
-      </div>
-      <div class="sb-item" data-route="trabajos" onclick="route('trabajos',this)">
-        <svg class="ico"><use href="#i-folder"/></svg> Trabajos
-        <span class="count" id="sb-count-trabajos"></span>
-      </div>
-      <div class="sb-item" data-route="inventario" onclick="route('inventario',this)">
-        <svg class="ico"><use href="#i-spool"/></svg> Inventario
-        <span class="count" id="sb-count-filamentos"></span>
-      </div>
-    </div>
-
-    <div class="sb-section">
-      <div class="sb-section-label">Ajustes</div>
-      <div class="sb-item" data-route="configuracion" onclick="route('configuracion',this)">
-        <svg class="ico"><use href="#i-settings"/></svg> Configuración
-      </div>
-    </div>
-
-    <div class="sb-spacer"></div>
-
-    <div class="sb-user">
-      <div class="sb-user-avatar" id="sb-avatar">PP</div>
-      <div class="sb-user-meta">
-        <div class="sb-user-name" id="sb-display-name">Usuario</div>
-        <div class="sb-user-role">Administrador</div>
-      </div>
-      <button class="sb-user-menu" onclick="logout()" aria-label="Cerrar sesión" title="Cerrar sesión">
-        <svg class="i14"><use href="#i-logout"/></svg>
-      </button>
-    </div>
-
-    <div class="sb-status">
-      <span class="dot ok"></span>
-      <span>Firebase conectado</span>
-    </div>
-  </aside>
-
-  <!-- ── MAIN ── -->
-  <div class="main" id="mainContent">
-
-    <!-- TOPBAR -->
-    <header class="topbar">
-      <div class="crumbs">
-        <span>Pin&amp;Pon3D</span>
-        <span class="sep">/</span>
-        <strong id="crumb-current">Dashboard</strong>
-      </div>
-      <div class="topbar-search">
-        <svg><use href="#i-search"/></svg>
-        <input type="text" id="globalSearch" placeholder="Buscar pieza, cliente…" oninput="onGlobalSearch(this.value)" />
-      </div>
-      <div class="topbar-actions">
-        <button class="tb-icon-btn" id="themeBtn" aria-label="Tema" onclick="toggleTheme()">
-          <svg class="i14"><use href="#i-moon"/></svg>
-        </button>
-        <button class="tb-btn primary" onclick="goPage('cotizador')">
-          <svg class="i14"><use href="#i-plus"/></svg> Nueva cotización
-        </button>
-      </div>
-    </header>
-
-    <!-- ══════════════ DASHBOARD ══════════════ -->
-    <section class="page show" id="page-dashboard">
-      <div class="page-head">
-        <div>
-          <h1 class="page-title" id="dash-greeting">Buen día 👋</h1>
-          <p class="page-desc" id="todayLabel">Cargando resumen del taller…</p>
-        </div>
-        <div class="page-actions">
-          <button class="btn btn-primary btn-sm" onclick="goPage('cotizador')">
-            <svg class="i14"><use href="#i-plus"/></svg> Nueva cotización
-          </button>
-        </div>
-      </div>
-
-      <div class="kpi-grid">
-        <div class="kpi">
-          <div class="kpi-label"><svg class="ico"><use href="#i-coin"/></svg> Ingresos del mes</div>
-          <div class="kpi-val mono" id="kpi-ingresos">₡0</div>
-        </div>
-        <div class="kpi">
-          <div class="kpi-label"><svg class="ico"><use href="#i-folder"/></svg> Trabajos totales</div>
-          <div class="kpi-val mono" id="kpi-trabajos">0</div>
-        </div>
-        <div class="kpi">
-          <div class="kpi-label"><svg class="ico"><use href="#i-check"/></svg> Entregados</div>
-          <div class="kpi-val mono" id="kpi-entregados">0</div>
-        </div>
-        <div class="kpi">
-          <div class="kpi-label"><svg class="ico"><use href="#i-spool"/></svg> Rollos en stock</div>
-          <div class="kpi-val mono" id="kpi-rollos">0</div>
-        </div>
-      </div>
-
-      <div class="dash-grid">
-        <div class="card chart-wrap">
-          <div class="chart-head">
-            <div>
-              <div class="card-title"><svg class="ico"><use href="#i-chart"/></svg> Ingresos por mes</div>
-              <div class="card-sub">Últimos 6 meses — moneda CRC</div>
-            </div>
-          </div>
-          <div class="chart-body" id="chart-body">
-            <div class="chart-tip" id="chartTip"></div>
-            <svg class="chart-svg" id="chart" viewBox="0 0 600 260" preserveAspectRatio="none">
-              <defs>
-                <linearGradient id="bar-grad" x1="0" x2="0" y1="0" y2="1">
-                  <stop offset="0" stop-color="var(--acc-5)" stop-opacity="1"/>
-                  <stop offset="1" stop-color="var(--acc-5)" stop-opacity=".55"/>
-                </linearGradient>
-              </defs>
-            </svg>
-          </div>
-        </div>
-
-        <div class="card">
-          <div class="card-head">
-            <div>
-              <div class="card-title"><svg class="ico"><use href="#i-clock"/></svg> Actividad reciente</div>
-              <div class="card-sub">Últimos trabajos</div>
-            </div>
-            <button class="btn btn-ghost btn-sm" onclick="route('trabajos', document.querySelector('[data-route=trabajos]'))">Ver todos</button>
-          </div>
-          <div class="activity-list" id="activityList">
-            <div class="empty" style="padding:24px"><p class="muted" style="font-size:13px">Cargando…</p></div>
-          </div>
-        </div>
-      </div>
-
-      <div class="dash-grid" style="margin-top:var(--gap-card)">
-        <div class="card">
-          <div class="card-head">
-            <div>
-              <div class="card-title"><svg class="ico"><use href="#i-alert"/></svg> Stock bajo de filamento</div>
-              <div class="card-sub">Rollos con menos de 25% disponible</div>
-            </div>
-            <button class="btn btn-ghost btn-sm" onclick="route('inventario', document.querySelector('[data-route=inventario]'))">Ver inventario</button>
-          </div>
-          <div class="fil-grid" id="lowStockGrid" style="grid-template-columns:repeat(2,1fr)"></div>
-        </div>
-        <div class="card">
-          <div class="card-head">
-            <div>
-              <div class="card-title"><svg class="ico"><use href="#i-zap"/></svg> Acceso rápido</div>
-              <div class="card-sub">Atajos del taller</div>
-            </div>
-          </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-            <button class="btn btn-soft" style="justify-content:flex-start;padding:14px" onclick="route('cotizador',document.querySelector('[data-route=cotizador]'))">
-              <svg class="i16" style="color:var(--acc-5)"><use href="#i-calc"/></svg>
-              <div style="text-align:left;line-height:1.2">
-                <div style="font-weight:600">Nueva cotización</div>
-                <div style="font-size:11.5px;color:var(--mute);margin-top:2px">Calcular precio de pieza</div>
-              </div>
-            </button>
-            <button class="btn btn-soft" style="justify-content:flex-start;padding:14px" onclick="openDrawer()">
-              <svg class="i16" style="color:var(--acc-5)"><use href="#i-spool"/></svg>
-              <div style="text-align:left;line-height:1.2">
-                <div style="font-weight:600">Agregar filamento</div>
-                <div style="font-size:11.5px;color:var(--mute);margin-top:2px">Sumar rollo al inventario</div>
-              </div>
-            </button>
-            <button class="btn btn-soft" style="justify-content:flex-start;padding:14px" onclick="route('trabajos',document.querySelector('[data-route=trabajos]'))">
-              <svg class="i16" style="color:var(--acc-5)"><use href="#i-folder"/></svg>
-              <div style="text-align:left;line-height:1.2">
-                <div style="font-weight:600">Ver trabajos</div>
-                <div style="font-size:11.5px;color:var(--mute);margin-top:2px">Filtrar por estado</div>
-              </div>
-            </button>
-            <button class="btn btn-soft" style="justify-content:flex-start;padding:14px" onclick="goPage('configuracion')">
-              <svg class="i16" style="color:var(--acc-5)"><use href="#i-settings"/></svg>
-              <div style="text-align:left;line-height:1.2">
-                <div style="font-weight:600">Configurar tarifas</div>
-                <div style="font-size:11.5px;color:var(--mute);margin-top:2px">Ajustes globales</div>
-              </div>
-            </button>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ══════════════ COTIZADOR ══════════════ -->
-    <section class="page" id="page-cotizador">
-      <div class="page-head">
-        <div>
-          <h1 class="page-title" id="cot-page-title">Nueva cotización</h1>
-          <p class="page-desc">Calculá el precio justo de una pieza impresa en 3D incluyendo material, electricidad, desgaste, mano de obra y margen.</p>
-        </div>
-        <div class="page-actions">
-          <button class="btn btn-ghost btn-sm" id="cancelEditBtn" style="display:none" onclick="cancelarEdicionTrabajo()">
-            <svg class="i14"><use href="#i-x"/></svg> Cancelar edición
-          </button>
-          <button class="btn btn-ghost btn-sm" onclick="resetCotizador()">
-            <svg class="i14"><use href="#i-x"/></svg> Limpiar
-          </button>
-        </div>
-      </div>
-
-      <div class="steps" id="cot-steps">
-        <div class="step active" data-step="1" onclick="goStep(1)"><span class="step-n">1</span> Pedido</div>
-        <div class="step" data-step="2" onclick="goStep(2)"><span class="step-n">2</span> Insumos</div>
-        <div class="step" data-step="3" onclick="goStep(3)"><span class="step-n">3</span> Ajustes</div>
-      </div>
-
-      <div class="cot-grid">
-        <div>
-          <!-- Step 1 -->
-          <div class="card step-panel show" id="cot-step-1">
-            <div class="card-head">
-              <div>
-                <div class="card-title"><svg class="ico"><use href="#i-tag"/></svg> Datos del pedido</div>
-                <div class="card-sub">Información del cliente y la pieza</div>
-              </div>
-            </div>
-            <div class="field-row">
-              <div class="field">
-                <label>Nombre de la pieza</label>
-                <input class="input" id="c_pieza" placeholder="Ej. Soporte para celular" oninput="recalc()" />
-              </div>
-              <div class="field">
-                <label>Cliente</label>
-                <input class="input" id="c_cliente" placeholder="Ej. María Solano" />
-              </div>
-            </div>
-            <div class="spacer-md"></div>
-            <div class="field-row-3">
-              <div class="field">
-                <label>Fecha</label>
-                <input class="input" id="c_fecha" type="date" />
-              </div>
-              <div class="field">
-                <label>Cantidad</label>
-                <input class="input" id="c_cant" type="number" min="1" value="1" oninput="recalc()" />
-              </div>
-              <div class="field">
-                <label>Categoría</label>
-                <select class="input" id="c_cat">
-                  <option>Funcional</option><option>Decorativa</option><option>Prototipo</option>
-                  <option>Educativo</option><option>Repuesto</option><option>Personalizado</option>
-                </select>
-              </div>
-            </div>
-            <div class="spacer-md"></div>
-            <div class="field">
-              <label>Notas (opcional)</label>
-              <textarea class="input" id="c_notas" placeholder="Color, acabado, observaciones…"></textarea>
-            </div>
-          </div>
-
-          <!-- Step 2 -->
-          <div class="card step-panel" id="cot-step-2">
-            <div class="card-head">
-              <div>
-                <div class="card-title"><svg class="ico"><use href="#i-spool"/></svg> Insumos de impresión</div>
-                <div class="card-sub">Datos del slicer y trabajo manual</div>
-              </div>
-              <div class="row" style="font-size:12px;color:var(--mute)">
-                <svg class="i14"><use href="#i-info"/></svg> Datos de Cura, Bambu o PrusaSlicer.
-              </div>
-            </div>
-            <div class="field-row-3">
-              <div class="field">
-                <label>Filamento (g)</label>
-                <input class="input" id="c_gramos" type="number" min="0" step="0.1" value="0" oninput="recalc()" />
-                <span class="hint">Del slicer</span>
-              </div>
-              <div class="field">
-                <label>Tiempo impresión (h)</label>
-                <input class="input" id="c_horas" type="number" min="0" step="0.1" value="0" oninput="recalc()" />
-                <span class="hint">Del slicer</span>
-              </div>
-              <div class="field">
-                <label>Mano de obra (h)</label>
-                <input class="input" id="c_horasMO" type="number" min="0" step="0.1" value="0" oninput="recalc()" />
-                <span class="hint">Preparación + retiro</span>
-              </div>
-            </div>
-            <div class="spacer-md"></div>
-            <div class="field-row-3">
-              <div class="field">
-                <label>Diseño (h)</label>
-                <input class="input" id="c_horasDis" type="number" min="0" step="0.1" value="0" oninput="recalc()" />
-              </div>
-              <div class="field">
-                <label>Costo fijo diseño (₡)</label>
-                <div class="input-prefix"><span class="prefix">₡</span>
-                  <input class="input" id="c_disFijo" type="number" min="0" step="100" value="0" oninput="recalc()" />
-                </div>
-              </div>
-              <div class="field">
-                <label>Postprocesado (₡)</label>
-                <div class="input-prefix"><span class="prefix">₡</span>
-                  <input class="input" id="c_post" type="number" min="0" step="100" value="0" oninput="recalc()" />
-                </div>
-                <span class="hint">Lijado, pintura</span>
-              </div>
-            </div>
-            <div class="spacer-md"></div>
-            <div class="field">
-              <label>Filamento utilizado</label>
-              <select class="input" id="c_filamento" onchange="recalc()">
-                <option value="6500">PLA · Genérico — ₡6,500/kg (default)</option>
-              </select>
-            </div>
-          </div>
-
-          <!-- Step 3 -->
-          <div class="card step-panel" id="cot-step-3">
-            <div class="card-head">
-              <div>
-                <div class="card-title"><svg class="ico"><use href="#i-sliders"/></svg> Ajustes finales</div>
-                <div class="card-sub">Márgenes, fallos e impuestos</div>
-              </div>
-            </div>
-            <div class="field-row-3">
-              <div class="field">
-                <label>Fallos / desperdicio</label>
-                <div class="input-prefix"><span class="prefix">%</span>
-                  <input class="input" id="c_fallos" type="number" min="0" max="100" value="5" oninput="recalc()" />
-                </div>
-              </div>
-              <div class="field">
-                <label>Margen de ganancia</label>
-                <div class="input-prefix"><span class="prefix">%</span>
-                  <input class="input" id="c_margen" type="number" min="0" max="500" value="35" oninput="recalc()" />
-                </div>
-              </div>
-              <div class="field">
-                <label>IVA</label>
-                <div class="input-prefix"><span class="prefix">%</span>
-                  <input class="input" id="c_iva" type="number" min="0" max="50" value="0" oninput="recalc()" />
-                </div>
-                <span class="hint">13 si facturás</span>
-              </div>
-            </div>
-            <div class="spacer-md"></div>
-            <div class="field">
-              <label>Otros costos (₡)</label>
-              <div class="input-prefix"><span class="prefix">₡</span>
-                <input class="input" id="c_otros" type="number" min="0" step="100" value="0" oninput="recalc()" />
-              </div>
-              <span class="hint">Envío, empaque, etc.</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- PREVIEW -->
-        <aside class="cot-side">
-          <div class="preview">
-            <div class="preview-head">
-              <div class="preview-eyebrow">Precio final estimado</div>
-              <div class="preview-price" id="pv_total">₡0</div>
-              <div class="preview-foot">
-                <span>Costo: <strong id="pv_costo">₡0</strong></span>
-                <span>Margen: <strong id="pv_margenAbs">₡0</strong></span>
-              </div>
-            </div>
-            <div class="breakdown">
-              <div class="breakdown-row"><span class="label">Material</span><span class="val" id="pv_mat">₡0</span></div>
-              <div class="breakdown-row"><span class="label">Electricidad</span><span class="val" id="pv_elec">₡0</span></div>
-              <div class="breakdown-row"><span class="label">Desgaste</span><span class="val" id="pv_des">₡0</span></div>
-              <div class="breakdown-row"><span class="label">Mano de obra</span><span class="val" id="pv_mo">₡0</span></div>
-              <div class="breakdown-row"><span class="label">Diseño</span><span class="val" id="pv_dis">₡0</span></div>
-              <div class="breakdown-row"><span class="label">Postproc + otros</span><span class="val" id="pv_extra">₡0</span></div>
-              <div class="breakdown-row sub"><span class="label">Subtotal costos</span><span class="val" id="pv_sub">₡0</span></div>
-              <div class="breakdown-row"><span class="label">+ Fallos</span><span class="val" id="pv_fa">₡0</span></div>
-              <div class="breakdown-row"><span class="label">+ Ganancia</span><span class="val" id="pv_gan">₡0</span></div>
-              <div class="breakdown-row"><span class="label">+ IVA</span><span class="val" id="pv_ivaAbs">₡0</span></div>
-              <div class="breakdown-row total">
-                <span class="label">Total<span id="pv_cantLabel" style="color:var(--mute);font-weight:500;margin-left:4px"></span></span>
-                <span class="val" id="pv_finalUnit">₡0</span>
-              </div>
-            </div>
-            <div class="preview-actions">
-              <button class="btn btn-primary" style="width:100%" id="saveCotBtn" onclick="guardarCotizacion()">
-                <svg class="i14"><use href="#i-save"/></svg> <span id="saveCotLabel">Guardar trabajo</span>
-              </button>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-                <button class="btn btn-ghost btn-sm" onclick="generarPDFCotizador()"><svg class="i14"><use href="#i-pdf"/></svg> PDF</button>
-                <button class="btn btn-ghost btn-sm" onclick="resetCotizador()"><svg class="i14"><use href="#i-x"/></svg> Limpiar</button>
-              </div>
-            </div>
-          </div>
-          <div class="card" style="margin-top:14px;background:var(--surface-2)">
-            <div class="row" style="gap:10px;align-items:flex-start">
-              <svg class="i16" style="color:var(--acc-5);flex-shrink:0;margin-top:2px"><use href="#i-info"/></svg>
-              <div style="font-size:12.5px;color:var(--mute);line-height:1.5">
-                Los valores de electricidad, desgaste y tarifas se toman de <a onclick="goPage('configuracion')" style="color:var(--acc-5);font-weight:500;cursor:pointer">Configuración</a>.
-              </div>
-            </div>
-          </div>
-        </aside>
-      </div>
-    </section>
-
-    <!-- ══════════════ TRABAJOS ══════════════ -->
-    <section class="page" id="page-trabajos">
-      <div class="page-head">
-        <div>
-          <h1 class="page-title">Trabajos</h1>
-          <p class="page-desc">Todas las cotizaciones y pedidos. Filtrá por estado o categoría.</p>
-        </div>
-        <div class="page-actions">
-          <button class="btn btn-primary btn-sm" onclick="goPage('cotizador')">
-            <svg class="i14"><use href="#i-plus"/></svg> Nuevo trabajo
-          </button>
-        </div>
-      </div>
-
-      <div class="kpi-grid">
-        <div class="kpi">
-          <div class="kpi-label"><svg class="ico"><use href="#i-folder"/></svg> Total</div>
-          <div class="kpi-val mono" id="tkpi-total">0</div>
-        </div>
-        <div class="kpi">
-          <div class="kpi-label"><svg class="ico"><use href="#i-check"/></svg> Aprobados</div>
-          <div class="kpi-val mono" id="tkpi-aprobados">0</div>
-        </div>
-        <div class="kpi">
-          <div class="kpi-label"><svg class="ico"><use href="#i-printer"/></svg> Entregados</div>
-          <div class="kpi-val mono" id="tkpi-entregados">0</div>
-        </div>
-        <div class="kpi">
-          <div class="kpi-label"><svg class="ico"><use href="#i-coin"/></svg> Total facturado</div>
-          <div class="kpi-val mono" id="tkpi-facturado">₡0</div>
-        </div>
-      </div>
-
-      <div class="card flush">
-        <div style="padding:18px 22px 4px">
-          <div class="filterbar">
-            <div class="search">
-              <svg><use href="#i-search"/></svg>
-              <input id="t_buscar" type="text" placeholder="Buscar por pieza o cliente…" oninput="renderTrabajos()" />
-            </div>
-            <button class="chip active" data-est="" onclick="setEstadoFilter('',this)">Todos</button>
-            <button class="chip" data-est="cotizado" onclick="setEstadoFilter('cotizado',this)">Cotizado</button>
-            <button class="chip" data-est="aprobado" onclick="setEstadoFilter('aprobado',this)">Aprobado</button>
-            <button class="chip" data-est="imprimiendo" onclick="setEstadoFilter('imprimiendo',this)">Imprimiendo</button>
-            <button class="chip" data-est="entregado" onclick="setEstadoFilter('entregado',this)">Entregado</button>
-            <button class="chip" data-est="cancelado" onclick="setEstadoFilter('cancelado',this)">Cancelado</button>
-          </div>
-        </div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Pieza / Cliente</th>
-                <th>Categoría</th>
-                <th>Estado</th>
-                <th>Fecha</th>
-                <th class="num">Cant.</th>
-                <th class="num">Precio</th>
-                <th style="width:80px"></th>
-              </tr>
-            </thead>
-            <tbody id="trabajosBody"></tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-
-    <!-- ══════════════ INVENTARIO ══════════════ -->
-    <section class="page" id="page-inventario">
-      <div class="page-head">
-        <div>
-          <h1 class="page-title">Inventario de filamentos</h1>
-          <p class="page-desc">Rollos disponibles, costos actualizados y alertas de stock bajo.</p>
-        </div>
-        <div class="page-actions">
-          <div style="display:inline-flex;border:1px solid var(--line);border-radius:8px;padding:3px;background:var(--surface)">
-            <button class="btn btn-sm" id="inv-view-grid" style="border-radius:6px;color:var(--ink-2);background:var(--surface-3)" onclick="setInvView('grid')"><svg class="i14"><use href="#i-grid"/></svg> Cards</button>
-            <button class="btn btn-sm" id="inv-view-list" style="border-radius:6px;color:var(--ink-2)" onclick="setInvView('list')"><svg class="i14"><use href="#i-list"/></svg> Tabla</button>
-          </div>
-          <button class="btn btn-primary btn-sm" onclick="openDrawer()">
-            <svg class="i14"><use href="#i-plus"/></svg> Agregar filamento
-          </button>
-        </div>
-      </div>
-
-      <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)">
-        <div class="kpi">
-          <div class="kpi-label"><svg class="ico"><use href="#i-spool"/></svg> Rollos activos</div>
-          <div class="kpi-val mono" id="ikpi-rollos">0</div>
-        </div>
-        <div class="kpi">
-          <div class="kpi-label"><svg class="ico"><use href="#i-coin"/></svg> Valor de stock</div>
-          <div class="kpi-val mono" id="ikpi-valor">₡0</div>
-        </div>
-        <div class="kpi">
-          <div class="kpi-label"><svg class="ico"><use href="#i-alert"/></svg> Stock bajo</div>
-          <div class="kpi-val mono" id="ikpi-bajo">0</div>
-        </div>
-      </div>
-
-      <div id="inv-grid-view">
-        <div class="fil-grid" id="filGrid"></div>
-      </div>
-      <div id="inv-list-view" style="display:none">
-        <div class="card flush">
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Filamento</th><th>Proveedor</th>
-                  <th class="num">Disponible</th><th class="num">Total (g)</th>
-                  <th class="num">₡/g</th><th class="num">Valor restante</th><th></th>
-                </tr>
-              </thead>
-              <tbody id="filTableBody"></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ══════════════ CONFIGURACIÓN ══════════════ -->
-    <section class="page" id="page-configuracion">
-      <div class="page-head">
-        <div>
-          <h1 class="page-title">Configuración</h1>
-          <p class="page-desc">Parámetros globales del taller. Estos valores afectan todas las cotizaciones.</p>
-        </div>
-      </div>
-
-      <div class="cfg-grid">
-        <nav class="cfg-nav">
-          <div class="cfg-nav-item active" data-section="empresa" onclick="cfgGo('empresa')"><svg class="ico"><use href="#i-building"/></svg> Empresa</div>
-          <div class="cfg-nav-item" data-section="costos" onclick="cfgGo('costos')"><svg class="ico"><use href="#i-coin"/></svg> Costos base</div>
-          <div class="cfg-nav-item" data-section="margenes" onclick="cfgGo('margenes')"><svg class="ico"><use href="#i-sliders"/></svg> Márgenes</div>
-          <div class="cfg-nav-item" data-section="seguridad" onclick="cfgGo('seguridad')"><svg class="ico"><use href="#i-shield"/></svg> Seguridad</div>
-        </nav>
-
-        <div class="cfg-content">
-          <!-- empresa -->
-          <div class="card cfg-panel show" id="cfg-empresa">
-            <div class="card-head">
-              <div>
-                <div class="card-title"><svg class="ico"><use href="#i-building"/></svg> Datos de empresa</div>
-                <div class="card-sub">Aparecerán en el encabezado del PDF de cotización.</div>
-              </div>
-            </div>
-            <div class="field-row">
-              <div class="field"><label>Nombre comercial</label><input class="input" id="emp_nombre" placeholder="Pin&amp;Pon3D Costa Rica" /></div>
-              <div class="field"><label>Cédula jurídica</label><input class="input" id="emp_cedula" placeholder="3-101-789456" /></div>
-              <div class="field"><label>Email</label><input class="input" id="emp_email" placeholder="hola@empresa.cr" /></div>
-              <div class="field"><label>Teléfono</label><input class="input" id="emp_tel" placeholder="(506) 8234-5678" /></div>
-              <div class="field"><label>Sitio web</label><input class="input" id="emp_web" placeholder="pinpon3d.cr" /></div>
-              <div class="field"><label>Instagram</label><input class="input" id="emp_ig" placeholder="@pinpon3d.cr" /></div>
-            </div>
-            <div class="spacer-md"></div>
-            <div class="field"><label>Nota al pie de la cotización</label>
-              <textarea class="input" id="emp_nota" placeholder="Esta cotización tiene validez de 7 días…"></textarea>
-            </div>
-            <div class="divider"></div>
-            <div class="row-between">
-              <span class="muted" style="font-size:12px">Se guarda en Firebase Firestore.</span>
-              <button class="btn btn-primary btn-sm" onclick="guardarEmpresa()"><svg class="i14"><use href="#i-save"/></svg> Guardar</button>
-            </div>
-          </div>
-
-          <!-- costos base -->
-          <div class="card cfg-panel" id="cfg-costos">
-            <div class="card-head">
-              <div>
-                <div class="card-title"><svg class="ico"><use href="#i-coin"/></svg> Costos base</div>
-                <div class="card-sub">Electricidad, desgaste de máquina y mano de obra.</div>
-              </div>
-            </div>
-            <h3 style="font-size:13px;font-weight:600;margin-bottom:10px;color:var(--ink-2)">⚡ Electricidad</h3>
-            <div class="field-row-3">
-              <div class="field"><label>Consumo (W)</label><input class="input" id="cfg_watts" type="number" value="120" oninput="recalcCfg()" /><span class="hint">Típico 80–200 W</span></div>
-              <div class="field"><label>Precio kWh (₡)</label>
-                <div class="input-prefix"><span class="prefix">₡</span><input class="input" id="cfg_kwh" type="number" value="110" oninput="recalcCfg()" /></div>
-                <span class="hint">ARESEP ≈ ₡100–130</span></div>
-              <div class="field"><label>Costo por hora</label>
-                <div class="input-prefix"><span class="prefix">₡</span><input class="input" id="cfg_elecHora" readonly /></div>
-                <span class="hint">Calculado</span></div>
-            </div>
-            <div class="divider"></div>
-            <h3 style="font-size:13px;font-weight:600;margin-bottom:10px;color:var(--ink-2)">🔧 Desgaste de impresora</h3>
-            <div class="field-row-3">
-              <div class="field"><label>Precio compra (₡)</label>
-                <div class="input-prefix"><span class="prefix">₡</span><input class="input" id="cfg_compra" type="number" value="350000" oninput="recalcCfg()" /></div></div>
-              <div class="field"><label>Vida útil (h)</label><input class="input" id="cfg_vida" type="number" value="2000" oninput="recalcCfg()" /></div>
-              <div class="field"><label>Mantenimiento (₡)</label>
-                <div class="input-prefix"><span class="prefix">₡</span><input class="input" id="cfg_mant" type="number" value="50000" oninput="recalcCfg()" /></div></div>
-            </div>
-            <div class="divider"></div>
-            <h3 style="font-size:13px;font-weight:600;margin-bottom:10px;color:var(--ink-2)">👷 Tarifas</h3>
-            <div class="field-row">
-              <div class="field"><label>Mano de obra (₡/h)</label>
-                <div class="input-prefix"><span class="prefix">₡</span><input class="input" id="cfg_tMO" type="number" value="3500" /></div></div>
-              <div class="field"><label>Diseño (₡/h)</label>
-                <div class="input-prefix"><span class="prefix">₡</span><input class="input" id="cfg_tDis" type="number" value="5000" /></div></div>
-            </div>
-            <div class="divider"></div>
-            <div class="row-between">
-              <span class="muted" style="font-size:12px">Los costos calculados se aplican a todas las cotizaciones nuevas.</span>
-              <button class="btn btn-primary btn-sm" onclick="guardarConfiguracion()"><svg class="i14"><use href="#i-save"/></svg> Guardar</button>
-            </div>
-          </div>
-
-          <!-- márgenes -->
-          <div class="card cfg-panel" id="cfg-margenes">
-            <div class="card-head">
-              <div>
-                <div class="card-title"><svg class="ico"><use href="#i-sliders"/></svg> Márgenes por defecto</div>
-                <div class="card-sub">Valores precargados al crear una cotización nueva.</div>
-              </div>
-            </div>
-            <div class="field-row-3">
-              <div class="field"><label>% Fallos</label>
-                <div class="input-prefix"><span class="prefix">%</span><input class="input" id="cfg_fallosDefault" type="number" value="5" /></div>
-                <span class="hint">Margen de seguridad por reimprimir</span></div>
-              <div class="field"><label>% Margen ganancia</label>
-                <div class="input-prefix"><span class="prefix">%</span><input class="input" id="cfg_margenDefault" type="number" value="35" /></div>
-                <span class="hint">Sobre el costo total</span></div>
-              <div class="field"><label>% IVA</label>
-                <div class="input-prefix"><span class="prefix">%</span><input class="input" id="cfg_ivaDefault" type="number" value="0" /></div>
-                <span class="hint">13 si facturás electrónica</span></div>
-            </div>
-            <div class="divider"></div>
-            <div class="row-between">
-              <span class="muted" style="font-size:12px">Se guardan en Firebase.</span>
-              <button class="btn btn-primary btn-sm" onclick="guardarConfiguracion()"><svg class="i14"><use href="#i-save"/></svg> Guardar</button>
-            </div>
-          </div>
-
-          <!-- seguridad -->
-          <div class="card cfg-panel" id="cfg-seguridad">
-            <div class="card-head">
-              <div>
-                <div class="card-title"><svg class="ico"><use href="#i-shield"/></svg> Seguridad</div>
-                <div class="card-sub">Cambio de contraseña.</div>
-              </div>
-            </div>
-            <div class="field-row">
-              <div class="field"><label>Contraseña actual</label>
-                <div class="auth-input-wrap">
-                  <input class="input" id="sec_current" type="password" placeholder="Contraseña actual" />
-                </div>
-              </div>
-              <div class="field"><label>Nueva contraseña</label>
-                <div class="auth-input-wrap">
-                  <input class="input" id="sec_new" type="password" placeholder="Mínimo 4 caracteres" />
-                </div>
-              </div>
-            </div>
-            <div class="spacer-md"></div>
-            <div class="row-between">
-              <span class="muted" style="font-size:12px">Tu nombre: <strong id="cfg-display-name">—</strong></span>
-              <button class="btn btn-primary btn-sm" onclick="cambiarPassword()">Cambiar contraseña</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-  </div><!-- /main -->
-</div><!-- /app -->
-
-<!-- DRAWER (agregar / editar filamento) -->
-<div class="drawer-back" id="drawerBack" onclick="closeDrawer()"></div>
-<aside class="drawer" id="drawer">
-  <div class="drawer-head">
-    <div>
-      <div class="drawer-title" id="drawerTitle">Agregar filamento</div>
-      <div class="card-sub">Nuevo rollo al inventario</div>
-    </div>
-    <button class="tb-icon-btn" onclick="closeDrawer()" aria-label="Cerrar">
-      <svg class="i14"><use href="#i-x"/></svg>
-    </button>
-  </div>
-  <div class="drawer-body">
-    <div class="field-row">
-      <div class="field"><label>Tipo</label>
-        <select class="input" id="inv_tipo"><option>PLA</option><option>PETG</option><option>ABS</option><option>TPU</option><option>ASA</option><option>Nylon</option></select>
-      </div>
-      <div class="field"><label>Color</label><input class="input" id="inv_color" placeholder="Blanco, Negro, Galaxy…" /></div>
-      <div class="field"><label>Marca</label><input class="input" id="inv_marca" placeholder="Bambu Lab, Sunlu…" /></div>
-      <div class="field"><label>Proveedor</label><input class="input" id="inv_proveedor" placeholder="3D Filamentos CR" /></div>
-    </div>
-    <div class="spacer-md"></div>
-    <div class="field-row-3">
-      <div class="field"><label>Precio rollo (₡)</label>
-        <div class="input-prefix"><span class="prefix">₡</span><input class="input" id="inv_precio" type="number" value="6500" /></div>
-      </div>
-      <div class="field"><label>Peso total (g)</label><input class="input" id="inv_peso" type="number" value="1000" /></div>
-      <div class="field"><label>Disponible (g)</label><input class="input" id="inv_disponibles" type="number" value="1000" /></div>
-    </div>
-    <div class="spacer-md"></div>
-    <div class="field"><label>Fecha de compra</label><input class="input" id="inv_fecha" type="date" /></div>
-    <div class="spacer-md"></div>
-    <div class="field"><label>Notas (opcional)</label><textarea class="input" id="inv_notas"></textarea></div>
-  </div>
-  <div class="drawer-foot">
-    <button class="btn btn-ghost btn-sm" onclick="closeDrawer()">Cancelar</button>
-    <button class="btn btn-primary btn-sm" id="drawerSaveBtn" onclick="guardarFilamento()">
-      <svg class="i14"><use href="#i-save"/></svg> <span id="drawerSaveLabel">Agregar al inventario</span>
+    <button class="theme-toggle" onclick="toggleTheme()">
+      <svg id="theme-icon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      <span id="theme-label">Modo oscuro</span>
     </button>
   </div>
 </aside>
 
-<div id="toastContainer" style="position:fixed;bottom:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px"></div>
+<!-- MAIN WRAP -->
+<div class="main-wrap">
+  <div class="topbar">
+    <div style="display:flex;align-items:center;gap:10px">
+      <button class="hamburger btn-ghost" onclick="openSidebar()">
+        <svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div class="breadcrumb">
+        <span>Cotizador 3D</span><span class="sep">/</span>
+        <span class="current" id="breadcrumb-current">Cotizador</span>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <button class="btn btn-ghost btn-icon" onclick="toggleTheme()" title="Cambiar tema">
+        <svg id="topbar-theme-icon" viewBox="0 0 24 24" width="17" height="17" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+      </button>
+    </div>
+  </div>
 
-<!-- Capa 1: Conexión Firebase + operaciones Firestore -->
+  <main class="main">
+
+    <!-- PÁGINA: COTIZADOR -->
+    <div class="page active" id="page-cotizador">
+      <div class="section-title">Nueva Cotización</div>
+      <div class="section-sub">Ingrese los datos de la pieza y materiales para calcular el precio</div>
+      <div class="edit-banner" id="edit-banner" style="display:none">
+        <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        <span id="edit-banner-text">Editando cotización</span>
+        <span class="cancel-edit" onclick="nuevaCotizacion()">Cancelar edición</span>
+      </div>
+      <div class="card">
+        <div class="card-title">
+          <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          Información de la Pieza
+        </div>
+        <div class="form-grid">
+          <div class="form-group"><label>Nombre de la pieza</label><input type="text" id="c_pieza" placeholder="Ej: Engranaje planetario"></div>
+          <div class="form-group"><label>Cliente</label><input type="text" id="c_cliente" placeholder="Nombre del cliente"></div>
+          <div class="form-group"><label>Fecha</label><input type="date" id="c_fecha"></div>
+          <div class="form-group"><label>Cantidad</label><input type="number" id="c_cantidad" value="1" min="1"></div>
+          <div class="form-group">
+            <label>Categoría</label>
+            <select id="c_categoria">
+              <option value="Funcional">Funcional</option><option value="Decorativa">Decorativa</option>
+              <option value="Prototipo">Prototipo</option><option value="Educativo">Educativo</option>
+              <option value="Repuesto">Repuesto</option><option value="Personalizado">Personalizado</option>
+              <option value="Otro">Otro</option>
+            </select>
+          </div>
+          <div class="form-group" style="grid-column:span 2">
+            <label>Notas</label><textarea id="c_notas" rows="2" placeholder="Notas adicionales…"></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+          Insumos y Tiempo
+        </div>
+        <div class="form-grid">
+          <div class="form-group"><label>Gramos de filamento (g)</label><input type="number" id="c_gramos" value="0" min="0" step="0.1" oninput="calcular()"></div>
+          <div class="form-group"><label>Horas de impresión</label><input type="number" id="c_horas_imp" value="0" min="0" step="0.1" oninput="calcular()"></div>
+          <div class="form-group"><label>Horas mano de obra</label><input type="number" id="c_horas_mo" value="0" min="0" step="0.1" oninput="calcular()"></div>
+          <div class="form-group"><label>Horas diseño</label><input type="number" id="c_horas_dis" value="0" min="0" step="0.1" oninput="calcular()"></div>
+          <div class="form-group"><label>Costo fijo diseño (₡)</label><input type="number" id="c_costo_dis" value="0" min="0" step="100" oninput="calcular()"></div>
+          <div class="form-group"><label>Postprocesado (₡)</label><input type="number" id="c_postpro" value="0" min="0" step="100" oninput="calcular()"></div>
+          <div class="form-group"><label>Otros costos (₡)</label><input type="number" id="c_otros" value="0" min="0" step="100" oninput="calcular()"></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">
+          <svg viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+          Ajustes
+        </div>
+        <div class="form-grid-3">
+          <div class="form-group"><label>% Fallos / merma</label><input type="number" id="c_fallos" value="5" min="0" max="100" step="1" oninput="calcular()"></div>
+          <div class="form-group"><label>% Margen / ganancia</label><input type="number" id="c_margen" value="35" min="0" step="1" oninput="calcular()"></div>
+          <div class="form-group"><label>% IVA</label><input type="number" id="c_iva" value="0" min="0" max="100" step="1" oninput="calcular()"></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">
+          <svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          Desglose de Costos
+        </div>
+        <div class="breakdown" id="breakdown">
+          <div class="breakdown-row"><span>Material (filamento)</span><span class="breakdown-val" id="b_material">₡0.00</span></div>
+          <div class="breakdown-row"><span>Electricidad</span><span class="breakdown-val" id="b_elec">₡0.00</span></div>
+          <div class="breakdown-row"><span>Desgaste impresora</span><span class="breakdown-val" id="b_desgaste">₡0.00</span></div>
+          <div class="breakdown-row"><span>Mano de obra</span><span class="breakdown-val" id="b_mo">₡0.00</span></div>
+          <div class="breakdown-row"><span>Diseño</span><span class="breakdown-val" id="b_dis">₡0.00</span></div>
+          <div class="breakdown-row"><span>Postprocesado</span><span class="breakdown-val" id="b_post">₡0.00</span></div>
+          <div class="breakdown-row"><span>Otros</span><span class="breakdown-val" id="b_otros">₡0.00</span></div>
+          <div class="breakdown-row subtotal"><span>Subtotal</span><span class="breakdown-val" id="b_sub">₡0.00</span></div>
+          <div class="breakdown-row"><span id="b_fallos_label">+ Fallos (5%)</span><span class="breakdown-val" id="b_fallos_val">₡0.00</span></div>
+          <div class="breakdown-row subtotal"><span>Costo con fallos</span><span class="breakdown-val" id="b_costo_fallos">₡0.00</span></div>
+          <div class="breakdown-row"><span id="b_margen_label">+ Ganancia (35%)</span><span class="breakdown-val" id="b_margen_val">₡0.00</span></div>
+          <div class="breakdown-row subtotal"><span>Precio antes de IVA</span><span class="breakdown-val" id="b_antes_iva">₡0.00</span></div>
+          <div class="breakdown-row" id="b_iva_row"><span id="b_iva_label">+ IVA (0%)</span><span class="breakdown-val" id="b_iva_val">₡0.00</span></div>
+          <div class="breakdown-row total highlight"><span>PRECIO FINAL</span><span class="breakdown-val" id="b_final">₡0</span></div>
+        </div>
+        <div class="btn-group" style="margin-top:18px">
+          <button class="btn btn-primary" onclick="guardarCotizacion()">
+            <svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+            <span>Guardar trabajo</span>
+          </button>
+          <button class="btn btn-secondary" onclick="generarPDF()">
+            <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            <span>Generar PDF</span>
+          </button>
+          <button class="btn btn-ghost" onclick="nuevaCotizacion()">
+            <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <span>Nueva cotización</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PÁGINA: TRABAJOS -->
+    <div class="page" id="page-trabajos">
+      <div class="section-title">Trabajos Guardados</div>
+      <div class="section-sub">Historial de cotizaciones y trabajos</div>
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-label">Total trabajos</div><div class="stat-value" id="st-total">0</div></div>
+        <div class="stat-card"><div class="stat-label">Aprobados</div><div class="stat-value accent" id="st-aprobados">0</div></div>
+        <div class="stat-card"><div class="stat-label">Entregados</div><div class="stat-value success" id="st-entregados">0</div></div>
+        <div class="stat-card"><div class="stat-label">Ingresos totales</div><div class="stat-value accent" id="st-ingresos">₡0</div></div>
+      </div>
+      <div class="card">
+        <div class="filter-bar">
+          <input type="text" id="tr-search" placeholder="Buscar cliente, pieza…" oninput="renderTrabajos()">
+          <select id="tr-estado" onchange="renderTrabajos()">
+            <option value="">Todos los estados</option>
+            <option value="Cotizado">Cotizado</option><option value="Aprobado">Aprobado</option>
+            <option value="En producción">En producción</option><option value="Entregado">Entregado</option>
+            <option value="Cancelado">Cancelado</option>
+          </select>
+          <select id="tr-categoria" onchange="renderTrabajos()">
+            <option value="">Todas las categorías</option>
+            <option value="Funcional">Funcional</option><option value="Decorativa">Decorativa</option>
+            <option value="Prototipo">Prototipo</option><option value="Educativo">Educativo</option>
+            <option value="Repuesto">Repuesto</option><option value="Personalizado">Personalizado</option>
+            <option value="Otro">Otro</option>
+          </select>
+          <button class="btn btn-secondary btn-sm" onclick="cargarTrabajos()">
+            <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            Recargar
+          </button>
+        </div>
+        <div class="table-wrap">
+          <table id="trabajos-table">
+            <thead><tr><th>Fecha</th><th>Cliente</th><th>Pieza</th><th>Categoría</th><th>Gramos / Horas</th><th>Costo</th><th>Precio Final</th><th>Estado</th><th>Acciones</th></tr></thead>
+            <tbody id="trabajos-tbody"></tbody>
+          </table>
+        </div>
+        <div id="trabajos-empty" class="empty-state" style="display:none">
+          <svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
+          <p>No hay trabajos guardados aún</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- PÁGINA: INVENTARIO -->
+    <div class="page" id="page-inventario">
+      <div class="section-title">Inventario de Filamentos</div>
+      <div class="section-sub">Gestione su stock de filamentos</div>
+      <div class="card">
+        <div class="card-title">
+          <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Agregar Filamento
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Tipo</label>
+            <select id="inv_tipo">
+              <option value="PLA">PLA</option><option value="PETG">PETG</option>
+              <option value="ABS">ABS</option><option value="TPU">TPU</option>
+              <option value="ASA">ASA</option><option value="Nylon">Nylon</option>
+              <option value="Otro">Otro</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Color</label><input type="text" id="inv_color" placeholder="Ej: Blanco, Negro…"></div>
+          <div class="form-group"><label>Marca</label><input type="text" id="inv_marca" placeholder="Ej: Polymaker, Sunlu…"></div>
+          <div class="form-group"><label>Precio por rollo (₡)</label><input type="number" id="inv_precio" value="0" min="0" step="100"></div>
+          <div class="form-group"><label>Peso del rollo (g)</label><input type="number" id="inv_peso" value="1000" min="1"></div>
+          <div class="form-group"><label>Rollos disponibles</label><input type="number" id="inv_disp" value="1" min="0" step="0.1"></div>
+          <div class="form-group"><label>Proveedor</label><input type="text" id="inv_prov" placeholder="Nombre del proveedor"></div>
+          <div class="form-group"><label>Fecha de compra</label><input type="date" id="inv_fecha"></div>
+          <div class="form-group" style="grid-column:span 2"><label>Notas</label><textarea id="inv_notas" rows="2" placeholder="Notas sobre el filamento…"></textarea></div>
+        </div>
+        <div class="btn-group" style="margin-top:14px">
+          <button class="btn btn-primary" onclick="agregarFilamento()">
+            <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <span>Agregar al inventario</span>
+          </button>
+          <span id="inv-edit-id" style="display:none"></span>
+          <button class="btn btn-ghost" id="inv-cancel-edit" style="display:none" onclick="cancelarEditFilamento()">Cancelar edición</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">
+          <svg viewBox="0 0 24 24"><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+          Stock Actual
+        </div>
+        <div class="table-wrap">
+          <table id="inv-table">
+            <thead><tr><th>Tipo</th><th>Color</th><th>Marca</th><th>Precio/Rollo</th><th>Peso (g)</th><th>Costo/g</th><th>Disponible</th><th>Valor restante</th><th>Proveedor</th><th>Fecha compra</th><th>Acciones</th></tr></thead>
+            <tbody id="inv-tbody"></tbody>
+          </table>
+        </div>
+        <div id="inv-empty" class="empty-state" style="display:none">
+          <svg viewBox="0 0 24 24"><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+          <p>No hay filamentos en el inventario</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- PÁGINA: CONFIGURACIÓN -->
+    <div class="page" id="page-configuracion">
+      <div class="section-title">Configuración</div>
+      <div class="section-sub">Parámetros de costo y datos de empresa</div>
+      <div class="firebase-banner">
+        <svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        Conectado a Firebase Firestore — los datos se sincronizan en la nube
+      </div>
+      <div class="card">
+        <div class="config-section">
+          <div class="config-section-title">Filamento</div>
+          <div class="form-grid-3"><div class="form-group"><label>Costo por gramo (₡/g)</label><input type="number" id="cfg_costo_g" value="8" min="0" step="0.1" oninput="calcCfg()"></div></div>
+        </div>
+        <div class="config-section">
+          <div class="config-section-title">Electricidad</div>
+          <div class="form-grid-3">
+            <div class="form-group"><label>Consumo impresora (W)</label><input type="number" id="cfg_watts" value="200" min="0" step="10" oninput="calcCfg()"></div>
+            <div class="form-group"><label>Tarifa eléctrica (₡/kWh)</label><input type="number" id="cfg_kwh" value="130" min="0" step="1" oninput="calcCfg()"></div>
+            <div class="form-group"><label>Costo/hora calc. (₡)</label><input type="number" id="cfg_elec_h" readonly style="background:var(--surface2);cursor:default"></div>
+          </div>
+        </div>
+        <div class="config-section">
+          <div class="config-section-title">Desgaste de Impresora</div>
+          <div class="form-grid-3"><div class="form-group"><label>Costo desgaste/hora (₡)</label><input type="number" id="cfg_desgaste_h" value="150" min="0" step="10" oninput="calcCfg()"></div></div>
+        </div>
+        <div class="config-section">
+          <div class="config-section-title">Mano de Obra</div>
+          <div class="form-grid-3">
+            <div class="form-group"><label>Tarifa MO (₡/hora)</label><input type="number" id="cfg_mo_h" value="3000" min="0" step="100" oninput="calcCfg()"></div>
+            <div class="form-group"><label>Tarifa diseño (₡/hora)</label><input type="number" id="cfg_dis_h" value="5000" min="0" step="100" oninput="calcCfg()"></div>
+          </div>
+        </div>
+        <div class="config-section">
+          <div class="config-section-title">Márgenes por Defecto</div>
+          <div class="form-grid-3">
+            <div class="form-group"><label>% Fallos por defecto</label><input type="number" id="cfg_fallos" value="5" min="0" max="100" step="1"></div>
+            <div class="form-group"><label>% Margen por defecto</label><input type="number" id="cfg_margen" value="35" min="0" step="1"></div>
+            <div class="form-group"><label>% IVA por defecto</label><input type="number" id="cfg_iva" value="0" min="0" max="100" step="1"></div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">
+          <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          Datos de Empresa
+        </div>
+        <div class="form-grid">
+          <div class="form-group"><label>Nombre empresa</label><input type="text" id="emp_nombre" placeholder="Mi Empresa 3D"></div>
+          <div class="form-group"><label>Email</label><input type="email" id="emp_email" placeholder="contacto@empresa.cr"></div>
+          <div class="form-group"><label>Teléfono</label><input type="text" id="emp_tel" placeholder="+506 0000-0000"></div>
+          <div class="form-group"><label>Sitio web</label><input type="text" id="emp_web" placeholder="www.empresa.cr"></div>
+          <div class="form-group"><label>Cédula / RUC</label><input type="text" id="emp_cedula" placeholder="3-101-000000"></div>
+          <div class="form-group" style="grid-column:span 2"><label>Nota en PDF</label><textarea id="emp_nota" rows="2" placeholder="Nota al pie de las cotizaciones…"></textarea></div>
+        </div>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-primary" onclick="guardarConfiguracion()">
+          <svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          <span>Guardar configuración</span>
+        </button>
+        <button class="btn btn-secondary" onclick="cargarConfiguracion()">
+          <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          <span>Recargar desde Firebase</span>
+        </button>
+      </div>
+    </div>
+
+  </main>
+</div>
+</div>
+
+<!--
+  CAPAS DE PROGRAMACIÓN — orden de carga:
+    1. db.js     → Base de datos (Firebase Firestore)
+    2. logic.js  → Lógica de negocio y cálculos
+    3. ui.js     → Interfaz gráfica y renderizado
+    4. app.js    → Controlador y orquestación
+-->
 <script src="js/db.js"></script>
-<!-- Capa 2: Renderizado DOM / UI -->
+<script src="js/logic.js"></script>
 <script src="js/ui.js"></script>
-<!-- Capa 3: Lógica de aplicación -->
 <script src="js/app.js"></script>
 
 </body>

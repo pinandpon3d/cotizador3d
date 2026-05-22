@@ -1,243 +1,163 @@
-/* ═══════════════════════════════════════════════════════
-   ui.js  —  Funciones de renderizado DOM
-   ═══════════════════════════════════════════════════════ */
+/**
+ * CAPA DE INTERFAZ GRÁFICA — ui.js
+ *
+ * Responsabilidad: renderizado del DOM, notificaciones toast y
+ * gestión visual del tema. Sin lógica de negocio ni Firebase.
+ *
+ * Depende de: helpers el/fmt/set (logic.js),
+ *             variables globales trabajos/filamentos (app.js)
+ */
 
-const fmt  = n => new Intl.NumberFormat('es-CR',{style:'currency',currency:'CRC',minimumFractionDigits:0}).format(n||0);
-const fmtN = n => new Intl.NumberFormat('es-CR',{minimumFractionDigits:0}).format(n||0);
-const $    = id => document.getElementById(id);
+'use strict';
 
-function toast(msg, type = 'info') {
-  const c = $('toastContainer'); if (!c) return;
+/* ----------------------------------------------------------
+   Toast / notificaciones
+---------------------------------------------------------- */
+
+function toast(msg, type = 'info', dur = 3500) {
+  const container = el('toast-container');
   const t = document.createElement('div');
-  t.className = `toast toast-${type} show`;
-  t.textContent = msg;
-  c.appendChild(t);
-  setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, 3200);
+  t.className = 'toast ' + type;
+  const icons = {
+    success: '<polyline points="20 6 9 17 4 12"/>',
+    error:   '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>',
+    info:    '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>'
+  };
+  t.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${icons[type] || icons.info}</svg><span>${msg}</span>`;
+  container.appendChild(t);
+  setTimeout(() => {
+    t.style.animation = 'fadeOut .25s ease forwards';
+    setTimeout(() => t.remove(), 260);
+  }, dur);
 }
 
-function setLoading(btn, state) {
-  if (!btn) return;
-  if (state) { btn.dataset.orig = btn.innerHTML; btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>'; }
-  else { btn.innerHTML = btn.dataset.orig || btn.innerHTML; btn.disabled = false; }
+/* ----------------------------------------------------------
+   Tema claro / oscuro
+---------------------------------------------------------- */
+
+function applyThemeLabels() {
+  const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const sunIcon  = `<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>`;
+  const moonIcon = `<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>`;
+  const icon  = dark ? sunIcon : moonIcon;
+  const label = dark ? 'Modo claro' : 'Modo oscuro';
+  const ti  = el('theme-icon');
+  const tbi = el('topbar-theme-icon');
+  if (ti)  ti.innerHTML  = icon;
+  if (tbi) tbi.innerHTML = icon;
+  const tl = el('theme-label');
+  if (tl) tl.textContent = label;
 }
 
-function actualizarBadges() {
-  const bt = $('sb-count-trabajos'), bf = $('sb-count-filamentos');
-  if (bt) bt.textContent = (window.todosLosTrabajos||[]).length || '';
-  if (bf) bf.textContent = (window.todosLosFilamentos||[]).length || '';
+function toggleTheme() {
+  const html = document.documentElement;
+  const dark = html.getAttribute('data-theme') === 'dark';
+  html.setAttribute('data-theme', dark ? 'light' : 'dark');
+  localStorage.setItem('theme', dark ? 'light' : 'dark');
+  applyThemeLabels();
 }
 
-/* ── Dashboard ───────────────────────────────────────── */
-function renderDashboard() {
-  const now = new Date();
-  const mes = now.getMonth(), anio = now.getFullYear();
-  const esMes = t => { const d = t.fecha ? new Date(t.fecha) : null; return d && d.getMonth()===mes && d.getFullYear()===anio; };
-  const trabajos   = window.todosLosTrabajos  || [];
-  const filamentos = window.todosLosFilamentos || [];
-  const delMes     = trabajos.filter(esMes);
-  const ingresos   = delMes.filter(t=>t.estado==='entregado').reduce((a,t)=>(a+(t.precioFinal||0)*(t.cantidad||1)),0);
+/* ----------------------------------------------------------
+   Escapado HTML
+---------------------------------------------------------- */
 
-  [ ['kpi-ingresos',   fmt(ingresos)],
-    ['kpi-trabajos',   fmtN(delMes.length)],
-    ['kpi-entregados', fmtN(delMes.filter(t=>t.estado==='entregado').length)],
-    ['kpi-rollos',     fmtN(filamentos.filter(f=>(f.disponibles||0)>50).length)]
-  ].forEach(([id,v]) => { const el=$(id); if(el) el.textContent=v; });
-
-  const h = now.getHours();
-  const name = localStorage.getItem(AUTH_NAME_KEY)||'';
-  const greet = h<12?'Buenos días':h<18?'Buenas tardes':'Buenas noches';
-  const g=$('dash-greeting'); if(g) g.textContent=`${greet}${name?', '+name:''} 👋`;
-  const tl=$('todayLabel'); if(tl) tl.textContent=now.toLocaleDateString('es-CR',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
-
-  renderActivityList(trabajos);
-  renderLowStock(filamentos);
-  renderChart(trabajos);
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-function renderActivityList(trabajos) {
-  const list=$('activityList'); if(!list) return;
-  const recientes=[...trabajos].sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||'')).slice(0,6);
-  if(!recientes.length){list.innerHTML='<p style="padding:1rem;opacity:.5">Sin actividad reciente</p>';return;}
-  const lbl={pendiente:'Pendiente',aprobado:'Aprobado',imprimiendo:'Imprimiendo',entregado:'Entregado',cancelado:'Cancelado'};
-  list.innerHTML=recientes.map(t=>`
-    <div class="activity-item">
-      <div class="activity-icon"><svg class="i16"><use href="#i-cube"/></svg></div>
-      <div class="activity-info">
-        <span class="activity-title">${t.pieza||'Sin nombre'}</span>
-        <span class="activity-meta">${t.cliente||'—'} · ${t.fecha||'—'}</span>
-      </div>
-      <span class="chip chip-${t.estado||'pendiente'}">${lbl[t.estado]||t.estado}</span>
-    </div>`).join('');
-}
+/* ----------------------------------------------------------
+   Tabla de trabajos
+---------------------------------------------------------- */
 
-function renderLowStock(filamentos) {
-  const grid=$('lowStockGrid'); if(!grid) return;
-  const bajos=filamentos.filter(f=>(f.disponibles||0)<=100).sort((a,b)=>(a.disponibles||0)-(b.disponibles||0));
-  if(!bajos.length){grid.innerHTML='<p style="padding:1rem;opacity:.5">Sin alertas de stock bajo</p>';return;}
-  grid.innerHTML=bajos.slice(0,6).map(f=>`
-    <div class="stock-card">
-      <div class="stock-info">
-        <span class="stock-name">${f.tipo||'—'} ${f.color||''}</span>
-        <span class="stock-brand">${f.marca||'—'}</span>
-      </div>
-      <div class="stock-bar-wrap"><div class="stock-bar" style="width:${Math.min(100,(f.disponibles||0)/10)}%"></div></div>
-      <span class="stock-qty ${(f.disponibles||0)<=50?'text-danger':''}">${fmtN(f.disponibles||0)} g</span>
-    </div>`).join('');
-}
-
-function renderChart(trabajos) {
-  const canvas=$('chart'); if(!canvas||!canvas.getContext) return;
-  const ctx=canvas.getContext('2d');
-  const now=new Date();
-  const labels=[],data=[];
-  for(let i=5;i>=0;i--){
-    const d=new Date(now.getFullYear(),now.getMonth()-i,1);
-    const m=d.getMonth(),y=d.getFullYear();
-    const total=trabajos.filter(t=>{const fd=t.fecha?new Date(t.fecha):null;return fd&&fd.getMonth()===m&&fd.getFullYear()===y&&t.estado==='entregado';})
-      .reduce((a,t)=>(a+(t.precioFinal||0)*(t.cantidad||1)),0);
-    labels.push(d.toLocaleDateString('es-CR',{month:'short'}));
-    data.push(total);
-  }
-  const W=canvas.width=canvas.offsetWidth||500,H=canvas.height=160;
-  const max=Math.max(...data,1);
-  const pad={t:10,r:16,b:30,l:60};
-  const gw=W-pad.l-pad.r,gh=H-pad.t-pad.b;
-  ctx.clearRect(0,0,W,H);
-  const dark=document.documentElement.getAttribute('data-theme')==='dark';
-  const gc=dark?'rgba(255,255,255,.07)':'rgba(0,0,0,.07)';
-  const tc=dark?'rgba(255,255,255,.4)':'rgba(0,0,0,.4)';
-  const accent=getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()||'#6C63FF';
-  ctx.strokeStyle=gc;ctx.lineWidth=1;
-  for(let i=0;i<=4;i++){
-    const y=pad.t+(gh/4)*i;
-    ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(pad.l+gw,y);ctx.stroke();
-    ctx.fillStyle=tc;ctx.font='11px sans-serif';ctx.textAlign='right';
-    ctx.fillText(fmt(max*(1-i/4)).replace('₡','').replace(/\s/g,''),pad.l-6,y+4);
-  }
-  const bw=gw/labels.length*0.5;
-  labels.forEach((lbl,i)=>{
-    const x=pad.l+(gw/labels.length)*(i+0.5)-bw/2;
-    const bh=(data[i]/max)*gh,y=pad.t+gh-bh;
-    ctx.fillStyle=accent;
-    ctx.beginPath();const r=4;
-    ctx.moveTo(x+r,y);ctx.lineTo(x+bw-r,y);ctx.quadraticCurveTo(x+bw,y,x+bw,y+r);
-    ctx.lineTo(x+bw,y+bh);ctx.lineTo(x,y+bh);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);
-    ctx.fill();
-    ctx.fillStyle=tc;ctx.font='11px sans-serif';ctx.textAlign='center';
-    ctx.fillText(lbl,x+bw/2,H-8);
-  });
-}
-
-/* ── Trabajos ────────────────────────────────────────── */
 function renderTrabajos() {
-  const body=$('trabajosBody'); if(!body) return;
-  const trabajos=window.todosLosTrabajos||[];
-  const q=($('t_buscar')?.value||'').toLowerCase();
-  const filtro=window.estadoFilter||'todos';
-  const lista=trabajos.filter(t=>{
-    if(filtro!=='todos'&&t.estado!==filtro)return false;
-    if(q&&!`${t.pieza} ${t.cliente} ${t.categoria}`.toLowerCase().includes(q))return false;
-    return true;
+  const search  = el('tr-search')?.value.toLowerCase()  || '';
+  const estadoF = el('tr-estado')?.value                || '';
+  const catF    = el('tr-categoria')?.value             || '';
+
+  const list = trabajos.filter(t => {
+    const matchSearch = !search  || (t.pieza||'').toLowerCase().includes(search) || (t.cliente||'').toLowerCase().includes(search);
+    const matchEstado = !estadoF || t.estado    === estadoF;
+    const matchCat    = !catF    || t.categoria === catF;
+    return matchSearch && matchEstado && matchCat;
   });
-  const lbl={pendiente:'Pendiente',aprobado:'Aprobado',imprimiendo:'Imprimiendo',entregado:'Entregado',cancelado:'Cancelado'};
-  [['tkpi-total',fmtN(trabajos.length)],
-   ['tkpi-aprobados',fmtN(trabajos.filter(t=>t.estado==='aprobado').length)],
-   ['tkpi-entregados',fmtN(trabajos.filter(t=>t.estado==='entregado').length)],
-   ['tkpi-facturado',fmt(trabajos.filter(t=>t.estado==='entregado').reduce((a,t)=>(a+(t.precioFinal||0)*(t.cantidad||1)),0))]
-  ].forEach(([id,v])=>{const el=$(id);if(el)el.textContent=v;});
-  if(!lista.length){body.innerHTML='<tr><td colspan="8" style="text-align:center;padding:2rem;opacity:.5">Sin resultados</td></tr>';return;}
-  body.innerHTML=lista.map(t=>`
-    <tr>
-      <td><span class="mono text-xs">${(t.id||'').slice(0,8)}</span></td>
-      <td><div class="fw-medium">${t.pieza||'—'}</div><div class="text-xs text-muted">${t.categoria||'—'}</div></td>
-      <td>${t.cliente||'—'}</td>
-      <td>${t.fecha||'—'}</td>
-      <td class="text-right">${t.cantidad||1}</td>
-      <td class="text-right fw-medium">${fmt(t.precioFinal||0)}</td>
-      <td><span class="chip chip-${t.estado||'pendiente'}">${lbl[t.estado]||t.estado}</span></td>
-      <td><div class="row-actions">
-        <select class="input input-xs" onchange="cambiarEstado('${t.id}',this.value)" style="min-width:130px">
-          ${['pendiente','aprobado','imprimiendo','entregado','cancelado'].map(s=>`<option value="${s}"${t.estado===s?' selected':''}>${lbl[s]}</option>`).join('')}
-        </select>
-        <button class="btn btn-ghost btn-icon-sm" title="Editar" onclick="editarTrabajo('${t.id}')"><svg class="i14"><use href="#i-edit"/></svg></button>
-        <button class="btn btn-ghost btn-icon-sm" title="PDF" onclick="generarPDF('${t.id}')"><svg class="i14"><use href="#i-pdf"/></svg></button>
-        <button class="btn btn-ghost btn-icon-sm text-danger" title="Eliminar" onclick="eliminarTrabajo('${t.id}')"><svg class="i14"><use href="#i-trash"/></svg></button>
+
+  const total      = trabajos.length;
+  const aprobados  = trabajos.filter(t => t.estado === 'Aprobado').length;
+  const entregados = trabajos.filter(t => t.estado === 'Entregado').length;
+  const ingresos   = trabajos.filter(t => t.estado === 'Entregado').reduce((s,t) => s + (t.precio_final||0), 0);
+  set('st-total', total); set('st-aprobados', aprobados);
+  set('st-entregados', entregados); set('st-ingresos', fmt(ingresos));
+
+  const tbody = el('trabajos-tbody');
+  if (!tbody) return;
+  el('trabajos-empty').style.display = list.length ? 'none'  : 'block';
+  el('trabajos-table').style.display = list.length ? 'table' : 'none';
+
+  const colorMap = { Cotizado:'badge-gray', Aprobado:'badge-accent', 'En producción':'badge-warn', Entregado:'badge-success', Cancelado:'badge-danger' };
+
+  tbody.innerHTML = list.map(t => {
+    const ec = colorMap[t.estado] || 'badge-gray';
+    return `<tr>
+      <td class="td-mono">${t.fecha||'—'}</td>
+      <td>${escHtml(t.cliente||'')}</td>
+      <td><strong>${escHtml(t.pieza||'')}</strong></td>
+      <td><span class="badge badge-accent">${escHtml(t.categoria||'')}</span></td>
+      <td class="td-mono">${(t.gramos||0).toFixed(1)}g / ${(t.horas_imp||0).toFixed(1)}h</td>
+      <td class="td-mono">${fmt(t.costo_total||0)}</td>
+      <td class="td-mono"><strong>${fmt(t.precio_final||0)}</strong></td>
+      <td><select class="badge ${ec} estado-select" onchange="cambiarEstado('${t.id}',this.value,this)">
+        ${['Cotizado','Aprobado','En producción','Entregado','Cancelado'].map(s=>`<option value="${s}"${t.estado===s?' selected':''}>${s}</option>`).join('')}
+      </select></td>
+      <td><div class="td-actions">
+        <button class="btn btn-ghost btn-icon btn-sm" title="Ver" onclick='verTrabajo("${t.id}")'>
+          <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+        <button class="btn btn-ghost btn-icon btn-sm" title="PDF" onclick='pdfTrabajo("${t.id}")'>
+          <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        </button>
+        <button class="btn btn-ghost btn-icon btn-sm" title="Editar" onclick='editarTrabajo("${t.id}")'>
+          <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </button>
+        <button class="btn btn-danger btn-icon btn-sm" title="Eliminar" onclick='eliminarTrabajo("${t.id}")'>
+          <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+        </button>
       </div></td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
 }
 
-/* ── Inventario ──────────────────────────────────────── */
-function colorHex(name) {
-  const map={negro:'#222',blanco:'#f0f0f0',rojo:'#e53e3e',azul:'#3182ce',verde:'#38a169',
-    amarillo:'#d69e2e',naranja:'#dd6b20',morado:'#805ad5',rosa:'#d53f8c',
-    gris:'#718096',transparente:'rgba(200,200,200,0.4)',natural:'#c8a96e'};
-  return map[(name||'').toLowerCase()]||'#888';
-}
+/* ----------------------------------------------------------
+   Tabla de inventario
+---------------------------------------------------------- */
 
-function renderFilamentos() {
-  const filamentos=window.todosLosFilamentos||[];
-  const q=($('inv_buscar')?.value||'').toLowerCase();
-  const lista=filamentos.filter(f=>!q||`${f.tipo} ${f.color} ${f.marca}`.toLowerCase().includes(q));
-  const view=window.invView||'grid';
+function renderInventario() {
+  const tbody = el('inv-tbody');
+  if (!tbody) return;
+  el('inv-empty').style.display = filamentos.length ? 'none'  : 'block';
+  el('inv-table').style.display = filamentos.length ? 'table' : 'none';
 
-  [['ikpi-rollos',fmtN(filamentos.length)],
-   ['ikpi-valor',fmt(filamentos.reduce((a,f)=>(a+(f.precio||0)),0))],
-   ['ikpi-bajo',fmtN(filamentos.filter(f=>(f.disponibles||0)<=100).length)]
-  ].forEach(([id,v])=>{const el=$(id);if(el)el.textContent=v;});
-
-  if(view==='grid'){
-    const grid=$('filGrid'); if(!grid) return;
-    if(!lista.length){grid.innerHTML='<p style="padding:2rem;opacity:.5">Sin filamentos. Agregá uno con el botón +</p>';return;}
-    grid.innerHTML=lista.map(f=>{
-      const pct=Math.min(100,((f.disponibles||0)/(f.peso||1000))*100);
-      const cg=(f.precio&&f.peso)?f.precio/f.peso*1000:0;
-      return `<div class="fil-card">
-        <div class="fil-card-head">
-          <div class="fil-dot" style="background:${colorHex(f.color)}"></div>
-          <div><div class="fw-medium">${f.tipo||'—'} ${f.color||''}</div><div class="text-xs text-muted">${f.marca||'—'}</div></div>
-          <div style="margin-left:auto;display:flex;gap:4px">
-            <button class="btn btn-ghost btn-icon-sm" onclick="editarFilamento('${f.id}')"><svg class="i14"><use href="#i-edit"/></svg></button>
-            <button class="btn btn-ghost btn-icon-sm text-danger" onclick="eliminarFilamento('${f.id}')"><svg class="i14"><use href="#i-trash"/></svg></button>
-          </div>
-        </div>
-        <div class="fil-bar-wrap"><div class="fil-bar" style="width:${pct}%"></div></div>
-        <div class="fil-meta"><span>${fmtN(f.disponibles||0)} / ${fmtN(f.peso||0)} g</span><span>${fmt(cg)}/kg</span></div>
-      </div>`;
-    }).join('');
-  } else {
-    const tbody=$('filTableBody'); if(!tbody) return;
-    if(!lista.length){tbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:2rem;opacity:.5">Sin filamentos</td></tr>';return;}
-    tbody.innerHTML=lista.map(f=>{
-      const cg=(f.precio&&f.peso)?f.precio/f.peso*1000:0;
-      return `<tr>
-        <td><div style="display:flex;align-items:center;gap:8px">
-          <div style="width:12px;height:12px;border-radius:50%;background:${colorHex(f.color)};flex-shrink:0"></div>
-          <div><div>${f.tipo||'—'}</div><div class="text-xs text-muted">${f.marca||'—'}</div></div></div></td>
-        <td>${f.color||'—'}</td>
-        <td class="text-right">${fmtN(f.disponibles||0)} g</td>
-        <td class="text-right">${fmtN(f.peso||0)} g</td>
-        <td class="text-right">${fmt(f.precio||0)}</td>
-        <td class="text-right">${fmt(cg)}/kg</td>
-        <td><div class="row-actions">
-          <button class="btn btn-ghost btn-icon-sm" onclick="editarFilamento('${f.id}')"><svg class="i14"><use href="#i-edit"/></svg></button>
-          <button class="btn btn-ghost btn-icon-sm text-danger" onclick="eliminarFilamento('${f.id}')"><svg class="i14"><use href="#i-trash"/></svg></button>
-        </div></td>
-      </tr>`;
-    }).join('');
-  }
-}
-
-function populateFilamentSelect() {
-  const sel=$('c_filamento'); if(!sel) return;
-  const current=sel.value;
-  sel.innerHTML='<option value="">— Selecciona un filamento —</option>';
-  (window.todosLosFilamentos||[]).forEach(f=>{
-    const cg=(f.precio&&f.peso)?f.precio/f.peso*1000:0;
-    const opt=document.createElement('option');
-    opt.value=f.id;
-    opt.textContent=`${f.tipo||''} ${f.color||''} ${f.marca?'· '+f.marca:''} — ₡${fmtN(Math.round(cg))}/kg`;
-    opt.dataset.cg=cg;
-    if(f.id===current)opt.selected=true;
-    sel.appendChild(opt);
-  });
+  tbody.innerHTML = filamentos.map(f => {
+    const costoG        = f.peso_rollo > 0 ? (f.precio_rollo / f.peso_rollo) : 0;
+    const valorRestante = costoG * f.peso_rollo * f.disponibles;
+    return `<tr>
+      <td><span class="badge badge-accent">${escHtml(f.tipo||'')}</span></td>
+      <td>${escHtml(f.color||'')}</td>
+      <td>${escHtml(f.marca||'')}</td>
+      <td class="td-mono">${fmt(f.precio_rollo||0)}</td>
+      <td class="td-mono">${(f.peso_rollo||0).toLocaleString('es-CR')}g</td>
+      <td class="td-mono">${fmt(costoG)}/g</td>
+      <td class="td-mono">${(f.disponibles||0).toFixed(1)} rollos</td>
+      <td class="td-mono">${fmt(valorRestante)}</td>
+      <td>${escHtml(f.proveedor||'—')}</td>
+      <td class="td-mono">${f.fecha_compra||'—'}</td>
+      <td><div class="td-actions">
+        <button class="btn btn-ghost btn-icon btn-sm" title="Editar" onclick='editarFilamento("${f.id}")'>
+          <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </button>
+        <button class="btn btn-danger btn-icon btn-sm" title="Eliminar" onclick='eliminarFilamento("${f.id}")'>
+          <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+        </button>
+      </div></td>
+    </tr>`;
+  }).join('');
 }

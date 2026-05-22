@@ -1,634 +1,368 @@
-/* ═══════════════════════════════════════════════════════
-   app.js  —  Lógica de aplicación: auth, routing, cotizador,
-              inventario, config, PDF, inicialización
-   ═══════════════════════════════════════════════════════ */
+/**
+ * CONTROLADOR DE APLICACIÓN — app.js
+ *
+ * Responsabilidad: estado global, navegación, CRUD (orquesta
+ * db.js + ui.js), generación de PDF e inicialización.
+ *
+ * Depende de: db.js, logic.js, ui.js
+ */
 
-/* ── Estado global ───────────────────────────────────── */
-window.todosLosTrabajos   = [];
-window.todosLosFilamentos = [];
-window.estadoFilter       = 'todos';
-window.invView            = 'grid';
-window.cfg                = {};
-let editingTrabId = null;
-let editingFilId  = null;
+'use strict';
 
-/* ── Tema ────────────────────────────────────────────── */
-function initTheme() {
-  const saved = localStorage.getItem('p3d_theme') || 'dark';
-  document.documentElement.setAttribute('data-theme', saved);
-  updateThemeBtn();
-}
-function toggleTheme() {
-  const cur  = document.documentElement.getAttribute('data-theme') || 'dark';
-  const next = cur === 'dark' ? 'light' : 'dark';
-  document.documentElement.setAttribute('data-theme', next);
-  localStorage.setItem('p3d_theme', next);
-  updateThemeBtn();
-}
-function updateThemeBtn() {
-  const dark = document.documentElement.getAttribute('data-theme') === 'dark';
-  ['themeBtn','themeBtnLogin'].forEach(id => {
-    const el = $(id); if (!el) return;
-    el.innerHTML = dark
-      ? '<svg class="i16"><use href="#i-sun"/></svg>'
-      : '<svg class="i16"><use href="#i-moon"/></svg>';
-  });
-}
+/* ----------------------------------------------------------
+   Estado global
+---------------------------------------------------------- */
+let trabajos   = [];
+let filamentos = [];
+let editingId  = null;
 
-/* ── Auth ────────────────────────────────────────────── */
-async function tryLogin() {
-  const pw = $('login_pw')?.value.trim();
-  if (!pw) { showLoginErr('Ingresa tu contraseña'); return; }
-  const hash = await sha256(pw);
-  if (hash !== localStorage.getItem(AUTH_PW_KEY)) { showLoginErr('Contraseña incorrecta'); return; }
-  startSession(localStorage.getItem(AUTH_NAME_KEY) || 'Usuario');
-  $('login_pw').value = '';
-  hideLoginErr();
-  showApp();
-}
+/* ----------------------------------------------------------
+   Navegación
+---------------------------------------------------------- */
+const PAGE_LABELS = { cotizador:'Cotizador', trabajos:'Trabajos', inventario:'Inventario', configuracion:'Configuración' };
 
-async function trySetup() {
-  const name = $('setup_name')?.value.trim();
-  const pw   = $('setup_pw')?.value.trim();
-  const pw2  = $('setup_pw2')?.value.trim();
-  if (!name)       { showSetupErr('Ingresa tu nombre'); return; }
-  if (pw.length<6) { showSetupErr('Contraseña mínimo 6 caracteres'); return; }
-  if (pw !== pw2)  { showSetupErr('Las contraseñas no coinciden'); return; }
-  const hash = await sha256(pw);
-  localStorage.setItem(AUTH_PW_KEY, hash);
-  localStorage.setItem(AUTH_NAME_KEY, name);
-  startSession(name);
-  hideSetupErr();
-  showApp();
-}
-
-function resetAcceso() {
-  if (!confirm('¿Reiniciar acceso? Esto borrará tu contraseña guardada y tendrás que crear una nueva.')) return;
-  localStorage.removeItem(AUTH_PW_KEY);
-  localStorage.removeItem(AUTH_SESS_KEY);
-  localStorage.removeItem(AUTH_NAME_KEY);
-  routeAfterLogin();
-}
-
-function logout() {
-  clearSession();
-  const appEl  = document.querySelector('.app');
-  const authEl = document.querySelector('.auth-screen');
-  if (appEl)  appEl.style.display  = 'none';
-  if (authEl) authEl.style.display = 'flex';
-  routeAfterLogin();
-}
-
-async function cambiarPassword() {
-  const current = $('sec_current')?.value.trim();
-  const newPw   = $('sec_new')?.value.trim();
-  if (!current || !newPw) { toast('Completa ambos campos', 'error'); return; }
-  if (newPw.length < 6)   { toast('Mínimo 6 caracteres', 'error'); return; }
-  if (await sha256(current) !== localStorage.getItem(AUTH_PW_KEY)) { toast('Contraseña actual incorrecta', 'error'); return; }
-  localStorage.setItem(AUTH_PW_KEY, await sha256(newPw));
-  $('sec_current').value = '';
-  $('sec_new').value     = '';
-  toast('Contraseña actualizada', 'success');
-}
-
-function togglePw(id, btn) {
-  const inp = document.getElementById(id); if (!inp) return;
-  inp.type = inp.type === 'password' ? 'text' : 'password';
-  btn.innerHTML = inp.type === 'text'
-    ? '<svg class="i14"><use href="#i-eye-off"/></svg>'
-    : '<svg class="i14"><use href="#i-eye"/></svg>';
-}
-
-function showLoginErr(msg) { const el=$('loginErr');    if(el){el.textContent=msg;el.style.display='block';} }
-function hideLoginErr()    { const el=$('loginErr');    if(el) el.style.display='none'; }
-function showSetupErr(msg) { const el=$('setupErrMsg'); if(el) el.textContent=msg; const e=$('setupErr'); if(e) e.style.display='block'; }
-function hideSetupErr()    { const el=$('setupErr');    if(el) el.style.display='none'; }
-
-function routeAfterLogin() {
-  const hasPw = !!localStorage.getItem(AUTH_PW_KEY);
-  $('loginCard') && ($('loginCard').style.display = hasPw ? '' : 'none');
-  $('setupCard') && ($('setupCard').style.display = hasPw ? 'none' : '');
-}
-
-function showApp() {
-  const authEl = document.querySelector('.auth-screen');
-  const appEl  = document.querySelector('.app');
-  if (authEl) authEl.style.display = 'none';
-  if (appEl)  { appEl.style.display = 'grid'; }
-  const name = localStorage.getItem(AUTH_NAME_KEY) || 'Usuario';
-  const el = $('sb-display-name'); if(el) el.textContent = name;
-  const av = $('sb-avatar');       if(av) av.textContent = name.charAt(0).toUpperCase();
-  const cn = $('cfg-display-name');if(cn) cn.textContent = name;
-  goPage('dashboard');
-  cargarDatos();
-}
-
-/* ── Routing ─────────────────────────────────────────── */
-function goPage(pageId) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('show'));
-  const page = document.getElementById('page-' + pageId);
-  if (page) page.classList.add('show');
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.page === pageId));
-  const labels = {dashboard:'Dashboard',cotizador:'Nueva cotización',trabajos:'Trabajos',inventario:'Inventario',configuracion:'Configuración'};
-  const crumb = $('crumb-current'); if(crumb) crumb.textContent = labels[pageId] || pageId;
+function navTo(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const pg  = el('page-' + page); if (pg)  pg.classList.add('active');
+  const nav = document.querySelector(`.nav-item[data-page="${page}"]`); if (nav) nav.classList.add('active');
+  set('breadcrumb-current', PAGE_LABELS[page] || page);
+  if (page === 'trabajos')      cargarTrabajos();
+  if (page === 'inventario')    cargarInventario();
+  if (page === 'configuracion') calcCfg();
   closeSidebar();
 }
-const route = (p) => goPage(p);
-function closeSidebar()  { document.querySelector('.sidebar')?.classList.remove('open'); }
-function toggleSidebar() { document.querySelector('.sidebar')?.classList.toggle('open'); }
 
-/* ── Carga inicial de datos ──────────────────────────── */
-async function cargarDatos() {
+function openSidebar()  { el('sidebar').classList.add('open');    el('overlay').classList.add('show'); }
+function closeSidebar() { el('sidebar').classList.remove('open'); el('overlay').classList.remove('show'); }
+
+/* ----------------------------------------------------------
+   Cotizaciones — Guardar
+---------------------------------------------------------- */
+function guardarCotizacion() {
+  const pieza   = el('c_pieza').value.trim();
+  const cliente = el('c_cliente').value.trim();
+  if (!pieza)   { toast('Ingrese el nombre de la pieza',  'error'); return; }
+  if (!cliente) { toast('Ingrese el nombre del cliente',  'error'); return; }
+
+  const desglose = calcular();
+  const id = editingId || genId();
+  const data = {
+    id, pieza, cliente,
+    fecha:     el('c_fecha').value,
+    cantidad:  fv('c_cantidad'),
+    categoria: el('c_categoria').value,
+    notas:     el('c_notas').value,
+    gramos:    fv('c_gramos'),   horas_imp: fv('c_horas_imp'),
+    horas_mo:  fv('c_horas_mo'), horas_dis: fv('c_horas_dis'),
+    costo_dis: fv('c_costo_dis'),postpro:   fv('c_postpro'),
+    otros:     fv('c_otros'),    pFallos:   fv('c_fallos'),
+    pMargen:   fv('c_margen'),   pIVA:      fv('c_iva'),
+    costo_total:  desglose.costoFallos,
+    precio_final: desglose.precioRedondeado,
+    estado: editingId ? (trabajos.find(t=>t.id===editingId)?.estado || 'Cotizado') : 'Cotizado',
+    _desglose: desglose
+  };
+
+  const idx = trabajos.findIndex(t => t.id === id);
+  if (idx >= 0) trabajos[idx] = data; else trabajos.unshift(data);
+  try { localStorage.setItem('trabajos3d', JSON.stringify(trabajos.map(t => { const {_desglose,...c}=t; return c; }))); } catch(e){}
+
+  fbGuardarCotizacion(data)
+    .then(() => toast('Trabajo guardado en Firebase ✓', 'success'))
+    .catch(() => toast('Guardado local (Firebase error)', 'info'));
+
+  if (editingId) {
+    editingId = null; el('edit-banner').style.display = 'none';
+    toast('Cotización actualizada', 'success');
+  } else { toast('Cotización guardada', 'success'); }
+}
+
+/* ----------------------------------------------------------
+   Cotizaciones — Cargar
+---------------------------------------------------------- */
+async function cargarTrabajos() {
   try {
-    const [config, empresa, trabajos, filamentos] = await Promise.all([
-      dbCargarConfig(),
-      dbCargarEmpresa(),
-      dbCargarTrabajos(),
-      dbCargarFilamentos()
-    ]);
-    window.cfg               = config;
-    window.todosLosTrabajos  = trabajos;
-    window.todosLosFilamentos = filamentos;
-
-    /* poblar campos de configuración */
-    const cfgMap = {watts:'cfg_watts',kwh:'cfg_kwh',compra:'cfg_compra',vida:'cfg_vida',mant:'cfg_mant',tMO:'cfg_tMO',tDis:'cfg_tDis',fallosDefault:'cfg_fallosDefault',margenDefault:'cfg_margenDefault',ivaDefault:'cfg_ivaDefault'};
-    Object.entries(cfgMap).forEach(([k,id]) => { const el=$(id); if(el && config[k]!==undefined) el.value=config[k]; });
-    recalcCfg();
-
-    /* poblar campos de empresa */
-    ['nombre','cedula','email','tel','web','ig','nota'].forEach(k => {
-      const el=$('emp_'+k); if(el && empresa[k]!==undefined) el.value=empresa[k];
-    });
-
-    renderDashboard();
-    renderTrabajos();
-    renderFilamentos();
-    populateFilamentSelect();
-    actualizarBadges();
-  } catch(e) { toast('Error cargando datos','error'); console.error(e); }
-}
-
-/* ── Configuración ───────────────────────────────────── */
-function recalcCfg() {
-  const watts = parseFloat($('cfg_watts')?.value||'0');
-  const kwh   = parseFloat($('cfg_kwh')?.value||'0');
-  const el = $('cfg_elecHora'); if(el) el.value = (watts*kwh/1000).toFixed(4);
-}
-
-async function guardarConfiguracion() {
-  const btn = document.querySelector('[onclick="guardarConfiguracion()"]');
-  setLoading(btn, true);
-  try {
-    const data = {
-      watts:         parseFloat($('cfg_watts')?.value||'0'),
-      kwh:           parseFloat($('cfg_kwh')?.value||'0'),
-      compra:        parseFloat($('cfg_compra')?.value||'0'),
-      vida:          parseFloat($('cfg_vida')?.value||'0'),
-      mant:          parseFloat($('cfg_mant')?.value||'0'),
-      tMO:           parseFloat($('cfg_tMO')?.value||'0'),
-      tDis:          parseFloat($('cfg_tDis')?.value||'0'),
-      fallosDefault: parseFloat($('cfg_fallosDefault')?.value||'5'),
-      margenDefault: parseFloat($('cfg_margenDefault')?.value||'20'),
-      ivaDefault:    parseFloat($('cfg_ivaDefault')?.value||'13'),
-    };
-    window.cfg = data;
-    await dbGuardarConfig(data);
-    toast('Configuración guardada', 'success');
-  } catch(e) { toast('Error guardando configuración','error'); console.error(e); }
-  setLoading(btn, false);
-}
-
-async function guardarEmpresa() {
-  const btn = document.querySelector('[onclick="guardarEmpresa()"]');
-  setLoading(btn, true);
-  try {
-    const data = {};
-    ['nombre','cedula','email','tel','web','ig','nota'].forEach(k => {
-      const el=$('emp_'+k); if(el) data[k]=el.value;
-    });
-    await dbGuardarEmpresa(data);
-    toast('Datos de empresa guardados', 'success');
-  } catch(e) { toast('Error guardando empresa','error'); console.error(e); }
-  setLoading(btn, false);
-}
-
-function cfgGo(section) {
-  document.querySelectorAll('.cfg-panel').forEach(p => p.classList.remove('show'));
-  const panel = document.getElementById('cfg-'+section);
-  if (panel) panel.classList.add('show');
-  document.querySelectorAll('.cfg-nav-item').forEach(n => n.classList.toggle('active', n.dataset.section===section));
-}
-
-/* ── Trabajos ────────────────────────────────────────── */
-function setEstadoFilter(estado) {
-  window.estadoFilter = estado;
-  document.querySelectorAll('.filter-chip').forEach(c => c.classList.toggle('active', c.dataset.estado===estado));
+    trabajos = await fbCargarTrabajos();
+    try { localStorage.setItem('trabajos3d', JSON.stringify(trabajos)); } catch(e){}
+  } catch(e) {
+    try { const l=localStorage.getItem('trabajos3d'); trabajos=l?JSON.parse(l):[];
+      toast('Cargado desde caché local', 'info');
+    } catch(e2) { trabajos=[]; }
+  }
   renderTrabajos();
 }
 
-async function cambiarEstado(id, estado) {
-  try {
-    await dbCambiarEstado(id, estado);
-    const t = window.todosLosTrabajos.find(t=>t.id===id);
-    if (t) t.estado = estado;
-    renderTrabajos();
-    renderDashboard();
-    toast('Estado actualizado','success');
-  } catch(e) { toast('Error actualizando estado','error'); console.error(e); }
+/* ----------------------------------------------------------
+   Cotizaciones — Acciones
+---------------------------------------------------------- */
+async function cambiarEstado(id, estado, selectEl) {
+  const t = trabajos.find(t=>t.id===id); if(t) t.estado=estado;
+  const colorMap = { Cotizado:'badge-gray', Aprobado:'badge-accent', 'En producción':'badge-warn', Entregado:'badge-success', Cancelado:'badge-danger' };
+  if (selectEl) selectEl.className = 'badge ' + (colorMap[estado]||'badge-gray') + ' estado-select';
+  try { await fbActualizarEstado(id,estado); toast('Estado actualizado','success'); }
+  catch(e) { toast('Estado actualizado localmente','info'); }
+  renderTrabajos();
 }
 
-async function eliminarTrabajo(id) {
-  if (!confirm('¿Eliminar este trabajo? Esta acción no se puede deshacer.')) return;
-  try {
-    await dbEliminarTrabajo(id);
-    window.todosLosTrabajos = window.todosLosTrabajos.filter(t => t.id !== id);
-    renderTrabajos();
-    renderDashboard();
-    actualizarBadges();
-    toast('Trabajo eliminado','success');
-  } catch(e) { toast('Error eliminando trabajo','error'); console.error(e); }
-}
-
-/* ── Cotizador ───────────────────────────────────────── */
-function getCostoGramo() {
-  const sel = $('c_filamento'); if (!sel || !sel.value) return 0;
-  return parseFloat(sel.options[sel.selectedIndex]?.dataset?.cg || '0');
-}
-
-function recalc() {
-  const cfg      = window.cfg || {};
-  const gramos   = parseFloat($('c_gramos')?.value||'0');
-  const horas    = parseFloat($('c_horas')?.value||'0');
-  const horasMO  = parseFloat($('c_horasMO')?.value||'0');
-  const horasDis = parseFloat($('c_horasDis')?.value||'0');
-  const disFijo  = parseFloat($('c_disFijo')?.value||'0');
-  const post     = parseFloat($('c_post')?.value||'0');
-  const otros    = parseFloat($('c_otros')?.value||'0');
-  const fallos   = parseFloat($('c_fallos')?.value||(cfg.fallosDefault||5).toString());
-  const margen   = parseFloat($('c_margen')?.value||(cfg.margenDefault||20).toString());
-  const iva      = parseFloat($('c_iva')?.value||(cfg.ivaDefault||0).toString());
-  const cant     = Math.max(1, parseInt($('c_cant')?.value||'1'));
-  const cg       = getCostoGramo();
-
-  const mat     = gramos * (cg/1000);
-  const elec    = horas * (cfg.watts||0) * (cfg.kwh||0) / 1000;
-  const des     = ((cfg.compra||0)/(cfg.vida||1)) + ((cfg.mant||0)/12)/720;
-  const mo      = horasMO * (cfg.tMO||0);
-  const dis     = horasDis * (cfg.tDis||0) + disFijo;
-  const extra   = post + otros;
-  const sub     = mat+elec+des+mo+dis+extra;
-  const fa      = sub * (fallos/100);
-  const base    = sub + fa;
-  const gan     = base * (margen/100);
-  const ivaAbs  = (base+gan) * (iva/100);
-  const finalUnit = base+gan+ivaAbs;
-
-  const s = (id, v) => { const el=$(id); if(el) el.textContent=v; };
-  s('pv_mat',      fmt(mat));
-  s('pv_elec',     fmt(elec));
-  s('pv_des',      fmt(des));
-  s('pv_mo',       fmt(mo));
-  s('pv_dis',      fmt(dis));
-  s('pv_extra',    fmt(extra));
-  s('pv_sub',      fmt(sub));
-  s('pv_fa',       fmt(fa));
-  s('pv_gan',      fmt(gan));
-  s('pv_ivaAbs',   fmt(ivaAbs));
-  s('pv_finalUnit',fmt(finalUnit));
-  s('pv_total',    fmt(finalUnit * cant));
-  s('pv_costo',    fmt(base * cant));
-  s('pv_margenAbs',fmt(gan * cant));
-  const cl = $('pv_cantLabel'); if(cl) cl.textContent = cant>1?`× ${cant} unidades`:'';
-}
-
-function goStep(n) {
-  document.querySelectorAll('.step-panel').forEach((p,i) => p.classList.toggle('show', i+1===n));
-  document.querySelectorAll('.step').forEach((d,i) => {
-    d.classList.toggle('active', i+1===n);
-    d.classList.toggle('done',   i+1 < n);
-  });
-  recalc();
-}
-
-async function guardarCotizacion() {
-  const pieza   = $('c_pieza')?.value.trim();
-  const cliente = $('c_cliente')?.value.trim();
-  if (!pieza)   { toast('Ingresa el nombre de la pieza','error'); return; }
-  if (!cliente) { toast('Ingresa el nombre del cliente','error'); return; }
-
-  const btn = $('saveCotBtn');
-  setLoading(btn, true);
-  try {
-    const cfg      = window.cfg || {};
-    const cant     = Math.max(1, parseInt($('c_cant')?.value||'1'));
-    const gramos   = parseFloat($('c_gramos')?.value||'0');
-    const horas    = parseFloat($('c_horas')?.value||'0');
-    const horasMO  = parseFloat($('c_horasMO')?.value||'0');
-    const horasDis = parseFloat($('c_horasDis')?.value||'0');
-    const disFijo  = parseFloat($('c_disFijo')?.value||'0');
-    const post     = parseFloat($('c_post')?.value||'0');
-    const otros    = parseFloat($('c_otros')?.value||'0');
-    const fallos   = parseFloat($('c_fallos')?.value||(cfg.fallosDefault||5).toString());
-    const margen   = parseFloat($('c_margen')?.value||(cfg.margenDefault||20).toString());
-    const iva      = parseFloat($('c_iva')?.value||(cfg.ivaDefault||0).toString());
-    const cg       = getCostoGramo();
-
-    const mat   = gramos*(cg/1000);
-    const elec  = horas*(cfg.watts||0)*(cfg.kwh||0)/1000;
-    const des   = ((cfg.compra||0)/(cfg.vida||1))+((cfg.mant||0)/12)/720;
-    const mo    = horasMO*(cfg.tMO||0);
-    const dis   = horasDis*(cfg.tDis||0)+disFijo;
-    const extra = post+otros;
-    const sub   = mat+elec+des+mo+dis+extra;
-    const fa    = sub*(fallos/100);
-    const base  = sub+fa;
-    const gan   = base*(margen/100);
-    const ivaAbs= (base+gan)*(iva/100);
-    const finalUnit = base+gan+ivaAbs;
-
-    const data = {
-      pieza, cliente,
-      fecha:       $('c_fecha')?.value || new Date().toISOString().slice(0,10),
-      categoria:   $('c_cat')?.value || '',
-      cantidad: cant, gramos, horas, horasMO, horasDis, disFijo, post, otros, fallos, margen, iva,
-      filamentoId: $('c_filamento')?.value || '',
-      costoTotal:  parseFloat(base.toFixed(2)),
-      precioFinal: parseFloat(finalUnit.toFixed(2)),
-      estado: 'pendiente',
-      notas: $('c_notas')?.value || '',
-    };
-
-    const newId = await dbGuardarCotizacion(data, editingTrabId);
-
-    if (editingTrabId) {
-      const idx = window.todosLosTrabajos.findIndex(t=>t.id===editingTrabId);
-      if (idx>=0) window.todosLosTrabajos[idx] = {...window.todosLosTrabajos[idx], ...data};
-      toast('Cotización actualizada','success');
-    } else {
-      window.todosLosTrabajos.unshift({id: newId, ...data});
-      toast('Cotización guardada','success');
-    }
-    actualizarBadges();
-    renderDashboard();
-    renderTrabajos();
-    resetCotizador();
-    goPage('trabajos');
-  } catch(e) { toast('Error guardando cotización','error'); console.error(e); }
-  setLoading(btn, false);
+function verTrabajo(id) {
+  const t = trabajos.find(t=>t.id===id); if(!t) return;
+  alert(`Trabajo: ${t.pieza}\nCliente: ${t.cliente}\nFecha: ${t.fecha}\nPrecio final: ${fmt(t.precio_final)}\nEstado: ${t.estado}\n\nNotas: ${t.notas||'—'}`);
 }
 
 function editarTrabajo(id) {
-  const t = window.todosLosTrabajos.find(t=>t.id===id); if (!t) return;
-  editingTrabId = id;
-  const sets = {c_pieza:t.pieza,c_cliente:t.cliente,c_fecha:t.fecha,c_cat:t.categoria,c_cant:t.cantidad,c_gramos:t.gramos,c_horas:t.horas,c_horasMO:t.horasMO,c_horasDis:t.horasDis,c_disFijo:t.disFijo,c_post:t.post,c_otros:t.otros,c_notas:t.notas,c_fallos:t.fallos,c_margen:t.margen,c_iva:t.iva};
-  Object.entries(sets).forEach(([id,v]) => { const el=$(id); if(el&&v!==undefined) el.value=v; });
-  if (t.filamentoId) { const sel=$('c_filamento'); if(sel) sel.value=t.filamentoId; }
-  const title=$('cot-page-title'), label=$('saveCotLabel'), cancel=$('cancelEditBtn');
-  if(title)  title.textContent  = 'Editar cotización';
-  if(label)  label.textContent  = 'Actualizar';
-  if(cancel) cancel.style.display = '';
-  goPage('cotizador'); goStep(1); recalc();
+  const t = trabajos.find(t=>t.id===id); if(!t) return;
+  navTo('cotizador');
+  const sv = (k,v) => { const e=el(k); if(e) e.value=v??''; };
+  sv('c_pieza',t.pieza); sv('c_cliente',t.cliente); sv('c_fecha',t.fecha);
+  sv('c_cantidad',t.cantidad||1); sv('c_categoria',t.categoria||'Funcional'); sv('c_notas',t.notas||'');
+  sv('c_gramos',t.gramos||0); sv('c_horas_imp',t.horas_imp||0); sv('c_horas_mo',t.horas_mo||0);
+  sv('c_horas_dis',t.horas_dis||0); sv('c_costo_dis',t.costo_dis||0); sv('c_postpro',t.postpro||0);
+  sv('c_otros',t.otros||0); sv('c_fallos',t.pFallos??5); sv('c_margen',t.pMargen??35); sv('c_iva',t.pIVA??0);
+  editingId=id; el('edit-banner').style.display='flex';
+  set('edit-banner-text',`Editando: ${t.pieza} — ${t.cliente}`);
+  calcular(); window.scrollTo({top:0,behavior:'smooth'});
 }
 
-function cancelarEdicionTrabajo() { resetCotizador(); }
+function pdfTrabajo(id) { const t=trabajos.find(t=>t.id===id); if(t) generarPDFData(t); }
 
-function resetCotizador() {
-  const cfg = window.cfg || {};
-  editingTrabId = null;
-  ['c_pieza','c_cliente','c_notas','c_gramos','c_horas','c_horasMO','c_horasDis','c_disFijo','c_post','c_otros'].forEach(id => {
-    const el=$(id); if(el) el.value='';
-  });
-  const cf=$('c_fecha'); if(cf) cf.value=new Date().toISOString().slice(0,10);
-  $('c_cant')   && ($('c_cant').value   = '1');
-  $('c_fallos') && ($('c_fallos').value = cfg.fallosDefault||5);
-  $('c_margen') && ($('c_margen').value = cfg.margenDefault||20);
-  $('c_iva')    && ($('c_iva').value    = cfg.ivaDefault||0);
-  const sel=$('c_filamento'); if(sel) sel.selectedIndex=0;
-  const title=$('cot-page-title'), label=$('saveCotLabel'), cancel=$('cancelEditBtn');
-  if(title)  title.textContent  = 'Nueva cotización';
-  if(label)  label.textContent  = 'Guardar trabajo';
-  if(cancel) cancel.style.display = 'none';
-  goStep(1);
+async function eliminarTrabajo(id) {
+  if (!confirm('¿Eliminar esta cotización?')) return;
+  trabajos = trabajos.filter(t=>t.id!==id);
+  try { localStorage.setItem('trabajos3d',JSON.stringify(trabajos)); } catch(e){}
+  try { await fbEliminarCotizacion(id); toast('Cotización eliminada','success'); }
+  catch(e) { toast('Eliminado localmente','info'); }
+  renderTrabajos();
 }
 
-/* ── Inventario drawer ───────────────────────────────── */
-function openDrawer() {
-  editingFilId = null;
-  const title=$('drawerTitle'), label=$('drawerSaveLabel');
-  if(title)  title.textContent = 'Agregar filamento';
-  if(label)  label.textContent = 'Agregar al inventario';
-  ['inv_tipo','inv_color','inv_marca','inv_proveedor','inv_notas'].forEach(id => { const el=$(id); if(el) el.value=''; });
-  $('inv_precio')      && ($('inv_precio').value     = '6500');
-  $('inv_peso')        && ($('inv_peso').value        = '1000');
-  $('inv_disponibles') && ($('inv_disponibles').value = '1000');
-  const fi=$('inv_fecha'); if(fi) fi.value=new Date().toISOString().slice(0,10);
-  document.querySelector('.drawer')?.classList.add('open');
-  document.querySelector('.drawer-back')?.classList.add('open');
+function nuevaCotizacion() {
+  editingId=null; el('edit-banner').style.display='none';
+  ['c_pieza','c_cliente','c_notas'].forEach(f=>{ if(el(f)) el(f).value=''; });
+  const nums={c_cantidad:1,c_gramos:0,c_horas_imp:0,c_horas_mo:0,c_horas_dis:0,c_costo_dis:0,c_postpro:0,c_otros:0,c_fallos:5,c_margen:35,c_iva:0};
+  Object.entries(nums).forEach(([k,v])=>{ if(el(k)) el(k).value=v; });
+  el('c_fecha').value=today(); el('c_categoria').value='Funcional'; calcular();
 }
 
-function editarFilamento(id) {
-  const f = window.todosLosFilamentos.find(f=>f.id===id); if(!f) return;
-  editingFilId = id;
-  const sets={inv_tipo:f.tipo,inv_color:f.color,inv_marca:f.marca,inv_proveedor:f.proveedor,inv_precio:f.precio,inv_peso:f.peso,inv_disponibles:f.disponibles,inv_fecha:f.fechaCompra,inv_notas:f.notas};
-  Object.entries(sets).forEach(([id,v]) => { const el=$(id); if(el&&v!==undefined) el.value=v; });
-  const title=$('drawerTitle'), label=$('drawerSaveLabel');
-  if(title)  title.textContent = 'Editar filamento';
-  if(label)  label.textContent = 'Guardar cambios';
-  document.querySelector('.drawer')?.classList.add('open');
-  document.querySelector('.drawer-back')?.classList.add('open');
+/* ----------------------------------------------------------
+   Inventario — Guardar
+---------------------------------------------------------- */
+async function agregarFilamento() {
+  const color = el('inv_color').value.trim();
+  if (!color) { toast('Ingrese el color del filamento','error'); return; }
+  const editId = el('inv-edit-id')?.textContent?.trim();
+  const id = editId || genId();
+  const data = { id,
+    tipo:el('inv_tipo').value, color, marca:el('inv_marca').value.trim(),
+    precio_rollo:fv('inv_precio'), peso_rollo:fv('inv_peso')||1000,
+    disponibles:fv('inv_disp'), proveedor:el('inv_prov').value.trim(),
+    fecha_compra:el('inv_fecha').value, notas:el('inv_notas').value.trim()
+  };
+  const idx=filamentos.findIndex(f=>f.id===id);
+  if(idx>=0) filamentos[idx]=data; else filamentos.push(data);
+  try { localStorage.setItem('filamentos3d',JSON.stringify(filamentos)); } catch(e){}
+  try { await fbGuardarFilamento(data); toast(editId?'Filamento actualizado ✓':'Filamento agregado ✓','success'); }
+  catch(e) { toast('Guardado localmente','info'); }
+  cancelarEditFilamento();
+  el('inv_color').value=''; el('inv_marca').value=''; el('inv_precio').value=0;
+  el('inv_peso').value=1000; el('inv_disp').value=1; el('inv_prov').value='';
+  el('inv_notas').value=''; el('inv_fecha').value=today();
+  renderInventario();
 }
 
-function closeDrawer() {
-  document.querySelector('.drawer')?.classList.remove('open');
-  document.querySelector('.drawer-back')?.classList.remove('open');
-  editingFilId = null;
-}
-
-async function guardarFilamento() {
-  const tipo = $('inv_tipo')?.value.trim();
-  if (!tipo) { toast('Ingresa el tipo de filamento','error'); return; }
-  const btn = $('drawerSaveBtn');
-  setLoading(btn, true);
+/* ----------------------------------------------------------
+   Inventario — Cargar
+---------------------------------------------------------- */
+async function cargarInventario() {
   try {
-    const data = {
-      tipo,
-      color:       $('inv_color')?.value.trim()      || '',
-      marca:       $('inv_marca')?.value.trim()      || '',
-      proveedor:   $('inv_proveedor')?.value.trim()  || '',
-      precio:      parseFloat($('inv_precio')?.value      || '0'),
-      peso:        parseFloat($('inv_peso')?.value        || '0'),
-      disponibles: parseFloat($('inv_disponibles')?.value || '0'),
-      fechaCompra: $('inv_fecha')?.value || '',
-      notas:       $('inv_notas')?.value || '',
-    };
-    const newId = await dbGuardarFilamento(data, editingFilId);
-    if (editingFilId) {
-      const idx = window.todosLosFilamentos.findIndex(f=>f.id===editingFilId);
-      if (idx>=0) window.todosLosFilamentos[idx] = {...window.todosLosFilamentos[idx], ...data};
-      toast('Filamento actualizado','success');
-    } else {
-      window.todosLosFilamentos.push({id: newId, ...data});
-      toast('Filamento agregado','success');
-    }
-    renderFilamentos();
-    populateFilamentSelect();
-    actualizarBadges();
-    closeDrawer();
-  } catch(e) { toast('Error guardando filamento','error'); console.error(e); }
-  setLoading(btn, false);
+    filamentos = await fbCargarFilamentos();
+    try { localStorage.setItem('filamentos3d',JSON.stringify(filamentos)); } catch(e){}
+  } catch(e) {
+    try { const l=localStorage.getItem('filamentos3d'); filamentos=l?JSON.parse(l):[];
+      toast('Filamentos cargados desde caché','info');
+    } catch(e2) { filamentos=[]; }
+  }
+  renderInventario();
+}
+
+/* ----------------------------------------------------------
+   Inventario — Editar / Eliminar
+---------------------------------------------------------- */
+function editarFilamento(id) {
+  const f=filamentos.find(f=>f.id===id); if(!f) return;
+  el('inv_tipo').value=f.tipo||'PLA'; el('inv_color').value=f.color||'';
+  el('inv_marca').value=f.marca||''; el('inv_precio').value=f.precio_rollo||0;
+  el('inv_peso').value=f.peso_rollo||1000; el('inv_disp').value=f.disponibles||1;
+  el('inv_prov').value=f.proveedor||''; el('inv_fecha').value=f.fecha_compra||today();
+  el('inv_notas').value=f.notas||'';
+  el('inv-edit-id').textContent=id; el('inv-edit-id').style.display='inline';
+  el('inv-cancel-edit').style.display='inline-flex';
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function cancelarEditFilamento() {
+  if(el('inv-edit-id'))    { el('inv-edit-id').textContent=''; el('inv-edit-id').style.display='none'; }
+  if(el('inv-cancel-edit'))  el('inv-cancel-edit').style.display='none';
 }
 
 async function eliminarFilamento(id) {
   if (!confirm('¿Eliminar este filamento?')) return;
+  filamentos=filamentos.filter(f=>f.id!==id);
+  try { localStorage.setItem('filamentos3d',JSON.stringify(filamentos)); } catch(e){}
+  try { await fbEliminarFilamento(id); toast('Filamento eliminado','success'); }
+  catch(e) { toast('Eliminado localmente','info'); }
+  renderInventario();
+}
+
+/* ----------------------------------------------------------
+   Configuración — Guardar / Cargar
+---------------------------------------------------------- */
+async function guardarConfiguracion() {
+  const cfg = { cfg_costo_g:fv('cfg_costo_g'), cfg_watts:fv('cfg_watts'), cfg_kwh:fv('cfg_kwh'),
+    cfg_desgaste_h:fv('cfg_desgaste_h'), cfg_mo_h:fv('cfg_mo_h'), cfg_dis_h:fv('cfg_dis_h'),
+    cfg_fallos:fv('cfg_fallos'), cfg_margen:fv('cfg_margen'), cfg_iva:fv('cfg_iva') };
+  const emp = { emp_nombre:el('emp_nombre').value, emp_email:el('emp_email').value,
+    emp_tel:el('emp_tel').value, emp_web:el('emp_web').value,
+    emp_cedula:el('emp_cedula').value, emp_nota:el('emp_nota').value };
+  localStorage.setItem('cfg3d',JSON.stringify(cfg));
+  localStorage.setItem('emp3d',JSON.stringify(emp));
+  try { await fbGuardarConfig(cfg); await fbGuardarEmpresa(emp); toast('Configuración guardada en Firebase ✓','success'); }
+  catch(e) { toast('Guardado localmente','info'); }
+  calcCfg(); calcular();
+}
+
+async function cargarConfiguracion() {
   try {
-    await dbEliminarFilamento(id);
-    window.todosLosFilamentos = window.todosLosFilamentos.filter(f=>f.id!==id);
-    renderFilamentos();
-    populateFilamentSelect();
-    actualizarBadges();
-    toast('Filamento eliminado','success');
-  } catch(e) { toast('Error eliminando filamento','error'); console.error(e); }
+    const cfg=await fbCargarConfig(); const emp=await fbCargarEmpresa();
+    if(cfg) { ['cfg_costo_g','cfg_watts','cfg_kwh','cfg_desgaste_h','cfg_mo_h','cfg_dis_h','cfg_fallos','cfg_margen','cfg_iva'].forEach(f=>{ if(cfg[f]!==undefined&&el(f)) el(f).value=cfg[f]; }); localStorage.setItem('cfg3d',JSON.stringify(cfg)); }
+    if(emp) { ['emp_nombre','emp_email','emp_tel','emp_web','emp_cedula','emp_nota'].forEach(f=>{ if(emp[f]!==undefined&&el(f)) el(f).value=emp[f]; }); localStorage.setItem('emp3d',JSON.stringify(emp)); }
+    calcCfg(); calcular(); toast('Configuración cargada desde Firebase ✓','success');
+  } catch(e) { toast('Error al cargar desde Firebase','error'); }
 }
 
-function setInvView(view) {
-  window.invView = view;
-  $('inv-grid-view')?.classList.toggle('active', view==='grid');
-  $('inv-list-view')?.classList.toggle('active', view==='list');
-  const fg=$('filGrid'), ft=document.querySelector('.fil-table-wrap');
-  if(fg) fg.style.display = view==='grid' ? '' : 'none';
-  if(ft) ft.style.display = view==='list' ? '' : 'none';
-  renderFilamentos();
+/* ----------------------------------------------------------
+   PDF
+---------------------------------------------------------- */
+function getEmpresa() {
+  return { nombre:el('emp_nombre')?.value||'Cotizador 3D Costa Rica',
+    email:el('emp_email')?.value||'', tel:el('emp_tel')?.value||'',
+    web:el('emp_web')?.value||'', cedula:el('emp_cedula')?.value||'', nota:el('emp_nota')?.value||'' };
 }
 
-/* ── PDF ─────────────────────────────────────────────── */
-function buildPDFHtml(t, emp) {
-  return `<!DOCTYPE html><html><head><meta charset="utf-8">
-<title>Cotización ${(t.id||'').slice(0,8)}</title>
+function generarPDF() {
+  const pieza=el('c_pieza')?.value?.trim(), cliente=el('c_cliente')?.value?.trim();
+  if(!pieza||!cliente){toast('Complete pieza y cliente','error');return;}
+  const desglose=calcular();
+  generarPDFData({ id:editingId||'BORRADOR', pieza, cliente, fecha:el('c_fecha').value,
+    cantidad:fv('c_cantidad'), categoria:el('c_categoria').value, notas:el('c_notas').value,
+    gramos:fv('c_gramos'), horas_imp:fv('c_horas_imp'), pIVA:fv('c_iva'),
+    costo_total:desglose.costoFallos, precio_final:desglose.precioRedondeado, _desglose:desglose });
+}
+
+function generarPDFData(t) {
+  const emp=getEmpresa(), d=t._desglose||{}, pIVA=t.pIVA||0;
+  const antesIVA=d.antesIVA||t.precio_final||0, ivaVal=d.ivaVal||0;
+  const precioFinal=t.precio_final||0, ref=String(t.id).toUpperCase();
+  const win=window.open('','_blank');
+  if(!win){toast('Permita ventanas emergentes','error');return;}
+  win.document.write(`<!DOCTYPE html>
+<html lang="es"><head><meta charset="UTF-8"><title>Cotización ${ref}</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  body{font-family:sans-serif;max-width:700px;margin:40px auto;color:#222;font-size:14px}
-  h1{font-size:22px;margin:0 0 4px}
-  .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:32px;border-bottom:2px solid #6C63FF;padding-bottom:16px}
-  table{width:100%;border-collapse:collapse;margin:16px 0}
-  th,td{padding:8px 12px;text-align:left;border-bottom:1px solid #eee}
-  th{background:#f5f4ff;font-weight:600}
-  .total-row td{font-size:18px;font-weight:700;color:#6C63FF;border-top:2px solid #6C63FF}
-  .chip{padding:3px 10px;border-radius:12px;font-size:12px;background:#e9e8ff;color:#6C63FF}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',sans-serif;font-size:13px;color:#1a1a2e;background:#fff}
+.page{max-width:780px;margin:0 auto;padding:40px 48px;min-height:100vh;display:flex;flex-direction:column}
+.header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:36px;padding-bottom:24px;border-bottom:2px solid #ede9fe}
+.brand-name{font-size:1.4rem;font-weight:700;color:#7c3aed}
+.brand-sub{font-size:.75rem;color:#6b7280}
+.doc-type{text-align:right}
+.doc-type h1{font-size:1.6rem;font-weight:700;color:#111827;text-transform:uppercase;letter-spacing:.04em}
+.ref{font-size:.8rem;color:#6b7280;font-family:monospace}
+.meta{display:flex;gap:32px;margin-bottom:28px;background:#f8f9fc;border-radius:10px;padding:16px 20px}
+.meta-block{display:flex;flex-direction:column;gap:3px}
+.meta-label{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#9ca3af}
+.meta-value{font-size:.88rem;font-weight:600;color:#111827}
+table{width:100%;border-collapse:collapse;margin-bottom:20px}
+thead{background:#7c3aed}
+thead th{padding:10px 14px;text-align:left;color:#fff;font-size:.75rem;font-weight:600;text-transform:uppercase}
+tbody tr:nth-child(even){background:#f9f9fd}
+tbody td{padding:10px 14px;border-bottom:1px solid #e5e7eb;font-size:.82rem}
+.badge-cat{display:inline-flex;padding:2px 8px;background:#ede9fe;color:#7c3aed;border-radius:20px;font-size:.68rem;font-weight:600}
+.td-mono{font-family:monospace}
+.totals-wrap{display:flex;justify-content:flex-end;margin-bottom:28px}
+.totals{width:280px;background:#f8f9fc;border-radius:10px;overflow:hidden;border:1px solid #e5e7eb}
+.totals-row{display:flex;justify-content:space-between;padding:8px 16px;font-size:.82rem;color:#374151}
+.totals-row.iva{color:#d97706;font-size:.78rem}
+.totals-row.total-final{background:#7c3aed;color:#fff;padding:12px 16px;font-size:.95rem;font-weight:700}
+.totals-row .val{font-family:monospace;font-weight:600}
+.notes{background:#fff9e6;border-left:3px solid #d97706;border-radius:5px;padding:12px 16px;margin-bottom:24px;font-size:.8rem;color:#374151}
+.notes-title{font-size:.7rem;font-weight:700;text-transform:uppercase;color:#9ca3af;margin-bottom:4px}
+.sig-block{text-align:center;width:220px;margin:32px 0 24px auto}
+.sig-line{border-top:1px solid #d1d5db;padding-top:8px;font-size:.75rem;color:#6b7280}
+footer{margin-top:auto;padding-top:20px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;font-size:.72rem;color:#9ca3af}
+.print-btn{position:fixed;top:16px;right:16px;padding:10px 20px;background:#7c3aed;color:#fff;border:none;border-radius:8px;font-size:.82rem;font-weight:600;cursor:pointer}
+.print-btn:hover{background:#6d28d9}
+@media print{.print-btn{display:none}@page{margin:0;size:A4}}
 </style></head><body>
-<div class="header">
-  <div><h1>${emp.nombre||'Pin&amp;Pon 3D'}</h1><div>${emp.email||''} ${emp.tel?'· '+emp.tel:''}</div><div>${emp.cedula||''}</div></div>
-  <div style="text-align:right">
-    <div style="font-size:11px;opacity:.6">COT-${(t.id||'').slice(0,8).toUpperCase()}</div>
-    <div>${t.fecha||new Date().toISOString().slice(0,10)}</div>
-    <span class="chip">${t.estado||'pendiente'}</span>
+<button class="print-btn" onclick="window.print()">Imprimir / PDF</button>
+<div class="page">
+  <div class="header">
+    <div>
+      <div class="brand-name">${escHtml(emp.nombre)}</div>
+      ${emp.cedula?`<div class="brand-sub">Cédula: ${escHtml(emp.cedula)}</div>`:''}
+      ${emp.web?`<div class="brand-sub">${escHtml(emp.web)}</div>`:''}
+    </div>
+    <div class="doc-type">
+      <h1>Cotización</h1>
+      <div class="ref">REF: ${ref}</div>
+      <div class="ref">Fecha: ${t.fecha||'—'}</div>
+    </div>
   </div>
-</div>
-<table>
-  <tr><th colspan="2">Información del trabajo</th></tr>
-  <tr><td>Pieza</td><td>${t.pieza||'—'}</td></tr>
-  <tr><td>Cliente</td><td>${t.cliente||'—'}</td></tr>
-  <tr><td>Categoría</td><td>${t.categoria||'—'}</td></tr>
-  <tr><td>Cantidad</td><td>${t.cantidad||1}</td></tr>
-  <tr><td>Gramos</td><td>${t.gramos||0} g</td></tr>
-  <tr><td>Horas impresión</td><td>${t.horas||0} h</td></tr>
-  ${t.notas?`<tr><td>Notas</td><td>${t.notas}</td></tr>`:''}
-</table>
-<table>
-  <tr><th>Concepto</th><th style="text-align:right">Monto</th></tr>
-  <tr><td>Costo producción</td><td style="text-align:right">${fmt(t.costoTotal||0)}</td></tr>
-  <tr><td>Precio unitario (IVA incl.)</td><td style="text-align:right">${fmt(t.precioFinal||0)}</td></tr>
-  <tr class="total-row"><td>TOTAL (${t.cantidad||1} uds)</td><td style="text-align:right">${fmt((t.precioFinal||0)*(t.cantidad||1))}</td></tr>
-</table>
-${emp.nota?`<p style="margin-top:24px;font-size:12px;opacity:.6">${emp.nota}</p>`:''}
-</body></html>`;
+  <div class="meta">
+    <div class="meta-block"><div class="meta-label">Cliente</div><div class="meta-value">${escHtml(t.cliente||'—')}</div></div>
+    <div class="meta-block"><div class="meta-label">Pieza</div><div class="meta-value">${escHtml(t.pieza||'—')}</div></div>
+    <div class="meta-block"><div class="meta-label">Estado</div><div class="meta-value">${escHtml(t.estado||'Cotizado')}</div></div>
+  </div>
+  <table>
+    <thead><tr><th>Descripción</th><th>Cant.</th><th>Precio unitario</th><th>Total</th></tr></thead>
+    <tbody><tr>
+      <td><strong>${escHtml(t.pieza||'—')}</strong><br>
+        <span class="badge-cat">${escHtml(t.categoria||'—')}</span><br>
+        <span style="color:#6b7280;font-size:.75rem">${(t.gramos||0).toFixed(1)}g · ${(t.horas_imp||0).toFixed(1)}h impresión</span>
+        ${t.notas?`<br><span style="color:#6b7280;font-size:.72rem;font-style:italic">${escHtml(t.notas)}</span>`:''}
+      </td>
+      <td class="td-mono">${t.cantidad||1}</td>
+      <td class="td-mono">${fmt(precioFinal/(t.cantidad||1))}</td>
+      <td class="td-mono"><strong>${fmt(precioFinal)}</strong></td>
+    </tr></tbody>
+  </table>
+  <div class="totals-wrap"><div class="totals">
+    <div class="totals-row"><span>Subtotal</span><span class="val">${fmt(antesIVA)}</span></div>
+    ${pIVA>0?`<div class="totals-row iva"><span>IVA (${pIVA}%)</span><span class="val">${fmt(ivaVal)}</span></div>`:''}
+    <div class="totals-row total-final"><span>TOTAL</span><span class="val">${fmt(precioFinal)}</span></div>
+  </div></div>
+  ${emp.nota?`<div class="notes"><div class="notes-title">Notas</div>${escHtml(emp.nota)}</div>`:''}
+  <div class="sig-block"><div style="height:40px"></div><div class="sig-line">Firma autorizada</div></div>
+  <footer>
+    <div style="display:flex;gap:18px;flex-wrap:wrap">
+      ${emp.tel?`<span>📞 ${escHtml(emp.tel)}</span>`:''}
+      ${emp.email?`<span>✉ ${escHtml(emp.email)}</span>`:''}
+      ${emp.web?`<span>🌐 ${escHtml(emp.web)}</span>`:''}
+    </div>
+    <div>Generado con Cotizador 3D CR</div>
+  </footer>
+</div></body></html>`);
+  win.document.close();
 }
 
-async function generarPDF(id) {
-  const t = window.todosLosTrabajos.find(t=>t.id===id); if(!t) return;
-  const emp = await dbCargarEmpresa();
-  const w = window.open('','_blank');
-  if (w) { w.document.write(buildPDFHtml(t, emp)); w.document.close(); setTimeout(()=>w.print(),500); }
-}
-
-async function generarPDFCotizador() {
-  const cfg = window.cfg || {};
-  const cg  = getCostoGramo();
-  const gramos   = parseFloat($('c_gramos')?.value||'0');
-  const horas    = parseFloat($('c_horas')?.value||'0');
-  const horasMO  = parseFloat($('c_horasMO')?.value||'0');
-  const horasDis = parseFloat($('c_horasDis')?.value||'0');
-  const disFijo  = parseFloat($('c_disFijo')?.value||'0');
-  const post     = parseFloat($('c_post')?.value||'0');
-  const otros    = parseFloat($('c_otros')?.value||'0');
-  const fallos   = parseFloat($('c_fallos')?.value||(cfg.fallosDefault||5).toString());
-  const margen   = parseFloat($('c_margen')?.value||(cfg.margenDefault||20).toString());
-  const iva      = parseFloat($('c_iva')?.value||(cfg.ivaDefault||0).toString());
-  const cant     = Math.max(1, parseInt($('c_cant')?.value||'1'));
-  const mat=gramos*(cg/1000), elec=horas*(cfg.watts||0)*(cfg.kwh||0)/1000;
-  const des=((cfg.compra||0)/(cfg.vida||1))+((cfg.mant||0)/12)/720;
-  const mo=horasMO*(cfg.tMO||0), dis=horasDis*(cfg.tDis||0)+disFijo, extra=post+otros;
-  const sub=mat+elec+des+mo+dis+extra, fa=sub*(fallos/100), base=sub+fa;
-  const gan=base*(margen/100), ivaAbs=(base+gan)*(iva/100), finalUnit=base+gan+ivaAbs;
-  const t = {id:'preview',pieza:$('c_pieza')?.value||'Sin nombre',cliente:$('c_cliente')?.value||'Sin cliente',fecha:$('c_fecha')?.value||new Date().toISOString().slice(0,10),categoria:$('c_cat')?.value||'',cantidad:cant,gramos,horas,costoTotal:base,precioFinal:finalUnit,estado:'pendiente',notas:$('c_notas')?.value||''};
-  const emp = await dbCargarEmpresa();
-  const w = window.open('','_blank');
-  if (w) { w.document.write(buildPDFHtml(t, emp)); w.document.close(); setTimeout(()=>w.print(),500); }
-}
-
-/* ── Global search ───────────────────────────────────── */
-function onGlobalSearch(e) {
-  const q = e.target.value.toLowerCase().trim(); if(!q) return;
-  const found = window.todosLosTrabajos.filter(t=>`${t.pieza} ${t.cliente}`.toLowerCase().includes(q));
-  if (found.length) { const tb=$('t_buscar'); if(tb) tb.value=e.target.value; window.estadoFilter='todos'; renderTrabajos(); goPage('trabajos'); }
-}
-
-/* ── Inicialización ──────────────────────────────────── */
+/* ----------------------------------------------------------
+   Inicialización
+---------------------------------------------------------- */
 document.addEventListener('DOMContentLoaded', () => {
-  initTheme();
-  routeAfterLogin();
-
-  const appEl  = document.querySelector('.app');
-  const authEl = document.querySelector('.auth-screen');
-
-  /* Verificar que la sesión sea válida Y que exista contraseña configurada */
-  if (checkSession() && localStorage.getItem(AUTH_PW_KEY)) {
-    showApp();
-  } else {
-    clearSession();           /* limpiar sesión inválida/expirada */
-    if (appEl)  appEl.style.display  = 'none';
-    if (authEl) authEl.style.display = 'flex';
-  }
-
-  /* enter en login */
-  const lp = $('login_pw'); if(lp) lp.addEventListener('keydown', e => { if(e.key==='Enter') tryLogin(); });
-
-  /* recalc en cotizador */
-  ['c_gramos','c_horas','c_horasMO','c_horasDis','c_disFijo','c_post','c_otros','c_fallos','c_margen','c_iva','c_cant','c_filamento']
-    .forEach(id => { const el=$(id); if(el) el.addEventListener('input', recalc); });
-
-  /* recalc config */
-  ['cfg_watts','cfg_kwh'].forEach(id => { const el=$(id); if(el) el.addEventListener('input', recalcCfg); });
-
-  /* búsquedas */
-  $('inv_buscar')  && $('inv_buscar').addEventListener('input', renderFilamentos);
-  $('t_buscar')    && $('t_buscar').addEventListener('input', renderTrabajos);
-  $('globalSearch')&& $('globalSearch').addEventListener('input', onGlobalSearch);
-
-  /* nav principal */
-  document.querySelectorAll('.nav-item[data-page]').forEach(n => n.addEventListener('click', () => goPage(n.dataset.page)));
-
-  /* nav configuración */
-  document.querySelectorAll('.cfg-nav-item[data-section]').forEach(n => n.addEventListener('click', () => cfgGo(n.dataset.section)));
-
-  /* filtros de estado */
-  document.querySelectorAll('.filter-chip[data-estado]').forEach(c => c.addEventListener('click', () => setEstadoFilter(c.dataset.estado)));
-
-  /* vista inventario */
-  $('inv-grid-view') && $('inv-grid-view').addEventListener('click', () => setInvView('grid'));
-  $('inv-list-view') && $('inv-list-view').addEventListener('click', () => setInvView('list'));
-
-  /* estado inicial */
-  cfgGo('empresa');
-  $('c_fecha') && ($('c_fecha').value = new Date().toISOString().slice(0,10));
-  document.querySelectorAll('.step-panel').forEach((p,i) => p.classList.toggle('show', i===0));
-  setInvView('grid');
+  const savedTheme = localStorage.getItem('theme');
+  if (savedTheme) document.documentElement.setAttribute('data-theme', savedTheme);
+  applyThemeLabels();
+  el('c_fecha').value=today(); el('inv_fecha').value=today();
+  cargarCfgLocal(); calcCfg(); calcular(); testFirebase();
+  try { const l=localStorage.getItem('trabajos3d');  if(l) trabajos=JSON.parse(l);   } catch(e){}
+  try { const l=localStorage.getItem('filamentos3d'); if(l) filamentos=JSON.parse(l); } catch(e){}
 });
