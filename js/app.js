@@ -64,8 +64,10 @@ async function trySetup() {
 
 function logout() {
   clearSession();
-  document.querySelector('.app') && (document.querySelector('.app').style.display = 'none');
-  document.querySelector('.auth-screen') && (document.querySelector('.auth-screen').style.display = '');
+  const appEl  = document.querySelector('.app');
+  const authEl = document.querySelector('.auth-screen');
+  if (appEl)  appEl.style.display  = 'none';
+  if (authEl) authEl.style.display = 'flex';
   routeAfterLogin();
 }
 
@@ -93,8 +95,10 @@ function routeAfterLogin() {
 }
 
 function showApp() {
-  document.querySelector('.auth-screen') && (document.querySelector('.auth-screen').style.display = 'none');
-  document.querySelector('.app')         && (document.querySelector('.app').style.display = '');
+  const authEl = document.querySelector('.auth-screen');
+  const appEl  = document.querySelector('.app');
+  if (authEl) authEl.style.display = 'none';
+  if (appEl)  { appEl.style.display = 'grid'; }
   const name = localStorage.getItem(AUTH_NAME_KEY) || 'Usuario';
   const el = $('sb-display-name'); if(el) el.textContent = name;
   const av = $('sb-avatar');       if(av) av.textContent = name.charAt(0).toUpperCase();
@@ -566,11 +570,16 @@ document.addEventListener('DOMContentLoaded', () => {
   initTheme();
   routeAfterLogin();
 
-  if (checkSession()) {
+  const appEl  = document.querySelector('.app');
+  const authEl = document.querySelector('.auth-screen');
+
+  /* Verificar que la sesión sea válida Y que exista contraseña configurada */
+  if (checkSession() && localStorage.getItem(AUTH_PW_KEY)) {
     showApp();
   } else {
-    document.querySelector('.app') && (document.querySelector('.app').style.display = 'none');
-    document.querySelector('.auth-screen') && (document.querySelector('.auth-screen').style.display = '');
+    clearSession();           /* limpiar sesión inválida/expirada */
+    if (appEl)  appEl.style.display  = 'none';
+    if (authEl) authEl.style.display = 'flex';
   }
 
   /* enter en login */
