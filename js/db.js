@@ -108,6 +108,32 @@ async function fbCargarEmpresa() {
 }
 
 /* ----------------------------------------------------------
+   Usuarios / Perfiles
+---------------------------------------------------------- */
+
+/** Guarda o reemplaza el perfil de un usuario en Firestore. */
+async function fbGuardarPerfil(uid, data) {
+  await db.collection('usuarios').doc(uid).set(data);
+}
+
+/** Lee el perfil de un usuario. */
+async function fbCargarPerfil(uid) {
+  const snap = await db.collection('usuarios').doc(uid).get();
+  return snap.exists ? { ...snap.data(), id: snap.id } : null;
+}
+
+/** Carga todos los perfiles de usuario. */
+async function fbCargarUsuarios() {
+  const snap = await db.collection('usuarios').get();
+  return snap.docs.map(d => ({ ...d.data(), id: d.id }));
+}
+
+/** Elimina el perfil de un usuario. */
+async function fbEliminarPerfil(uid) {
+  await db.collection('usuarios').doc(uid).delete();
+}
+
+/* ----------------------------------------------------------
    Diagnóstico de conexión
 ---------------------------------------------------------- */
 

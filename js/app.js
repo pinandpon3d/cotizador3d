@@ -19,7 +19,10 @@ let editingId  = null;
 /* ----------------------------------------------------------
    Navegación
 ---------------------------------------------------------- */
-const PAGE_LABELS = { cotizador:'Cotizador', trabajos:'Trabajos', inventario:'Inventario', configuracion:'Configuración' };
+const PAGE_LABELS = {
+  cotizador:'Cotizador', trabajos:'Trabajos',
+  inventario:'Inventario', configuracion:'Configuración', usuarios:'Usuarios'
+};
 
 function navTo(page) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -29,7 +32,8 @@ function navTo(page) {
   set('breadcrumb-current', PAGE_LABELS[page] || page);
   if (page === 'trabajos')      cargarTrabajos();
   if (page === 'inventario')    cargarInventario();
-  if (page === 'configuracion') calcCfg();
+  if (page === 'configuracion') { calcCfg(); actualizarUIUsuario && actualizarUIUsuario(); }
+  if (page === 'usuarios')      { if (typeof cargarUsuarios === 'function') cargarUsuarios(); }
   closeSidebar();
 }
 
@@ -355,14 +359,26 @@ footer{margin-top:auto;padding-top:20px;border-top:1px solid #e5e7eb;display:fle
 }
 
 /* ----------------------------------------------------------
-   Inicialización
+   Inicialización básica (antes de autenticar)
 ---------------------------------------------------------- */
 document.addEventListener('DOMContentLoaded', () => {
   const savedTheme = localStorage.getItem('theme');
   if (savedTheme) document.documentElement.setAttribute('data-theme', savedTheme);
   applyThemeLabels();
-  el('c_fecha').value=today(); el('inv_fecha').value=today();
-  cargarCfgLocal(); calcCfg(); calcular(); testFirebase();
+  if (el('c_fecha'))   el('c_fecha').value   = today();
+  if (el('inv_fecha')) el('inv_fecha').value = today();
+  cargarCfgLocal();
+  calcCfg();
+  calcular();
+});
+
+/* ----------------------------------------------------------
+   Callback post-autenticación (llamado desde auth.js)
+---------------------------------------------------------- */
+function onAuthSuccess() {
+  testFirebase();
   try { const l=localStorage.getItem('trabajos3d');  if(l) trabajos=JSON.parse(l);   } catch(e){}
   try { const l=localStorage.getItem('filamentos3d'); if(l) filamentos=JSON.parse(l); } catch(e){}
-});
+  navTo('cotizador');
+  cargarConfiguracion();
+}

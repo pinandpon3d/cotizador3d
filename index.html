@@ -12,13 +12,82 @@
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 </head>
 <body>
 
 <div id="toast-container"></div>
 <div class="overlay" id="overlay" onclick="closeSidebar()"></div>
 
-<div class="layout">
+<!-- =====================================================
+     PANTALLA DE AUTENTICACIÓN
+====================================================== -->
+<div id="auth-screen">
+
+  <!-- Formulario: Iniciar sesión -->
+  <div class="auth-card" id="auth-login">
+    <div class="auth-logo">
+      <div class="auth-logo-icon">
+        <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+      </div>
+      <div class="auth-logo-text">
+        <strong>Cotizador 3D</strong>
+        <span>Costa Rica</span>
+      </div>
+    </div>
+    <div class="auth-title">Iniciar sesión</div>
+    <div class="auth-sub">Ingrese sus credenciales para continuar</div>
+    <div class="auth-error" id="auth-error"></div>
+    <div class="auth-field">
+      <label class="auth-label">Email</label>
+      <input type="email" class="auth-input" id="auth-email" placeholder="usuario@empresa.cr"
+        onkeydown="if(event.key==='Enter')login()">
+    </div>
+    <div class="auth-field">
+      <label class="auth-label">Contraseña</label>
+      <input type="password" class="auth-input" id="auth-pass" placeholder="••••••••"
+        onkeydown="if(event.key==='Enter')login()">
+    </div>
+    <button class="auth-btn" id="auth-login-btn" onclick="login()">Entrar</button>
+    <span class="auth-link" onclick="recuperarPassword()">¿Olvidó su contraseña?</span>
+  </div>
+
+  <!-- Formulario: Configuración inicial (primer admin) -->
+  <div class="auth-card" id="auth-setup" style="display:none">
+    <div class="auth-logo">
+      <div class="auth-logo-icon">
+        <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+      </div>
+      <div class="auth-logo-text">
+        <strong>Cotizador 3D</strong>
+        <span>Costa Rica</span>
+      </div>
+    </div>
+    <div class="auth-setup-badge">⚙ Configuración inicial</div>
+    <div class="auth-title">Crear cuenta administrador</div>
+    <div class="auth-sub">Primera vez en la aplicación. Cree la cuenta de administrador para comenzar.</div>
+    <div class="auth-error" id="setup-error"></div>
+    <div class="auth-field">
+      <label class="auth-label">Nombre completo</label>
+      <input type="text" class="auth-input" id="setup-nombre" placeholder="Tu nombre">
+    </div>
+    <div class="auth-field">
+      <label class="auth-label">Email</label>
+      <input type="email" class="auth-input" id="setup-email" placeholder="admin@empresa.cr">
+    </div>
+    <div class="auth-field">
+      <label class="auth-label">Contraseña</label>
+      <input type="password" class="auth-input" id="setup-pass" placeholder="Mínimo 6 caracteres">
+    </div>
+    <button class="auth-btn" id="setup-btn" onclick="registrarPrimerAdmin()">Crear cuenta</button>
+  </div>
+
+</div><!-- /#auth-screen -->
+
+<!-- =====================================================
+     LAYOUT PRINCIPAL (oculto hasta autenticarse)
+====================================================== -->
+<div class="layout" id="app-layout" style="display:none">
 
 <!-- SIDEBAR -->
 <aside class="sidebar" id="sidebar">
@@ -31,6 +100,17 @@
       <span>Costa Rica</span>
     </div>
   </div>
+
+  <!-- USUARIO ACTUAL -->
+  <div class="sidebar-user" id="sidebar-user">
+    <div class="user-avatar" id="sidebar-avatar">?</div>
+    <div class="user-info">
+      <div class="user-name"  id="sidebar-nombre">Usuario</div>
+      <div class="user-email" id="sidebar-email">—</div>
+      <span class="role-badge role-user" id="sidebar-role-badge">Usuario</span>
+    </div>
+  </div>
+
   <nav>
     <div class="nav-item active" data-page="cotizador" onclick="navTo('cotizador')">
       <svg viewBox="0 0 24 24"><path d="M9 7H6a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2v-3"/><path d="M16 5h2a1 1 0 0 1 1 1v2"/><path d="M12 12h5l-1.5-6"/><path d="m9 12 2 2 4-4"/></svg>
@@ -48,7 +128,12 @@
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       Configuración
     </div>
+    <div class="nav-item" data-page="usuarios" id="nav-usuarios" onclick="navTo('usuarios')" style="display:none">
+      <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Usuarios
+    </div>
   </nav>
+
   <div class="sidebar-footer">
     <div class="fb-status">
       <div class="status-dot" id="fb-dot"></div>
@@ -57,6 +142,10 @@
     <button class="theme-toggle" onclick="toggleTheme()">
       <svg id="theme-icon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
       <span id="theme-label">Modo oscuro</span>
+    </button>
+    <button class="btn-logout" onclick="logout()">
+      <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      Cerrar sesión
     </button>
   </div>
 </aside>
@@ -79,6 +168,8 @@
           <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
         </svg>
       </button>
+      <div class="user-avatar-sm" id="topbar-avatar" title="Mi cuenta"
+        style="cursor:pointer" onclick="navTo('configuracion')">?</div>
     </div>
   </div>
 
@@ -283,7 +374,7 @@
     <!-- PÁGINA: CONFIGURACIÓN -->
     <div class="page" id="page-configuracion">
       <div class="section-title">Configuración</div>
-      <div class="section-sub">Parámetros de costo y datos de empresa</div>
+      <div class="section-sub">Parámetros de costo, datos de empresa y mi cuenta</div>
       <div class="firebase-banner">
         <svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
         Conectado a Firebase Firestore — los datos se sincronizan en la nube
@@ -345,23 +436,120 @@
           <span>Recargar desde Firebase</span>
         </button>
       </div>
+
+      <!-- MI CUENTA -->
+      <div class="card" style="margin-top:24px">
+        <div class="card-title">
+          <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          Mi Cuenta
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Nombre</label>
+            <input type="text" id="mi-nombre" placeholder="Tu nombre">
+          </div>
+          <div class="form-group">
+            <label>Email</label>
+            <div style="display:flex;align-items:center;height:38px;font-size:.875rem;color:var(--text2);font-family:var(--font-mono)" id="mi-email-val">—</div>
+          </div>
+          <div class="form-group">
+            <label>Rol</label>
+            <div style="display:flex;align-items:center;height:38px;font-size:.875rem;color:var(--text2)" id="mi-rol-val">—</div>
+          </div>
+        </div>
+        <div class="config-section" style="margin-top:20px">
+          <div class="config-section-title">Cambiar contraseña</div>
+          <div class="auth-error" id="mi-pass-error"></div>
+          <div class="form-grid-3">
+            <div class="form-group"><label>Contraseña actual</label><input type="password" id="mi-pass-actual" placeholder="••••••••"></div>
+            <div class="form-group"><label>Nueva contraseña</label><input type="password" id="mi-pass-nueva" placeholder="Mínimo 6 caracteres"></div>
+            <div class="form-group"><label>Confirmar contraseña</label><input type="password" id="mi-pass-conf" placeholder="Repita la nueva contraseña"></div>
+          </div>
+          <div class="btn-group" style="margin-top:14px">
+            <button class="btn btn-primary" onclick="cambiarMiPassword()">
+              <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              <span>Cambiar contraseña</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PÁGINA: USUARIOS (solo admin) -->
+    <div class="page" id="page-usuarios">
+      <div class="section-title">Gestión de Usuarios</div>
+      <div class="section-sub">Administre los usuarios y sus niveles de acceso</div>
+
+      <!-- Crear usuario (admin only) -->
+      <div class="card" data-admin-only>
+        <div class="card-title">
+          <svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
+          Crear Nuevo Usuario
+        </div>
+        <div class="auth-error" id="nu-error"></div>
+        <div class="form-grid">
+          <div class="form-group"><label>Nombre completo</label><input type="text" id="nu-nombre" placeholder="Nombre del usuario"></div>
+          <div class="form-group"><label>Email</label><input type="email" id="nu-email" placeholder="usuario@empresa.cr"></div>
+          <div class="form-group"><label>Contraseña inicial</label><input type="password" id="nu-pass" placeholder="Mínimo 6 caracteres"></div>
+          <div class="form-group">
+            <label>Rol</label>
+            <select id="nu-rol">
+              <option value="usuario">Usuario (cotizador + trabajos)</option>
+              <option value="admin">Administrador (acceso completo)</option>
+            </select>
+          </div>
+        </div>
+        <div class="btn-group" style="margin-top:14px">
+          <button class="btn btn-primary" id="nu-btn" onclick="crearUsuario()">
+            <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <span>Crear usuario</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Tabla de usuarios -->
+      <div class="card">
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+          <span style="display:flex;align-items:center;gap:8px">
+            <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            Usuarios Registrados
+          </span>
+          <button class="btn btn-secondary btn-sm" onclick="cargarUsuarios()">
+            <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            Recargar
+          </button>
+        </div>
+        <div class="table-wrap">
+          <table id="users-table">
+            <thead><tr><th>Usuario</th><th>Email</th><th>Rol</th><th>Registro</th><th>Acciones</th></tr></thead>
+            <tbody id="users-tbody"></tbody>
+          </table>
+        </div>
+        <div id="users-empty" class="empty-state" style="display:none">
+          <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+          <p>No hay usuarios registrados</p>
+        </div>
+      </div>
     </div>
 
   </main>
-</div>
-</div>
+</div><!-- /.main-wrap -->
+
+</div><!-- /#app-layout -->
 
 <!--
   CAPAS DE PROGRAMACIÓN — orden de carga:
-    1. db.js     → Base de datos (Firebase Firestore)
+    1. db.js     → Base de datos (Firebase Firestore + Auth)
     2. logic.js  → Lógica de negocio y cálculos
     3. ui.js     → Interfaz gráfica y renderizado
     4. app.js    → Controlador y orquestación
+    5. auth.js   → Autenticación y control de acceso
 -->
 <script src="js/db.js"></script>
 <script src="js/logic.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/app.js"></script>
+<script src="js/auth.js"></script>
 
 </body>
 </html>
