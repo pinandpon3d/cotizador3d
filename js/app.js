@@ -63,9 +63,10 @@ function guardarCotizacion() {
     costo_dis: fv('c_costo_dis'),postpro:   fv('c_postpro'),
     otros:     fv('c_otros'),    pFallos:   fv('c_fallos'),
     pMargen:   fv('c_margen'),   pIVA:      fv('c_iva'),
-    costo_total:    desglose.costoFallos,
-    precio_final:   desglose.precioRedondeado,
-    precio_unitario: desglose.precioUnitario,
+    costo_total:         desglose.costoTotalPlacas,
+    precio_final:        desglose.precioTotal,
+    precio_unitario:     desglose.precioRedondeado,
+    ganancia_por_objeto: desglose.gananciaObjeto,
     estado: editingId ? (trabajos.find(t=>t.id===editingId)?.estado || 'Cotizado') : 'Cotizado',
     _desglose: desglose
   };
@@ -261,8 +262,8 @@ function generarPDF() {
   generarPDFData({ id:editingId||'BORRADOR', pieza, cliente, fecha:el('c_fecha').value,
     cantidad:fv('c_cantidad'), placas:fv('c_placas'), categoria:el('c_categoria').value, notas:el('c_notas').value,
     gramos:fv('c_gramos'), horas_imp:fv('c_horas_imp'), pIVA:fv('c_iva'),
-    costo_total:desglose.costoFallos, precio_final:desglose.precioRedondeado,
-    precio_unitario:desglose.precioUnitario, _desglose:desglose });
+    costo_total:desglose.costoTotalPlacas, precio_final:desglose.precioTotal,
+    precio_unitario:desglose.precioRedondeado, _desglose:desglose });
 }
 
 function generarPDFData(t) {

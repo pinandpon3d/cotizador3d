@@ -100,10 +100,10 @@ function renderTrabajos() {
   tbody.innerHTML = list.map(t => {
     const ec       = colorMap[t.estado] || 'badge-gray';
     const placas   = Math.max(t.placas || 1, 1);
-    const ganTotal = (t.precio_final||0) - (t.costo_total||0);
-    const ganPlaca = ganTotal / placas;
-    const ganClass = ganPlaca >= 0 ? 'color:var(--success,#10b981)' : 'color:var(--danger)';
-    const placasSub = placas > 1 ? `<br><span style="font-size:.65rem;color:var(--text3);font-weight:400">${placas} placas</span>` : '';
+    const ganObj   = t.ganancia_por_objeto != null ? t.ganancia_por_objeto
+                   : ((t.precio_final||0) - (t.costo_total||0)) / Math.max(t.cantidad||1, 1);
+    const ganClass = ganObj >= 0 ? 'color:var(--success,#10b981)' : 'color:var(--danger)';
+    const cantSub  = (t.cantidad||1) > 1 ? `<br><span style="font-size:.65rem;color:var(--text3);font-weight:400">${t.cantidad} obj</span>` : '';
     return `<tr>
       <td class="td-mono">${t.fecha||'—'}</td>
       <td>${escHtml(t.cliente||'')}</td>
@@ -112,7 +112,7 @@ function renderTrabajos() {
       <td class="td-mono">${(t.gramos||0).toFixed(1)}g / ${(t.horas_imp||0).toFixed(1)}h</td>
       <td class="td-mono">${fmt(t.costo_total||0)}</td>
       <td class="td-mono"><strong>${fmt(t.precio_final||0)}</strong></td>
-      <td class="td-mono"><strong style="${ganClass}">${fmt(ganPlaca)}</strong>${placasSub}</td>
+      <td class="td-mono"><strong style="${ganClass}">${fmt(ganObj)}</strong>${cantSub}</td>
       <td><select class="badge ${ec} estado-select" onchange="cambiarEstado('${t.id}',this.value,this)">
         ${['Cotizado','Aprobado','En producción','Entregado','Cancelado'].map(s=>`<option value="${s}"${t.estado===s?' selected':''}>${s}</option>`).join('')}
       </select></td>

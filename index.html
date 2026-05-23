@@ -250,13 +250,13 @@
           <div class="breakdown-row"><span>Otros</span><span class="breakdown-val" id="b_otros">₡0.00</span></div>
           <div class="breakdown-row subtotal"><span>Subtotal</span><span class="breakdown-val" id="b_sub">₡0.00</span></div>
           <div class="breakdown-row"><span id="b_fallos_label">+ Fallos (5%)</span><span class="breakdown-val" id="b_fallos_val">₡0.00</span></div>
-          <div class="breakdown-row subtotal"><span>Costo con fallos</span><span class="breakdown-val" id="b_costo_fallos">₡0.00</span></div>
+          <div class="breakdown-row subtotal"><span id="b_costo_fallos_label">Costo total (1 placa)</span><span class="breakdown-val" id="b_costo_fallos">₡0.00</span></div>
+          <div class="breakdown-row"><span id="b_costo_obj_label">÷ Objetos (1)</span><span class="breakdown-val" id="b_costo_obj">₡0.00</span></div>
           <div class="breakdown-row"><span id="b_margen_label">+ Ganancia (35%)</span><span class="breakdown-val" id="b_margen_val">₡0.00</span></div>
-          <div class="breakdown-row"><span id="b_gan_placa_label" style="color:var(--success,#10b981)">↳ Ganancia por placa</span><span class="breakdown-val" id="b_gan_placa" style="color:var(--success,#10b981)">₡0.00</span></div>
-          <div class="breakdown-row subtotal"><span>Precio antes de IVA</span><span class="breakdown-val" id="b_antes_iva">₡0.00</span></div>
+          <div class="breakdown-row subtotal"><span>Precio antes de IVA (por objeto)</span><span class="breakdown-val" id="b_antes_iva">₡0.00</span></div>
           <div class="breakdown-row" id="b_iva_row"><span id="b_iva_label">+ IVA (0%)</span><span class="breakdown-val" id="b_iva_val">₡0.00</span></div>
-          <div class="breakdown-row subtotal"><span id="b_total_label">PRECIO TOTAL (1 placa)</span><span class="breakdown-val" id="b_final">₡0</span></div>
-          <div class="breakdown-row total highlight"><span id="b_unitario_label">PRECIO POR OBJETO (÷ 1)</span><span class="breakdown-val" id="b_unitario">₡0</span></div>
+          <div class="breakdown-row total highlight"><span id="b_unitario_label">PRECIO POR OBJETO</span><span class="breakdown-val" id="b_unitario">₡0</span></div>
+          <div class="breakdown-row subtotal"><span id="b_total_label">PRECIO TOTAL (× 1 objeto)</span><span class="breakdown-val" id="b_final">₡0</span></div>
         </div>
         <div class="btn-group" style="margin-top:18px">
           <button class="btn btn-primary" onclick="guardarCotizacion()">
@@ -309,7 +309,7 @@
         </div>
         <div class="table-wrap">
           <table id="trabajos-table">
-            <thead><tr><th>Fecha</th><th>Cliente</th><th>Pieza</th><th>Categoría</th><th>Gramos / Horas</th><th>Costo total</th><th>Precio total</th><th>Gan. / Placa</th><th>Estado</th><th>Acciones</th></tr></thead>
+            <thead><tr><th>Fecha</th><th>Cliente</th><th>Pieza</th><th>Categoría</th><th>Gramos / Horas</th><th>Costo total</th><th>Precio total</th><th>Gan. / Objeto</th><th>Estado</th><th>Acciones</th></tr></thead>
             <tbody id="trabajos-tbody"></tbody>
           </table>
         </div>
