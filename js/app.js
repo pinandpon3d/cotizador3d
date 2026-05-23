@@ -522,6 +522,55 @@ async function eliminarCliente(id) {
    Venta al Detalle
 ---------------------------------------------------------- */
 
+async function migrarClienteVenta() {
+  if (!confirm('¿Migrar todos los registros con cliente "Venta" para usar categoría "Venta al Detalle"?\n\nEsto actualizará Firestore. No se puede deshacer fácilmente.')) return;
+
+  try {
+    // Cargar todos si aún no están en memoria
+    if (!trabajos.length) trabajos = await fbCargarTrabajos();
+
+    const candidatos = trabajos.filter(t =>
+      (t.cliente || '').trim().toLowerCase() === 'venta'
+    );
+
+    if (!candidatos.length) {
+      toast('No se encontraron registros con cliente "Venta"', 'info');
+      return;
+    }
+
+    toast(`Migrando ${candidatos.length} registro${candidatos.length !== 1 ? 's' : ''}…`, 'info');
+
+    let ok = 0, err = 0;
+    for (const t of candidatos) {
+      try {
+        const updates = {
+          categoria:       'Venta al Detalle',
+          ventaDetalle:    true,
+          unidadesVendidas: t.unidadesVendidas || 0,
+          historialVentas:  t.historialVentas  || []
+        };
+        await db.collection('cotizaciones').doc(String(t.id)).update(updates);
+        Object.assign(t, updates);   // actualizar local
+        ok++;
+      } catch(e) {
+        console.error('Error migrando', t.id, e);
+        err++;
+      }
+    }
+
+    try { localStorage.setItem('trabajos3d', JSON.stringify(trabajos.map(t => { const {_desglose,...c}=t; return c; }))); } catch(e){}
+
+    if (err === 0) {
+      toast(`✓ ${ok} registro${ok !== 1 ? 's' : ''} migrado${ok !== 1 ? 's' : ''} correctamente`, 'success');
+    } else {
+      toast(`Migrados: ${ok} ✓ — Errores: ${err} ✗`, 'error');
+    }
+  } catch(e) {
+    console.error(e);
+    toast('Error al ejecutar la migración', 'error');
+  }
+}
+
 async function cargarVentaDetalle() {
   try {
     if (!trabajos.length) {
