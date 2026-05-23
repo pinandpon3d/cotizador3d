@@ -742,7 +742,7 @@ function generarPDFData(t) {
   const ref         = String(t.id).toUpperCase().slice(0,10);
   const cantidad    = Math.max(t.cantidad||1,1);
   const placas      = Math.max(t.placas||1,1);
-  const precioUnit  = t.precio_unitario || (Math.round((precioFinal/cantidad)/100)*100);
+  const precioUnit  = t.precio_unitario || (precioFinal / cantidad);
   const abono       = Number(t.montoAbonado) || 0;
   const pendiente   = Math.max(precioFinal - abono, 0);
   const metodo      = t.metodoPago || '';

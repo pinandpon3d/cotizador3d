@@ -92,13 +92,13 @@ function calcular() {
   const gananciaObjeto = costoUnitario * (pMargen / 100);
   const antesIVA       = costoUnitario + gananciaObjeto;
 
-  // Paso 5: + IVA → precio por objeto (redondeado)
+  // Paso 5: + IVA → precio por objeto (sin redondear)
   const ivaVal           = antesIVA * (pIVA / 100);
   const precioObjeto     = antesIVA + ivaVal;
-  const precioRedondeado = Math.round(precioObjeto / 100) * 100;
+  const precioRedondeado = precioObjeto;   // sin redondeo
 
   // Paso 6: precio total = precio por objeto × cantidad
-  const precioTotal = precioRedondeado * cantidad;
+  const precioTotal = precioObjeto * cantidad;
 
   // Actualizar desglose en pantalla
   set('b_material',           fmt(material));
