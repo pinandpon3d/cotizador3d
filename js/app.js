@@ -582,9 +582,11 @@ async function guardarVenta() {
   const ahoraAgotado    = totalVendidas >= totalUnidades;
 
   if (ahoraAgotado && idx >= 0) {
-    trabajos[idx].estadoPago    = 'Pagado';
-    trabajos[idx].montoAbonado  = trabajos[idx].precio_final || 0;
+    trabajos[idx].estado         = 'Entregado';
+    trabajos[idx].estadoPago     = 'Pagado';
+    trabajos[idx].montoAbonado   = trabajos[idx].precio_final || 0;
     trabajos[idx].montoPendiente = 0;
+    trabajos[idx].fechaActualizacionEstado = new Date().toISOString();
   }
 
   cerrarModalVenta();
@@ -593,14 +595,16 @@ async function guardarVenta() {
   try {
     await fbRegistrarVenta(id, cantidad, nota);
 
-    // Si se agotó, marcar como Pagado en Firestore también
     if (ahoraAgotado) {
-      await fbActualizarPago(id, {
-        estadoPago:     'Pagado',
-        montoAbonado:   t.precio_final || 0,
-        montoPendiente: 0
+      // Marcar Entregado + Pagado en Firestore
+      await db.collection('cotizaciones').doc(String(id)).update({
+        estado:          'Entregado',
+        estadoPago:      'Pagado',
+        montoAbonado:    t.precio_final || 0,
+        montoPendiente:  0,
+        fechaActualizacionEstado: new Date().toISOString()
       });
-      toast(`Lote agotado — marcado como Pagado ✓`, 'success');
+      toast('Lote agotado — Entregado y Pagado ✓', 'success');
     } else {
       const u = cantidad === 1 ? '1 unidad vendida' : `${cantidad} unidades vendidas`;
       toast(`${u} ✓`, 'success');
@@ -608,13 +612,14 @@ async function guardarVenta() {
   } catch(e) {
     console.error(e);
     toast('Error al registrar la venta', 'error');
-    // Revertir
+    // Revertir local
     if (idx >= 0) {
       trabajos[idx].unidadesVendidas -= cantidad;
       trabajos[idx].historialVentas.pop();
       if (ahoraAgotado) {
-        trabajos[idx].estadoPago    = t.estadoPago    || 'Pendiente';
-        trabajos[idx].montoAbonado  = t.montoAbonado  || 0;
+        trabajos[idx].estado         = t.estado         || 'Cotizado';
+        trabajos[idx].estadoPago     = t.estadoPago     || 'Pendiente';
+        trabajos[idx].montoAbonado   = t.montoAbonado   || 0;
         trabajos[idx].montoPendiente = t.montoPendiente || t.precio_final || 0;
       }
     }
