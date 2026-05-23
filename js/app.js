@@ -524,11 +524,32 @@ async function eliminarCliente(id) {
 
 async function cargarVentaDetalle() {
   try {
-    if (!trabajos.length) {
-      trabajos = await fbCargarTrabajos();
-      try { localStorage.setItem('trabajos3d', JSON.stringify(trabajos)); } catch(e){}
-    }
+    // Siempre recargar desde Firestore para tener datos frescos
+    trabajos = await fbCargarTrabajos();
+    try { localStorage.setItem('trabajos3d', JSON.stringify(trabajos)); } catch(e){}
+
     const lotes = trabajos.filter(t => t.ventaDetalle === true);
+
+    // Auto-corregir agotados que aún no tienen Entregado+Pagado
+    const agotados = lotes.filter(l =>
+      (l.unidadesVendidas || 0) >= Math.max(l.cantidad || 1, 1) &&
+      (l.estado !== 'Entregado' || l.estadoPago !== 'Pagado')
+    );
+
+    for (const l of agotados) {
+      const fix = {
+        estado:          'Entregado',
+        estadoPago:      'Pagado',
+        montoAbonado:    l.precio_final || 0,
+        montoPendiente:  0,
+        fechaActualizacionEstado: new Date().toISOString()
+      };
+      try {
+        await db.collection('cotizaciones').doc(String(l.id)).update(fix);
+        Object.assign(l, fix);
+      } catch(e) { console.error('Fix agotado:', l.id, e); }
+    }
+
     renderVentaDetalle(lotes);
   } catch(e) {
     console.error(e);
