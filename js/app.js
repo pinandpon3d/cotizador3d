@@ -588,148 +588,316 @@ function generarPDF() {
   if (!pieza||!cliente) { toast('Complete pieza y cliente','error'); return; }
   const desglose = calcular();
   generarPDFData({
-    id:           editingId || 'BORRADOR',
+    id:             editingId || 'BORRADOR',
     pieza, cliente,
-    fecha:        el('c_fecha').value,
-    fechaEntrega: el('c_fecha_entrega')?.value || '',
-    cantidad:     fv('c_cantidad'),
-    placas:       fv('c_placas'),
-    categoria:    el('c_categoria').value,
-    material:     el('c_material')?.value || '',
-    notas:        el('c_notas').value,
-    gramos:       fv('c_gramos'),
-    horas_imp:    fv('c_horas_imp'),
-    pIVA:         fv('c_iva'),
-    costo_total:  desglose.costoTotalPlacas,
-    precio_final: desglose.precioTotal,
-    precio_unitario: desglose.precioRedondeado,
-    _desglose:    desglose
+    fecha:          el('c_fecha').value,
+    fechaEntrega:   el('c_fecha_entrega')?.value || '',
+    cantidad:       fv('c_cantidad'),
+    placas:         fv('c_placas'),
+    categoria:      el('c_categoria').value,
+    material:       el('c_material')?.value || '',
+    notas:          el('c_notas').value,
+    gramos:         fv('c_gramos'),
+    horas_imp:      fv('c_horas_imp'),
+    pIVA:           fv('c_iva'),
+    costo_total:    desglose.costoTotalPlacas,
+    precio_final:   desglose.precioTotal,
+    precio_unitario:desglose.precioRedondeado,
+    metodoPago:     el('c_metodo_pago')?.value || '',
+    montoAbonado:   fv('c_monto_abonado'),
+    _desglose:      desglose
   });
 }
 
 function generarPDFData(t) {
-  const emp          = getEmpresa();
-  const d            = t._desglose || {};
-  const pIVA         = t.pIVA || 0;
-  const antesIVA     = d.antesIVA    || t.precio_final || 0;
-  const ivaVal       = d.ivaVal      || 0;
-  const precioFinal  = t.precio_final || 0;
-  const ref          = String(t.id).toUpperCase().slice(0,10);
-  const cantidad     = Math.max(t.cantidad||1,1);
-  const placas       = Math.max(t.placas||1,1);
-  const precioUnit   = t.precio_unitario || (Math.round((precioFinal/cantidad)/100)*100);
+  const emp         = getEmpresa();
+  const d           = t._desglose || {};
+  const pIVA        = t.pIVA || 0;
+  const antesIVA    = d.antesIVA   || t.precio_final || 0;
+  const ivaVal      = d.ivaVal     || 0;
+  const precioFinal = t.precio_final || 0;
+  const ref         = String(t.id).toUpperCase().slice(0,10);
+  const cantidad    = Math.max(t.cantidad||1,1);
+  const placas      = Math.max(t.placas||1,1);
+  const precioUnit  = t.precio_unitario || (Math.round((precioFinal/cantidad)/100)*100);
+  const abono       = Number(t.montoAbonado) || 0;
+  const pendiente   = Math.max(precioFinal - abono, 0);
+  const metodo      = t.metodoPago || '';
+
+  const base        = new URL('.', window.location.href).href;
+  const mascotaUrl  = base + 'img/Mascota-PNG.png';
+  const nombreUrl   = base + 'img/Nombre-PNG.png';
+
   const win = window.open('','_blank');
   if (!win) { toast('Permita ventanas emergentes','error'); return; }
 
   win.document.write(`<!DOCTYPE html>
-<html lang="es"><head><meta charset="UTF-8">
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Cotización — ${escHtml(t.pieza||'')} — ${escHtml(t.cliente||'')}</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,700&display=swap" rel="stylesheet">
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Inter',sans-serif;font-size:13px;color:#1a1a2e;background:#fff}
-.page{max-width:780px;margin:0 auto;padding:40px 48px;min-height:100vh;display:flex;flex-direction:column}
-.header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:32px;padding-bottom:20px;border-bottom:2px solid #ede9fe}
-.brand-name{font-size:1.4rem;font-weight:700;color:#7c3aed}
-.brand-sub{font-size:.75rem;color:#6b7280;margin-top:2px}
-.doc-type h1{font-size:1.5rem;font-weight:700;color:#111827;text-transform:uppercase;letter-spacing:.04em;text-align:right}
-.ref{font-size:.78rem;color:#6b7280;font-family:monospace;text-align:right}
-.meta{display:flex;gap:22px;flex-wrap:wrap;margin-bottom:22px;background:#f8f9fc;border-radius:10px;padding:14px 18px}
-.meta-block{display:flex;flex-direction:column;gap:3px}
-.meta-label{font-size:.63rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#9ca3af}
-.meta-value{font-size:.84rem;font-weight:600;color:#111827}
-table{width:100%;border-collapse:collapse;margin-bottom:18px}
-thead{background:#7c3aed}
-thead th{padding:9px 12px;text-align:left;color:#fff;font-size:.72rem;font-weight:600;text-transform:uppercase}
-tbody tr:nth-child(even){background:#f9f9fd}
-tbody td{padding:9px 12px;border-bottom:1px solid #e5e7eb;font-size:.8rem}
-.badge-cat{display:inline-flex;padding:2px 8px;background:#ede9fe;color:#7c3aed;border-radius:20px;font-size:.65rem;font-weight:600}
-.td-mono{font-family:monospace}
-.totals-wrap{display:flex;justify-content:flex-end;margin-bottom:22px}
-.totals{width:280px;background:#f8f9fc;border-radius:10px;overflow:hidden;border:1px solid #e5e7eb}
-.totals-row{display:flex;justify-content:space-between;padding:7px 14px;font-size:.8rem;color:#374151}
-.totals-row.iva{color:#d97706;font-size:.76rem}
-.totals-row.hi{background:#ede9fe;font-weight:600;color:#7c3aed}
-.totals-row.final{background:#7c3aed;color:#fff;padding:12px 14px;font-size:.92rem;font-weight:700}
-.totals-row .val{font-family:monospace;font-weight:600}
-.conds{background:#f0fdf4;border-left:3px solid #059669;border-radius:5px;padding:12px 16px;margin-bottom:18px;font-size:.76rem;color:#374151}
-.conds-title{font-size:.65rem;font-weight:700;text-transform:uppercase;color:#9ca3af;margin-bottom:6px}
-.conds ul{margin-left:14px} .conds li{margin-bottom:3px;line-height:1.5}
-.notes-box{background:#fff9e6;border-left:3px solid #d97706;border-radius:5px;padding:12px 16px;margin-bottom:18px;font-size:.78rem;color:#374151}
-.sig-block{text-align:center;width:200px;margin:24px 0 18px auto}
-.sig-line{border-top:1px solid #d1d5db;padding-top:8px;font-size:.7rem;color:#6b7280}
-footer{margin-top:auto;padding-top:16px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;font-size:.7rem;color:#9ca3af}
-.print-btn{position:fixed;top:16px;right:16px;padding:10px 20px;background:#7c3aed;color:#fff;border:none;border-radius:8px;font-size:.82rem;font-weight:600;cursor:pointer}
-@media print{.print-btn{display:none}@page{margin:0;size:A4}}
-</style></head><body>
-<button class="print-btn" onclick="window.print()">Imprimir / Guardar PDF</button>
+:root{
+  --navy:#16395A;--navy-deep:#0F2A45;--navy-2:#235A8C;
+  --sky:#4A8FCB;--pale:#E8F0F8;--yellow:#F2C61F;
+  --ink:#1A2433;--ink-soft:#5B6A7E;
+  --line:#DEE5EE;--line-soft:#EEF2F7;
+  --paper:#FFFFFF;--paper-tint:#FBFCFE;
+  --accent:#F2C61F;--radius:10px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;font-family:"Plus Jakarta Sans",system-ui,sans-serif;color:var(--ink);background:#EEF1F5;-webkit-font-smoothing:antialiased}
+body{min-height:100vh;padding:40px 20px 80px;display:flex;justify-content:center;align-items:flex-start}
+/* ── A4 page ── */
+.page{width:794px;min-height:1123px;background:var(--paper);position:relative;overflow:hidden;
+  box-shadow:0 20px 60px -20px rgba(15,42,69,.25),0 4px 16px -4px rgba(15,42,69,.12);
+  border-radius:4px;display:flex;flex-direction:column}
+/* ── Watermark ── */
+.wm{position:absolute;right:-60px;bottom:180px;width:360px;opacity:.025;pointer-events:none;z-index:0}
+/* ── Header ── */
+.hdr{position:relative;color:#fff;overflow:hidden}
+.hdr-bg{position:absolute;inset:0;background:linear-gradient(95deg,var(--navy-deep) 0%,var(--navy) 50%,var(--navy-2) 100%)}
+.hdr-inner{position:relative;z-index:1;display:grid;grid-template-columns:1fr auto;gap:32px;padding:38px 48px 34px;align-items:center}
+/* Brand */
+.brand{display:flex;align-items:center;gap:16px}
+.brand-mascot{width:64px;height:auto;display:block;filter:drop-shadow(0 8px 18px rgba(0,0,0,.28))}
+.brand-text{display:flex;flex-direction:column;gap:4px}
+.wordmark{font-weight:800;font-size:28px;letter-spacing:-.02em;color:#fff;line-height:1;display:inline-flex;align-items:center;gap:2px}
+.amp{color:var(--accent);margin:0 2px;font-style:italic;font-weight:700}
+.badge3d{font-size:11px;font-weight:700;letter-spacing:.04em;background:var(--sky);color:#fff;padding:3px 7px;border-radius:5px;margin-left:6px;align-self:flex-start;margin-top:-4px;box-shadow:0 2px 6px rgba(74,143,203,.4)}
+.tagline{font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.65);font-weight:600}
+/* Title block */
+.title-block{display:flex;flex-direction:column;gap:6px;text-align:right;align-items:flex-end}
+.eyebrow{font-size:10px;font-weight:700;letter-spacing:.24em;text-transform:uppercase;color:var(--accent)}
+.doc-title{font-size:26px;font-weight:700;margin:0;line-height:1;color:#fff;display:inline-flex;align-items:baseline;gap:6px}
+.title-num{font-weight:800;font-variant-numeric:tabular-nums;padding:0 4px;border-bottom:1px dashed rgba(255,255,255,.3)}
+.meta-row{display:inline-flex;align-items:baseline;gap:10px;font-size:12.5px;margin-top:4px}
+.m-lbl{text-transform:uppercase;font-size:9.5px;letter-spacing:.16em;opacity:.7;font-weight:700}
+.m-val{font-weight:600;border-bottom:1px dashed rgba(255,255,255,.3);padding:0 2px 1px;min-width:120px;text-align:left}
+.title-rule{width:48px;height:2px;background:var(--accent);margin-top:6px;border-radius:1px}
+/* ── Doc strip ── */
+.doc-strip{position:relative;z-index:1;margin:28px 48px 8px;padding:18px 22px 18px 26px;
+  background:var(--paper-tint);border:1px solid var(--line);border-radius:var(--radius);
+  display:grid;grid-template-columns:2fr 1fr 1fr 1.1fr;gap:22px;align-items:center}
+.doc-strip::before{content:"";position:absolute;left:0;top:14px;bottom:14px;width:3px;background:var(--accent);border-radius:0 2px 2px 0}
+.sf{display:flex;flex-direction:column;gap:4px;min-width:0}
+.sf+.sf{border-left:1px solid var(--line);padding-left:22px}
+.sf-lbl{font-size:9.5px;text-transform:uppercase;letter-spacing:.18em;color:var(--ink-soft);font-weight:700}
+.sf-val{font-size:13.5px;font-weight:600;color:var(--ink);line-height:1.25}
+.sf-name{color:var(--navy);font-weight:700;font-size:16px}
+/* ── Detail table ── */
+.detail{position:relative;z-index:1;padding:28px 0 8px}
+.sec-head{display:flex;align-items:baseline;margin-bottom:14px;padding:0 48px}
+.sec-head h2{font-size:14px;font-weight:700;color:var(--navy);letter-spacing:.14em;text-transform:uppercase;
+  margin:0;display:flex;align-items:center;gap:10px}
+.sec-head h2::before{content:"";width:22px;height:2px;background:var(--accent);display:inline-block;flex-shrink:0}
+.tbl{margin:0 48px}
+.thead,.trow{display:grid;grid-template-columns:1fr 70px 130px 130px;align-items:center;gap:8px}
+.thead{color:var(--navy);padding:10px 16px 8px;border-top:1.5px solid var(--navy);border-bottom:1px solid var(--line);
+  font-size:10px;font-weight:700;letter-spacing:.18em;text-transform:uppercase}
+.trow{padding:11px 16px;border-bottom:1px solid var(--line-soft);font-size:13px}
+.col-r{text-align:right;font-variant-numeric:tabular-nums}
+.col-tot{text-align:right;font-weight:700;color:var(--navy);font-variant-numeric:tabular-nums}
+.i-name{font-weight:700;color:var(--ink);font-size:13px}
+.i-cat{display:inline-flex;padding:2px 8px;background:var(--pale);color:var(--navy);
+  border-radius:20px;font-size:10px;font-weight:700;margin-top:4px}
+.i-note{font-size:11px;color:var(--ink-soft);font-style:italic;margin-top:3px;line-height:1.4}
+/* ── Summary ── */
+.summary{position:relative;z-index:1;padding:22px 48px 4px;display:flex;justify-content:flex-end}
+.sum-card{width:280px}
+.srow{display:flex;justify-content:space-between;align-items:baseline;padding:7px 0;font-size:12px;border-bottom:1px solid var(--line-soft)}
+.srow:last-child{border-bottom:none}
+.s-lbl{color:var(--ink-soft);font-weight:500;letter-spacing:.02em}
+.s-val{font-weight:500;color:var(--ink);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.total-row{padding:14px 18px;margin-top:8px;background:var(--navy);color:#fff;border-radius:8px;
+  border-bottom:none!important;display:flex;justify-content:space-between;align-items:center;
+  position:relative;overflow:hidden;box-shadow:0 6px 16px -8px rgba(15,42,69,.5)}
+.total-row::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--accent)}
+.total-row .s-lbl{color:rgba(255,255,255,.85);font-weight:700;text-transform:uppercase;letter-spacing:.22em;font-size:10.5px;padding-left:6px}
+.total-row .s-val{color:#fff;font-size:24px;font-weight:800;letter-spacing:-.02em}
+/* ── Notes + Payment ── */
+.notes-pay{position:relative;z-index:1;display:grid;grid-template-columns:1.5fr 1fr;gap:24px;
+  padding:28px 48px 24px;margin-top:auto;align-items:stretch}
+.notes h3,.payment h3{font-size:10px;text-transform:uppercase;letter-spacing:.18em;margin:0 0 12px;
+  color:var(--navy);font-weight:700;display:flex;align-items:center;gap:8px}
+.notes h3::before,.payment h3::before{content:"";width:14px;height:1.5px;background:var(--accent);flex-shrink:0}
+.notes ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:5px;
+  font-size:11.5px;color:var(--ink-soft);line-height:1.5}
+.notes li{position:relative;padding-left:14px}
+.notes li::before{content:"";position:absolute;left:0;top:7px;width:5px;height:5px;
+  background:var(--accent);transform:rotate(45deg)}
+.notes strong{color:var(--ink);font-weight:700}
+.note-extra{margin-top:10px;padding:9px 11px;background:var(--paper-tint);border:1px dashed var(--line);
+  border-radius:6px;font-size:11.5px;color:var(--ink);line-height:1.5}
+.payment{background:var(--paper-tint);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px}
+.pay-line{display:flex;flex-direction:column;gap:10px;font-size:12.5px;color:var(--ink);font-weight:600}
+.pay-item{display:flex;align-items:center;gap:9px;color:var(--navy)}
+.pay-item svg{color:var(--sky);flex-shrink:0;width:15px;height:15px}
+/* ── Footer ── */
+.doc-footer{position:relative;z-index:1;padding:18px 48px;border-top:1px solid var(--line-soft);
+  display:flex;justify-content:space-between;align-items:center}
+.thanks{font-size:14px;color:var(--navy);font-weight:600;display:inline-flex;align-items:center;gap:8px}
+.thanks-logo{height:26px;width:auto;display:inline-block;vertical-align:middle}
+.footer-accent{width:60px;height:4px;background:linear-gradient(90deg,var(--navy),var(--sky),var(--accent));border-radius:2px}
+/* ── Print button ── */
+.print-btn{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);padding:10px 24px;
+  background:var(--navy);color:#fff;border:none;border-radius:999px;font-size:13px;font-weight:600;
+  cursor:pointer;box-shadow:0 10px 30px -6px rgba(15,42,69,.3);font-family:inherit;
+  display:inline-flex;align-items:center;gap:8px;z-index:100}
+/* ── Print ── */
+@page{size:A4;margin:0}
+@media print{
+  body{background:#fff;padding:0;display:block}
+  .page{width:210mm;min-height:297mm;box-shadow:none;border-radius:0}
+  .print-btn{display:none}
+}
+</style>
+</head>
+<body>
+<button class="print-btn" onclick="window.print()">🖨&nbsp; Imprimir / Guardar PDF</button>
 <div class="page">
-  <div class="header">
-    <div>
-      <div class="brand-name">${escHtml(emp.nombre)}</div>
-      ${emp.cedula?`<div class="brand-sub">Cédula: ${escHtml(emp.cedula)}</div>`:''}
-      ${emp.web   ?`<div class="brand-sub">🌐 ${escHtml(emp.web)}</div>`:''}
-      ${emp.email ?`<div class="brand-sub">✉ ${escHtml(emp.email)}</div>`:''}
-      ${emp.tel   ?`<div class="brand-sub">📞 ${escHtml(emp.tel)}</div>`:''}
-    </div>
-    <div>
-      <div class="doc-type"><h1>Cotización</h1></div>
-      <div class="ref">REF: ${ref}</div>
-      <div class="ref">Fecha: ${t.fecha||'—'}</div>
-      ${t.fechaEntrega?`<div class="ref">Entrega estimada: ${t.fechaEntrega}</div>`:''}
+
+  <!-- Watermark fox -->
+  <img class="wm" src="${mascotaUrl}" alt="">
+
+  <!-- ── Header ── -->
+  <div class="hdr">
+    <div class="hdr-bg"></div>
+    <div class="hdr-inner">
+      <div class="brand">
+        <img class="brand-mascot" src="${mascotaUrl}" alt="Pin&amp;Pon 3D">
+        <div class="brand-text">
+          <div class="wordmark">Pin<span class="amp">&amp;</span>Pon<span class="badge3d">3D</span></div>
+          <div class="tagline">Impresión 3D · Innovación · Calidad</div>
+        </div>
+      </div>
+      <div class="title-block">
+        <div class="eyebrow">Cotización oficial</div>
+        <h1 class="doc-title">Cotización&nbsp;<span class="title-num">${ref}</span></h1>
+        <div class="meta-row"><span class="m-lbl">Fecha</span><span class="m-val">${t.fecha||'—'}</span></div>
+        ${t.fechaEntrega?`<div class="meta-row"><span class="m-lbl">Entrega est.</span><span class="m-val">${escHtml(t.fechaEntrega)}</span></div>`:''}
+        <div class="title-rule"></div>
+      </div>
     </div>
   </div>
-  <div class="meta">
-    <div class="meta-block"><div class="meta-label">Cliente</div><div class="meta-value">${escHtml(t.cliente||'—')}</div></div>
-    <div class="meta-block"><div class="meta-label">Pieza</div><div class="meta-value">${escHtml(t.pieza||'—')}</div></div>
-    <div class="meta-block"><div class="meta-label">Material</div><div class="meta-value">${escHtml(t.material||'—')}</div></div>
-    <div class="meta-block"><div class="meta-label">Cantidad</div><div class="meta-value">${cantidad} obj · ${placas} placa${placas!==1?'s':''}</div></div>
-    <div class="meta-block"><div class="meta-label">Estado</div><div class="meta-value">${escHtml(t.estado||'Cotizado')}</div></div>
-  </div>
-  <table>
-    <thead><tr><th>Descripción</th><th>Gramos</th><th>Horas imp.</th><th>Cant.</th><th>Precio unitario</th><th>Total</th></tr></thead>
-    <tbody><tr>
-      <td><strong>${escHtml(t.pieza||'—')}</strong><br>
-        <span class="badge-cat">${escHtml(t.categoria||'—')}</span>
-        ${t.notas?`<br><span style="color:#6b7280;font-size:.7rem;font-style:italic">${escHtml(t.notas)}</span>`:''}
-      </td>
-      <td class="td-mono">${(t.gramos||0).toFixed(1)}g</td>
-      <td class="td-mono">${(t.horas_imp||0).toFixed(1)}h</td>
-      <td class="td-mono">${cantidad}</td>
-      <td class="td-mono"><strong>₡${precioUnit.toLocaleString('es-CR')}</strong></td>
-      <td class="td-mono">₡${precioFinal.toLocaleString('es-CR')}</td>
-    </tr></tbody>
-  </table>
-  <div class="totals-wrap"><div class="totals">
-    <div class="totals-row"><span>Costo de producción</span><span class="val">₡${(t.costo_total||0).toLocaleString('es-CR')}</span></div>
-    <div class="totals-row"><span>Precio antes de IVA</span><span class="val">₡${antesIVA.toLocaleString('es-CR')}</span></div>
-    ${pIVA>0?`<div class="totals-row iva"><span>IVA (${pIVA}%)</span><span class="val">₡${ivaVal.toLocaleString('es-CR')}</span></div>`:''}
-    <div class="totals-row hi"><span>Precio por objeto</span><span class="val">₡${precioUnit.toLocaleString('es-CR')}</span></div>
-    <div class="totals-row final"><span>PRECIO TOTAL</span><span class="val">₡${precioFinal.toLocaleString('es-CR')}</span></div>
-  </div></div>
-  ${t.notas?`<div class="notes-box"><div class="conds-title">Notas del trabajo</div>${escHtml(t.notas)}</div>`:''}
-  <div class="conds">
-    <div class="conds-title">Condiciones de la cotización</div>
-    <ul>
-      <li>La cotización puede variar si cambian las características del modelo.</li>
-      <li>El tiempo de entrega depende de la carga de trabajo y complejidad de la pieza.</li>
-      <li>Se puede solicitar un abono para iniciar el trabajo.</li>
-      <li>Los colores y acabados pueden variar ligeramente según el material disponible.</li>
-    </ul>
-  </div>
-  ${emp.nota?`<div class="notes-box"><div class="conds-title">Nota adicional</div>${escHtml(emp.nota)}</div>`:''}
-  <div class="sig-block"><div style="height:40px"></div><div class="sig-line">Firma autorizada</div></div>
-  <footer>
-    <div style="display:flex;gap:14px;flex-wrap:wrap">
-      ${emp.tel  ?`<span>📞 ${escHtml(emp.tel)}</span>`:''}
-      ${emp.email?`<span>✉ ${escHtml(emp.email)}</span>`:''}
-      ${emp.web  ?`<span>🌐 ${escHtml(emp.web)}</span>`:''}
+
+  <!-- ── Doc strip ── -->
+  <div class="doc-strip">
+    <div class="sf">
+      <div class="sf-lbl">Cliente</div>
+      <div class="sf-val sf-name">${escHtml(t.cliente||'—')}</div>
     </div>
-    <div>Generado con Cotizador 3D CR · ${new Date().toLocaleDateString('es-CR')}</div>
-  </footer>
-</div></body></html>`);
+    <div class="sf">
+      <div class="sf-lbl">Referencia</div>
+      <div class="sf-val" style="color:var(--ink-soft);font-size:11px;font-weight:700;letter-spacing:.05em">#&thinsp;${ref}</div>
+    </div>
+    <div class="sf">
+      <div class="sf-lbl">Pieza / Modelo</div>
+      <div class="sf-val">${escHtml(t.pieza||'—')}</div>
+    </div>
+    <div class="sf">
+      <div class="sf-lbl">Material</div>
+      <div class="sf-val">${escHtml(t.material||'PLA')}</div>
+    </div>
+  </div>
+
+  <!-- ── Detail ── -->
+  <div class="detail">
+    <div class="sec-head"><h2>Detalle de la cotización</h2></div>
+    <div class="tbl">
+      <div class="thead">
+        <div>Descripción</div>
+        <div class="col-r">Cant.</div>
+        <div class="col-r">P. unitario</div>
+        <div class="col-r">Total</div>
+      </div>
+      <div class="trow">
+        <div>
+          <div class="i-name">${escHtml(t.pieza||'—')}</div>
+          <span class="i-cat">${escHtml(t.categoria||'General')}</span>
+          ${(t.gramos||t.horas_imp)?`<div class="i-note">${Number(t.gramos||0).toFixed(1)} g &nbsp;·&nbsp; ${Number(t.horas_imp||0).toFixed(1)} h impresión &nbsp;·&nbsp; ${placas} placa${placas!==1?'s':''}</div>`:''}
+          ${t.notas?`<div class="i-note">${escHtml(t.notas)}</div>`:''}
+        </div>
+        <div class="col-r">${cantidad}</div>
+        <div class="col-r">₡&thinsp;${precioUnit.toLocaleString('es-CR')}</div>
+        <div class="col-tot">₡&thinsp;${precioFinal.toLocaleString('es-CR')}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Summary ── -->
+  <div class="summary">
+    <div class="sum-card">
+      <div class="srow"><span class="s-lbl">Costo de producción</span><span class="s-val">₡&thinsp;${(t.costo_total||0).toLocaleString('es-CR')}</span></div>
+      <div class="srow"><span class="s-lbl">Precio antes de IVA</span><span class="s-val">₡&thinsp;${antesIVA.toLocaleString('es-CR')}</span></div>
+      ${pIVA>0?`<div class="srow"><span class="s-lbl">IVA (${pIVA}%)</span><span class="s-val">₡&thinsp;${ivaVal.toLocaleString('es-CR')}</span></div>`:''}
+      <div class="srow"><span class="s-lbl">Precio por objeto</span><span class="s-val">₡&thinsp;${precioUnit.toLocaleString('es-CR')}</span></div>
+      ${abono>0?`<div class="srow"><span class="s-lbl">Abono recibido</span><span class="s-val" style="color:var(--sky)">₡&thinsp;${abono.toLocaleString('es-CR')}</span></div>`:''}
+      <div class="srow total-row"><span class="s-lbl">TOTAL</span><span class="s-val">₡&thinsp;${precioFinal.toLocaleString('es-CR')}</span></div>
+    </div>
+  </div>
+
+  <!-- ── Notes + Payment ── -->
+  <div class="notes-pay">
+    <div class="notes">
+      <h3>Condiciones de la cotización</h3>
+      <ul>
+        <li>Esta cotización tiene validez de <strong>7 días</strong> a partir de la fecha de emisión.</li>
+        <li>El precio puede variar si cambian las características del modelo 3D.</li>
+        <li>El tiempo de entrega depende de la carga de trabajo y complejidad de la pieza.</li>
+        <li>Se puede solicitar un <strong>abono</strong> para iniciar el trabajo.</li>
+        <li>Los colores y acabados pueden variar ligeramente según el material disponible.</li>
+        ${t.notas?`<li><strong>Nota del trabajo:</strong> ${escHtml(t.notas)}</li>`:''}
+      </ul>
+      ${emp.nota?`<div class="note-extra">${escHtml(emp.nota)}</div>`:''}
+    </div>
+    <div class="payment">
+      <h3>Información de pago</h3>
+      <div class="pay-line">
+        ${metodo?`<div class="pay-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+          ${escHtml(metodo)}
+        </div>`:''}
+        ${abono>0?`<div class="pay-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><path d="M12 22V7M12 7H7.5a2.5 2.5 0 010-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 000-5C13 2 12 7 12 7z"/></svg>
+          Abono: <strong>₡&thinsp;${abono.toLocaleString('es-CR')}</strong>
+        </div>
+        <div class="pay-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+          Pendiente: <strong>₡&thinsp;${pendiente.toLocaleString('es-CR')}</strong>
+        </div>`:''}
+        <div class="pay-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+          Total: <strong>₡&thinsp;${precioFinal.toLocaleString('es-CR')}</strong>
+        </div>
+        ${emp.tel?`<div class="pay-item" style="margin-top:6px;font-size:11.5px;color:var(--ink-soft);font-weight:500">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 8.81a19.79 19.79 0 01-3.07-8.63A2 2 0 012 2.12h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
+          ${escHtml(emp.tel)}
+        </div>`:''}
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Footer ── -->
+  <div class="doc-footer">
+    <div class="thanks">
+      ¡Gracias por confiar en&nbsp;
+      <img class="thanks-logo" src="${nombreUrl}" alt="Pin&amp;Pon 3D">
+      &nbsp;!
+    </div>
+    <div class="footer-accent"></div>
+  </div>
+
+</div>
+</body>
+</html>`);
   win.document.close();
-  toast('PDF generado correctamente ✓', 'success');
+  setTimeout(() => { try { win.print(); } catch(e){} }, 900);
+  toast('PDF generado ✓', 'success');
 }
 
 /* ----------------------------------------------------------
