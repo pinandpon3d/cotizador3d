@@ -1,43 +1,49 @@
 /* =========================================================
    CSS VARIABLES — Pin&Pon 3D Brand
+   Paleta extraída del logo oficial:
+     #133658 → navy oscuro (sombras del zorro)
+     #1a60a6 → azul primario (cuerpo principal)
+     #4185c6 → azul medio (zonas claras)
+     #b5d3f0 → azul claro (reflejos)
+     #f4c70f → dorado (patas y detalles)
 ========================================================= */
 :root {
-  --bg:#f0f4fa;--surface:#ffffff;--surface2:#f5f8ff;--surface3:#dbeafe;
-  --border:#e2e8f0;--border-strong:#cbd5e1;
-  /* Brand: azul primario + dorado */
-  --accent:#2563EB;--accent2:#1D4ED8;--accent-soft:rgba(37,99,235,.09);--accent-glow:rgba(37,99,235,.22);
-  --brand-gold:#EAB308;--brand-navy:#1E3A8A;
+  --bg:#f0f5fc;--surface:#ffffff;--surface2:#f4f8ff;--surface3:#dbeafe;
+  --border:#dde6f0;--border-strong:#c4d4e8;
+  /* Colores exactos del zorro */
+  --accent:#1a60a6;--accent2:#133658;--accent-soft:rgba(26,96,166,.09);--accent-glow:rgba(26,96,166,.22);
+  --brand-gold:#f4c70f;--brand-gold-dark:#d2ac09;--brand-navy:#133658;--brand-blue:#4185c6;--brand-light:#b5d3f0;
   --success:#059669;--success-soft:rgba(5,150,105,.1);
   --warn:#d97706;--danger:#dc2626;--danger-soft:rgba(220,38,38,.1);
-  --text:#0f172a;--text2:#64748b;--text3:#94a3b8;
+  --text:#0f1f33;--text2:#4e6882;--text3:#8cafd2;
   --input-bg:#ffffff;--radius:12px;--radius-sm:8px;--radius-xs:5px;
-  --shadow:0 1px 3px rgba(0,0,0,.07),0 1px 2px rgba(0,0,0,.04);
-  --shadow-md:0 4px 12px rgba(0,0,0,.08),0 2px 4px rgba(0,0,0,.04);
-  --shadow-accent:0 4px 14px rgba(37,99,235,.28);
+  --shadow:0 1px 3px rgba(19,54,88,.08),0 1px 2px rgba(19,54,88,.05);
+  --shadow-md:0 4px 16px rgba(19,54,88,.1),0 2px 4px rgba(19,54,88,.06);
+  --shadow-accent:0 4px 16px rgba(26,96,166,.3);
   --font:'Inter',-apple-system,sans-serif;--mono:'JetBrains Mono',monospace;
   --transition:all .16s ease;
-  --sb-bg:#ffffff;--sb-w:248px;--sb-border:#e2e8f0;
-  --sb-text:#64748b;--sb-text-hover:#0f172a;--sb-text-active:#2563EB;
-  --sb-hover:#EFF6FF;--sb-active:#DBEAFE;--sb-active-border:rgba(37,99,235,.2);--sb-active-bar:#2563EB;
-  --topbar-bg:#ffffff;--topbar-border:#e2e8f0;
+  --sb-bg:#ffffff;--sb-w:252px;--sb-border:#dde6f0;
+  --sb-text:#4e6882;--sb-text-hover:#0f1f33;--sb-text-active:#1a60a6;
+  --sb-hover:#eef5fc;--sb-active:#dbeafe;--sb-active-border:rgba(26,96,166,.2);--sb-active-bar:#1a60a6;
+  --topbar-bg:#ffffff;--topbar-border:#dde6f0;
 }
 [data-theme="dark"] {
-  --bg:#090e1a;--surface:#0d1526;--surface2:#121e35;--surface3:#1a2d4f;
-  --border:#1e2d45;--border-strong:#273d5e;
-  --accent:#3B82F6;--accent2:#2563EB;--accent-soft:rgba(59,130,246,.12);
-  --accent-glow:rgba(59,130,246,.22);
-  --brand-gold:#FCD34D;--brand-navy:#1E3A8A;
+  --bg:#07101e;--surface:#0c1828;--surface2:#101f32;--surface3:#162840;
+  --border:#1a2d42;--border-strong:#243d58;
+  --accent:#4185c6;--accent2:#1a60a6;--accent-soft:rgba(65,133,198,.12);
+  --accent-glow:rgba(65,133,198,.22);
+  --brand-gold:#f4c70f;--brand-gold-dark:#d2ac09;--brand-navy:#133658;--brand-blue:#4185c6;--brand-light:#b5d3f0;
   --success:#34d399;--success-soft:rgba(52,211,153,.12);
   --warn:#fbbf24;--danger:#f87171;--danger-soft:rgba(248,113,113,.12);
-  --text:#e2eaf8;--text2:#7f9cc0;--text3:#4a6688;--input-bg:#0a1220;
+  --text:#dceeff;--text2:#7fadd4;--text3:#3e6a94;--input-bg:#09121e;
   /* Sidebar navy oscuro — identidad Pin&Pon */
-  --sb-bg:#0c1628;--sb-border:rgba(59,130,246,.12);
-  --sb-text:rgba(190,215,255,.55);--sb-text-hover:#e2eaf8;--sb-text-active:#60A5FA;
-  --sb-hover:rgba(59,130,246,.08);--sb-active:rgba(59,130,246,.18);
-  --sb-active-border:rgba(59,130,246,.3);--sb-active-bar:#3B82F6;
-  --topbar-bg:#0d1526;--topbar-border:#1e2d45;
-  --shadow:0 1px 3px rgba(0,0,0,.4),0 1px 2px rgba(0,0,0,.25);
-  --shadow-md:0 4px 12px rgba(0,0,0,.5),0 2px 4px rgba(0,0,0,.3);
+  --sb-bg:#0a1525;--sb-border:rgba(65,133,198,.15);
+  --sb-text:rgba(181,211,240,.5);--sb-text-hover:#dceeff;--sb-text-active:#b5d3f0;
+  --sb-hover:rgba(65,133,198,.08);--sb-active:rgba(65,133,198,.18);
+  --sb-active-border:rgba(65,133,198,.3);--sb-active-bar:#4185c6;
+  --topbar-bg:#0c1828;--topbar-border:#1a2d42;
+  --shadow:0 1px 3px rgba(0,0,0,.5),0 1px 2px rgba(0,0,0,.3);
+  --shadow-md:0 4px 16px rgba(0,0,0,.5),0 2px 4px rgba(0,0,0,.3);
 }
 
 /* =========================================================
@@ -86,31 +92,26 @@ table{border-collapse:collapse;width:100%}
   align-items:center;
   gap:11px;
   border-bottom:1px solid var(--sb-border);
-  background:linear-gradient(135deg,rgba(37,99,235,.04) 0%,rgba(37,99,235,.01) 100%);
+  background:linear-gradient(135deg,rgba(26,96,166,.05) 0%,rgba(26,96,166,.01) 100%);
 }
 [data-theme="dark"] .logo{
-  background:linear-gradient(135deg,rgba(59,130,246,.07) 0%,rgba(59,130,246,.02) 100%);
+  background:linear-gradient(135deg,rgba(65,133,198,.08) 0%,rgba(65,133,198,.02) 100%);
 }
-/* Logo sidebar — imagen del zorro */
+/* Logo sidebar — mascota + nombre PNG */
 .logo-icon{
-  width:42px;height:42px;
+  width:46px;height:46px;
   display:flex;align-items:center;justify-content:center;
   flex-shrink:0;
-  background:transparent;
-  border-radius:0;
-  box-shadow:none;
+  background:transparent;border-radius:0;box-shadow:none;
 }
-.logo-icon img,.logo-icon svg{width:42px;height:42px;object-fit:contain;display:block}
-.logo-text{display:flex;flex-direction:column;line-height:1.18}
-.logo-text strong{
-  font-size:.96rem;font-weight:800;
-  color:var(--brand-navy);
-  letter-spacing:-.01em;
-}
-[data-theme="dark"] .logo-text strong{color:#7EC8FF}
+.logo-icon img{width:46px;height:46px;object-fit:contain;display:block}
+.logo-text{display:flex;flex-direction:column;gap:2px;line-height:1}
+/* Imagen del nombre en lugar de texto */
+.logo-brand-text{height:18px;width:auto;object-fit:contain;display:block}
+[data-theme="dark"] .logo-brand-text{filter:brightness(0) invert(1)}
 .logo-text span{
-  font-size:.64rem;color:var(--sb-text);font-weight:600;
-  text-transform:uppercase;letter-spacing:.06em;margin-top:1px;
+  font-size:.62rem;color:var(--sb-text);font-weight:600;
+  text-transform:uppercase;letter-spacing:.07em;
 }
 
 nav{padding:12px 10px;flex:1}
@@ -283,7 +284,7 @@ main.main{padding:28px;flex:1}
   background:var(--accent);color:#fff;
   box-shadow:var(--shadow-accent);
 }
-.btn-primary:hover{background:var(--accent2);box-shadow:0 4px 18px rgba(124,58,237,.4)}
+.btn-primary:hover{background:var(--accent2);box-shadow:0 4px 18px rgba(26,96,166,.4)}
 .btn-secondary{
   background:var(--surface2);color:var(--text);
   border-color:var(--border);
@@ -561,23 +562,23 @@ tbody td{padding:10px 14px;color:var(--text);vertical-align:middle}
   border:1px solid var(--border);
   border-radius:var(--radius);
   padding:40px 36px;
-  box-shadow:0 8px 32px rgba(37,99,235,.12), 0 2px 8px rgba(0,0,0,.06);
+  box-shadow:0 8px 32px rgba(26,96,166,.15), 0 2px 8px rgba(0,0,0,.06);
 }
-/* Auth pantalla — logo Pin&Pon */
+/* Auth pantalla — logo oficial Pin&Pon */
 .auth-logo{
   flex-direction:column;
   align-items:center;
-  gap:12px;
-  margin-bottom:32px;
+  gap:0;
+  margin-bottom:28px;
   text-align:center;
   display:flex;
 }
 .auth-logo-icon{
-  width:80px;height:80px;
+  width:200px;height:auto;
   display:flex;align-items:center;justify-content:center;
   background:transparent;border-radius:0;box-shadow:none;
 }
-.auth-logo-icon img,.auth-logo-icon svg{width:80px;height:80px;object-fit:contain}
+.auth-logo-icon img{width:200px;height:auto;object-fit:contain;display:block}
 .auth-logo-text{text-align:center}
 .auth-logo-text strong{
   font-size:1.35rem;font-weight:800;
@@ -663,9 +664,9 @@ tbody td{padding:10px 14px;color:var(--text);vertical-align:middle}
 /* =========================================================
    ESTADOS EXTENDIDOS — 7 estados de pedido
 ========================================================= */
-.badge-blue{background:rgba(37,99,235,.1);color:#2563eb}
+.badge-blue{background:rgba(26,96,166,.1);color:#1a60a6}
 .badge-darkgreen{background:rgba(4,120,87,.12);color:#047857}
-[data-theme="dark"] .badge-blue{background:rgba(59,130,246,.15);color:#60a5fa}
+[data-theme="dark"] .badge-blue{background:rgba(65,133,198,.15);color:#b5d3f0}
 [data-theme="dark"] .badge-darkgreen{background:rgba(16,185,129,.12);color:#34d399}
 
 /* =========================================================
