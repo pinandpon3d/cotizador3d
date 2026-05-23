@@ -85,8 +85,10 @@ function renderTrabajos() {
   const aprobados  = trabajos.filter(t => t.estado === 'Aprobado').length;
   const entregados = trabajos.filter(t => t.estado === 'Entregado').length;
   const ingresos   = trabajos.filter(t => t.estado === 'Entregado').reduce((s,t) => s + (t.precio_final||0), 0);
+  const ganancias  = trabajos.filter(t => t.estado === 'Entregado').reduce((s,t) => s + ((t.precio_final||0) - (t.costo_total||0)), 0);
   set('st-total', total); set('st-aprobados', aprobados);
   set('st-entregados', entregados); set('st-ingresos', fmt(ingresos));
+  set('st-ganancias', fmt(ganancias));
 
   const tbody = el('trabajos-tbody');
   if (!tbody) return;
@@ -96,7 +98,9 @@ function renderTrabajos() {
   const colorMap = { Cotizado:'badge-gray', Aprobado:'badge-accent', 'En producción':'badge-warn', Entregado:'badge-success', Cancelado:'badge-danger' };
 
   tbody.innerHTML = list.map(t => {
-    const ec = colorMap[t.estado] || 'badge-gray';
+    const ec       = colorMap[t.estado] || 'badge-gray';
+    const ganancia = (t.precio_final||0) - (t.costo_total||0);
+    const ganClass = ganancia >= 0 ? 'color:var(--success,#10b981)' : 'color:var(--danger)';
     return `<tr>
       <td class="td-mono">${t.fecha||'—'}</td>
       <td>${escHtml(t.cliente||'')}</td>
@@ -105,6 +109,7 @@ function renderTrabajos() {
       <td class="td-mono">${(t.gramos||0).toFixed(1)}g / ${(t.horas_imp||0).toFixed(1)}h</td>
       <td class="td-mono">${fmt(t.costo_total||0)}</td>
       <td class="td-mono"><strong>${fmt(t.precio_final||0)}</strong></td>
+      <td class="td-mono"><strong style="${ganClass}">${fmt(ganancia)}</strong></td>
       <td><select class="badge ${ec} estado-select" onchange="cambiarEstado('${t.id}',this.value,this)">
         ${['Cotizado','Aprobado','En producción','Entregado','Cancelado'].map(s=>`<option value="${s}"${t.estado===s?' selected':''}>${s}</option>`).join('')}
       </select></td>
