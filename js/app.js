@@ -528,26 +528,34 @@ async function cargarVentaDetalle() {
     trabajos = await fbCargarTrabajos();
     try { localStorage.setItem('trabajos3d', JSON.stringify(trabajos)); } catch(e){}
 
-    const lotes = trabajos.filter(t => t.ventaDetalle === true);
+    // Incluir tanto los que tienen ventaDetalle:true como los que
+    // tienen categoria "Venta al Detalle" (registros creados antes del flag)
+    const esLote = t => t.ventaDetalle === true || t.categoria === 'Venta al Detalle';
+    const lotes  = trabajos.filter(esLote);
 
-    // Auto-corregir agotados que aún no tienen Entregado+Pagado
+    // Auto-corregir agotados: los que tienen todas las unidades vendidas
+    // y todavía no están marcados como Entregado + Pagado
     const agotados = lotes.filter(l =>
       (l.unidadesVendidas || 0) >= Math.max(l.cantidad || 1, 1) &&
       (l.estado !== 'Entregado' || l.estadoPago !== 'Pagado')
     );
 
-    for (const l of agotados) {
-      const fix = {
-        estado:          'Entregado',
-        estadoPago:      'Pagado',
-        montoAbonado:    l.precio_final || 0,
-        montoPendiente:  0,
-        fechaActualizacionEstado: new Date().toISOString()
-      };
-      try {
-        await db.collection('cotizaciones').doc(String(l.id)).update(fix);
-        Object.assign(l, fix);
-      } catch(e) { console.error('Fix agotado:', l.id, e); }
+    if (agotados.length) {
+      for (const l of agotados) {
+        const fix = {
+          ventaDetalle:    true,
+          estado:          'Entregado',
+          estadoPago:      'Pagado',
+          montoAbonado:    l.precio_final || 0,
+          montoPendiente:  0,
+          fechaActualizacionEstado: new Date().toISOString()
+        };
+        try {
+          await db.collection('cotizaciones').doc(String(l.id)).update(fix);
+          Object.assign(l, fix);
+        } catch(e) { console.error('Fix agotado:', l.id, e); }
+      }
+      toast(`${agotados.length} lote${agotados.length > 1 ? 's' : ''} agotado${agotados.length > 1 ? 's' : ''} actualizado${agotados.length > 1 ? 's' : ''} ✓`, 'success');
     }
 
     renderVentaDetalle(lotes);
