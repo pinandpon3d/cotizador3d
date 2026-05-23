@@ -47,9 +47,12 @@ async function fbGuardarCotizacion(data) {
   await db.collection('cotizaciones').doc(String(data.id)).set(clean);
 }
 
-/** Actualiza únicamente el campo estado. */
+/** Actualiza el estado y registra la fecha de actualización. */
 async function fbActualizarEstado(id, estado) {
-  await db.collection('cotizaciones').doc(String(id)).update({ estado });
+  await db.collection('cotizaciones').doc(String(id)).update({
+    estado,
+    fechaActualizacionEstado: new Date().toISOString()
+  });
 }
 
 /** Elimina una cotización. */
@@ -147,4 +150,34 @@ async function testFirebase() {
     document.getElementById('fb-dot').className = 'status-dot error';
     document.getElementById('fb-status-text').textContent = 'Sin conexión';
   }
+}
+
+/* ----------------------------------------------------------
+   Clientes
+   Colección: clientes
+   Campos: nombre, telefono, correo, instagram, direccion,
+           notas, fechaCreacion, totalPedidos, totalComprado
+---------------------------------------------------------- */
+
+/** Guarda o actualiza un cliente. */
+async function fbGuardarCliente(data) {
+  await db.collection('clientes').doc(String(data.id)).set(data);
+}
+
+/** Carga todos los clientes, ordenados por nombre. */
+async function fbCargarClientes() {
+  const snap = await db.collection('clientes').get();
+  const arr = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+  arr.sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
+  return arr;
+}
+
+/** Elimina un cliente. */
+async function fbEliminarCliente(id) {
+  await db.collection('clientes').doc(String(id)).delete();
+}
+
+/** Actualiza datos de pago de una cotización. */
+async function fbActualizarPago(id, pago) {
+  await db.collection('cotizaciones').doc(String(id)).update(pago);
 }
