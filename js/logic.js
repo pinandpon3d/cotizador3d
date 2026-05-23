@@ -106,9 +106,12 @@ function calcular() {
   set('b_fallos_label',  `+ Fallos (${pFallos}%)`);
   set('b_fallos_val',    fmt(fallosVal));
   set('b_costo_fallos',  fmt(costoFallos));
-  set('b_margen_label',  `+ Ganancia (${pMargen}%)`);
-  set('b_margen_val',    fmt(margenVal));
-  set('b_antes_iva',     fmt(antesIVA));
+  const gananciaPlaca = margenVal / placas;
+  set('b_margen_label',    `+ Ganancia (${pMargen}%)`);
+  set('b_margen_val',      fmt(margenVal));
+  set('b_gan_placa_label', `↳ Ganancia por placa (÷ ${placas})`);
+  set('b_gan_placa',       fmt(gananciaPlaca));
+  set('b_antes_iva',       fmt(antesIVA));
   set('b_iva_label',     `+ IVA (${pIVA}%)`);
   set('b_iva_val',       fmt(ivaVal));
   set('b_total_label',   `PRECIO TOTAL (${placas} placa${placas !== 1 ? 's' : ''})`);
@@ -118,7 +121,7 @@ function calcular() {
 
   return { material, elec, desgaste, mo, dis, postpro, otros,
            placas, cantidad,
-           subtotal, fallosVal, costoFallos, margenVal,
+           subtotal, fallosVal, costoFallos, margenVal, gananciaPlaca,
            antesIVA, ivaVal, precioFinal, precioRedondeado,
            precioUnitario };
 }

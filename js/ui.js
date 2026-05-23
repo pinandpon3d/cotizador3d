@@ -99,8 +99,11 @@ function renderTrabajos() {
 
   tbody.innerHTML = list.map(t => {
     const ec       = colorMap[t.estado] || 'badge-gray';
-    const ganancia = (t.precio_final||0) - (t.costo_total||0);
-    const ganClass = ganancia >= 0 ? 'color:var(--success,#10b981)' : 'color:var(--danger)';
+    const placas   = Math.max(t.placas || 1, 1);
+    const ganTotal = (t.precio_final||0) - (t.costo_total||0);
+    const ganPlaca = ganTotal / placas;
+    const ganClass = ganPlaca >= 0 ? 'color:var(--success,#10b981)' : 'color:var(--danger)';
+    const placasSub = placas > 1 ? `<br><span style="font-size:.65rem;color:var(--text3);font-weight:400">${placas} placas</span>` : '';
     return `<tr>
       <td class="td-mono">${t.fecha||'—'}</td>
       <td>${escHtml(t.cliente||'')}</td>
@@ -109,7 +112,7 @@ function renderTrabajos() {
       <td class="td-mono">${(t.gramos||0).toFixed(1)}g / ${(t.horas_imp||0).toFixed(1)}h</td>
       <td class="td-mono">${fmt(t.costo_total||0)}</td>
       <td class="td-mono"><strong>${fmt(t.precio_final||0)}</strong></td>
-      <td class="td-mono"><strong style="${ganClass}">${fmt(ganancia)}</strong></td>
+      <td class="td-mono"><strong style="${ganClass}">${fmt(ganPlaca)}</strong>${placasSub}</td>
       <td><select class="badge ${ec} estado-select" onchange="cambiarEstado('${t.id}',this.value,this)">
         ${['Cotizado','Aprobado','En producción','Entregado','Cancelado'].map(s=>`<option value="${s}"${t.estado===s?' selected':''}>${s}</option>`).join('')}
       </select></td>
