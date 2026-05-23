@@ -809,3 +809,79 @@ tbody td{padding:10px 14px;color:var(--text);vertical-align:middle}
 /* Acento de color en selects de estado para combinar con la marca */
 .estado-select{font-size:.72rem;font-weight:600;border:none;cursor:pointer;border-radius:20px;padding:3px 8px}
 
+/* ================================================================
+   AL DETALLE — Venta por unidades
+================================================================ */
+.detalle-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(320px,1fr));
+  gap:18px;
+}
+
+/* Tarjeta de lote */
+.vd-card{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:20px;
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+  transition:box-shadow .18s;
+}
+.vd-card:hover{box-shadow:0 4px 18px rgba(26,96,166,.10)}
+.vd-agotado{opacity:.72;border-color:var(--border)}
+
+/* Header de tarjeta */
+.vd-header{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.vd-nombre{font-size:.975rem;font-weight:700;color:var(--text1);margin-bottom:4px}
+.vd-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+
+/* Barra de progreso */
+.vd-progress-wrap{display:flex;flex-direction:column;gap:5px}
+.vd-progress-bar{height:8px;background:var(--surface3);border-radius:99px;overflow:hidden}
+.vd-progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--brand-blue));border-radius:99px;transition:width .4s ease}
+.vd-agotado .vd-progress-fill{background:linear-gradient(90deg,#16a34a,#22c55e)}
+.vd-progress-labels{display:flex;justify-content:space-between;font-size:.72rem;color:var(--text2)}
+
+/* Stats grid */
+.vd-stats{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:10px;
+  background:var(--surface2);
+  border-radius:10px;
+  padding:12px 14px;
+}
+.vd-stat{}
+.vd-stat-lbl{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);margin-bottom:2px}
+.vd-stat-val{font-size:.88rem;font-weight:700;color:var(--text1);font-variant-numeric:tabular-nums}
+.vd-stat-green{color:#16a34a}
+.vd-stat-gray{color:var(--text3)}
+
+/* Historial */
+.vd-hist{border-top:1px solid var(--border);padding-top:12px;display:flex;flex-direction:column;gap:8px}
+.vd-hist-title{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text2)}
+.vd-hist-list{display:flex;flex-direction:column;gap:5px;max-height:140px;overflow-y:auto}
+.vd-hist-item{
+  display:flex;align-items:center;gap:8px;
+  background:var(--surface2);border-radius:7px;
+  padding:5px 10px;font-size:.78rem;
+}
+.vd-hist-fecha{color:var(--text2);min-width:80px}
+.vd-hist-cant{
+  background:var(--accent-soft);color:var(--accent);
+  font-weight:700;border-radius:20px;padding:1px 8px;font-size:.72rem
+}
+.vd-hist-nota{color:var(--text2);font-style:italic;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* Modal venta */
+.mv-info{
+  background:var(--surface2);border-radius:10px;
+  padding:12px 16px;display:flex;justify-content:space-between;align-items:center;
+  margin-bottom:4px;
+}
+.mv-pieza{font-weight:700;font-size:.9rem;color:var(--text1)}
+.mv-disp{font-size:.8rem;color:var(--text2)}
+.mv-disp strong{color:var(--accent);font-weight:700}
+

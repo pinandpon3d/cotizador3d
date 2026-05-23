@@ -28,7 +28,8 @@ const PAGE_LABELS = {
   configuracion:'Configuración',
   usuarios:     'Usuarios',
   dashboard:    'Dashboard',
-  clientes:     'Clientes'
+  clientes:     'Clientes',
+  detalle:      'Al Detalle'
 };
 
 function navTo(page) {
@@ -43,6 +44,7 @@ function navTo(page) {
   if (page === 'usuarios')      { if (typeof cargarUsuarios === 'function') cargarUsuarios(); }
   if (page === 'dashboard')     cargarDashboard();
   if (page === 'clientes')      cargarClientes();
+  if (page === 'detalle')       cargarVentaDetalle();
   closeSidebar();
 }
 
@@ -105,6 +107,15 @@ function guardarCotizacion() {
     fechaPago:     '',
     _desglose: desglose
   };
+
+  // — Venta al detalle: se activa cuando el cliente se llama "Venta" —
+  const esVenta = cliente.trim().toLowerCase() === 'venta';
+  const existing = trabajos.find(t => t.id === id);
+  data.ventaDetalle = esVenta;
+  if (esVenta) {
+    data.unidadesVendidas = existing?.unidadesVendidas || 0;
+    data.historialVentas  = existing?.historialVentas  || [];
+  }
 
   const idx = trabajos.findIndex(t => t.id === id);
   if (idx >= 0) trabajos[idx] = data; else trabajos.unshift(data);
@@ -497,6 +508,80 @@ async function eliminarCliente(id) {
     console.error(e); toast('No se pudo eliminar el cliente','error');
   }
   renderClientes(clientes);
+}
+
+/* ----------------------------------------------------------
+   Venta al Detalle
+---------------------------------------------------------- */
+
+async function cargarVentaDetalle() {
+  try {
+    if (!trabajos.length) {
+      trabajos = await fbCargarTrabajos();
+      try { localStorage.setItem('trabajos3d', JSON.stringify(trabajos)); } catch(e){}
+    }
+    const lotes = trabajos.filter(t => t.ventaDetalle === true);
+    renderVentaDetalle(lotes);
+  } catch(e) {
+    console.error(e);
+    toast('Error al cargar ventas al detalle', 'error');
+  }
+}
+
+function abrirModalVenta(id) {
+  const t = trabajos.find(t => t.id === id);
+  if (!t) return;
+  const disponibles = Math.max((t.cantidad || 1) - (t.unidadesVendidas || 0), 0);
+  if (disponibles <= 0) { toast('No hay unidades disponibles', 'error'); return; }
+  const mv = el('modal-venta');
+  if (!mv) return;
+  el('mv-id').value           = id;
+  el('mv-pieza-lbl').textContent = t.pieza || '—';
+  el('mv-disp-num').textContent  = disponibles;
+  el('mv-cantidad').value     = 1;
+  el('mv-cantidad').max       = disponibles;
+  el('mv-nota').value         = '';
+  mv.style.display = 'flex';
+}
+
+function cerrarModalVenta() {
+  const mv = el('modal-venta');
+  if (mv) mv.style.display = 'none';
+}
+
+async function guardarVenta() {
+  const id       = el('mv-id')?.value;
+  const cantidad = parseInt(el('mv-cantidad')?.value) || 1;
+  const nota     = el('mv-nota')?.value?.trim() || '';
+  const t        = trabajos.find(t => t.id === id);
+  if (!t) return;
+  const disponibles = Math.max((t.cantidad || 1) - (t.unidadesVendidas || 0), 0);
+  if (cantidad < 1 || cantidad > disponibles) {
+    toast(`Cantidad inválida. Disponibles: ${disponibles}`, 'error'); return;
+  }
+  // Actualización optimista local
+  const idx = trabajos.findIndex(t => t.id === id);
+  const entrada = { fecha: new Date().toISOString(), cantidad, nota };
+  if (idx >= 0) {
+    trabajos[idx].unidadesVendidas = (trabajos[idx].unidadesVendidas || 0) + cantidad;
+    trabajos[idx].historialVentas  = [...(trabajos[idx].historialVentas || []), entrada];
+  }
+  cerrarModalVenta();
+  renderVentaDetalle(trabajos.filter(t => t.ventaDetalle === true));
+  try {
+    await fbRegistrarVenta(id, cantidad, nota);
+    const u = cantidad === 1 ? '1 unidad vendida' : `${cantidad} unidades vendidas`;
+    toast(`${u} ✓`, 'success');
+  } catch(e) {
+    console.error(e);
+    toast('Error al registrar la venta', 'error');
+    // Revertir
+    if (idx >= 0) {
+      trabajos[idx].unidadesVendidas -= cantidad;
+      trabajos[idx].historialVentas.pop();
+    }
+    renderVentaDetalle(trabajos.filter(t => t.ventaDetalle === true));
+  }
 }
 
 /* ----------------------------------------------------------
