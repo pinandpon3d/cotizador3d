@@ -193,7 +193,8 @@
           <div class="form-group"><label>Nombre de la pieza</label><input type="text" id="c_pieza" placeholder="Ej: Engranaje planetario"></div>
           <div class="form-group"><label>Cliente</label><input type="text" id="c_cliente" placeholder="Nombre del cliente"></div>
           <div class="form-group"><label>Fecha</label><input type="date" id="c_fecha"></div>
-          <div class="form-group"><label>Cantidad</label><input type="number" id="c_cantidad" value="1" min="1"></div>
+          <div class="form-group"><label>Cantidad de objetos</label><input type="number" id="c_cantidad" value="1" min="1" oninput="calcular()"></div>
+          <div class="form-group"><label>Cantidad de placas</label><input type="number" id="c_placas" value="1" min="1" oninput="calcular()"></div>
           <div class="form-group">
             <label>Categoría</label>
             <select id="c_categoria">
@@ -253,7 +254,8 @@
           <div class="breakdown-row"><span id="b_margen_label">+ Ganancia (35%)</span><span class="breakdown-val" id="b_margen_val">₡0.00</span></div>
           <div class="breakdown-row subtotal"><span>Precio antes de IVA</span><span class="breakdown-val" id="b_antes_iva">₡0.00</span></div>
           <div class="breakdown-row" id="b_iva_row"><span id="b_iva_label">+ IVA (0%)</span><span class="breakdown-val" id="b_iva_val">₡0.00</span></div>
-          <div class="breakdown-row total highlight"><span>PRECIO FINAL</span><span class="breakdown-val" id="b_final">₡0</span></div>
+          <div class="breakdown-row subtotal"><span id="b_total_label">PRECIO TOTAL (1 placa)</span><span class="breakdown-val" id="b_final">₡0</span></div>
+          <div class="breakdown-row total highlight"><span id="b_unitario_label">PRECIO POR OBJETO (÷ 1)</span><span class="breakdown-val" id="b_unitario">₡0</span></div>
         </div>
         <div class="btn-group" style="margin-top:18px">
           <button class="btn btn-primary" onclick="guardarCotizacion()">

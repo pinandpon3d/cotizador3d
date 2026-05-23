@@ -55,6 +55,7 @@ function guardarCotizacion() {
     id, pieza, cliente,
     fecha:     el('c_fecha').value,
     cantidad:  fv('c_cantidad'),
+    placas:    fv('c_placas'),
     categoria: el('c_categoria').value,
     notas:     el('c_notas').value,
     gramos:    fv('c_gramos'),   horas_imp: fv('c_horas_imp'),
@@ -62,8 +63,9 @@ function guardarCotizacion() {
     costo_dis: fv('c_costo_dis'),postpro:   fv('c_postpro'),
     otros:     fv('c_otros'),    pFallos:   fv('c_fallos'),
     pMargen:   fv('c_margen'),   pIVA:      fv('c_iva'),
-    costo_total:  desglose.costoFallos,
-    precio_final: desglose.precioRedondeado,
+    costo_total:    desglose.costoFallos,
+    precio_final:   desglose.precioRedondeado,
+    precio_unitario: desglose.precioUnitario,
     estado: editingId ? (trabajos.find(t=>t.id===editingId)?.estado || 'Cotizado') : 'Cotizado',
     _desglose: desglose
   };
@@ -119,7 +121,7 @@ function editarTrabajo(id) {
   navTo('cotizador');
   const sv = (k,v) => { const e=el(k); if(e) e.value=v??''; };
   sv('c_pieza',t.pieza); sv('c_cliente',t.cliente); sv('c_fecha',t.fecha);
-  sv('c_cantidad',t.cantidad||1); sv('c_categoria',t.categoria||'Funcional'); sv('c_notas',t.notas||'');
+  sv('c_cantidad',t.cantidad||1); sv('c_placas',t.placas||1); sv('c_categoria',t.categoria||'Funcional'); sv('c_notas',t.notas||'');
   sv('c_gramos',t.gramos||0); sv('c_horas_imp',t.horas_imp||0); sv('c_horas_mo',t.horas_mo||0);
   sv('c_horas_dis',t.horas_dis||0); sv('c_costo_dis',t.costo_dis||0); sv('c_postpro',t.postpro||0);
   sv('c_otros',t.otros||0); sv('c_fallos',t.pFallos??5); sv('c_margen',t.pMargen??35); sv('c_iva',t.pIVA??0);
@@ -142,7 +144,7 @@ async function eliminarTrabajo(id) {
 function nuevaCotizacion() {
   editingId=null; el('edit-banner').style.display='none';
   ['c_pieza','c_cliente','c_notas'].forEach(f=>{ if(el(f)) el(f).value=''; });
-  const nums={c_cantidad:1,c_gramos:0,c_horas_imp:0,c_horas_mo:0,c_horas_dis:0,c_costo_dis:0,c_postpro:0,c_otros:0,c_fallos:5,c_margen:35,c_iva:0};
+  const nums={c_cantidad:1,c_placas:1,c_gramos:0,c_horas_imp:0,c_horas_mo:0,c_horas_dis:0,c_costo_dis:0,c_postpro:0,c_otros:0,c_fallos:5,c_margen:35,c_iva:0};
   Object.entries(nums).forEach(([k,v])=>{ if(el(k)) el(k).value=v; });
   el('c_fecha').value=today(); el('c_categoria').value='Funcional'; calcular();
 }
@@ -257,15 +259,19 @@ function generarPDF() {
   if(!pieza||!cliente){toast('Complete pieza y cliente','error');return;}
   const desglose=calcular();
   generarPDFData({ id:editingId||'BORRADOR', pieza, cliente, fecha:el('c_fecha').value,
-    cantidad:fv('c_cantidad'), categoria:el('c_categoria').value, notas:el('c_notas').value,
+    cantidad:fv('c_cantidad'), placas:fv('c_placas'), categoria:el('c_categoria').value, notas:el('c_notas').value,
     gramos:fv('c_gramos'), horas_imp:fv('c_horas_imp'), pIVA:fv('c_iva'),
-    costo_total:desglose.costoFallos, precio_final:desglose.precioRedondeado, _desglose:desglose });
+    costo_total:desglose.costoFallos, precio_final:desglose.precioRedondeado,
+    precio_unitario:desglose.precioUnitario, _desglose:desglose });
 }
 
 function generarPDFData(t) {
   const emp=getEmpresa(), d=t._desglose||{}, pIVA=t.pIVA||0;
   const antesIVA=d.antesIVA||t.precio_final||0, ivaVal=d.ivaVal||0;
   const precioFinal=t.precio_final||0, ref=String(t.id).toUpperCase();
+  const cantidad=Math.max(t.cantidad||1,1);
+  const placas=Math.max(t.placas||1,1);
+  const precioUnitario=t.precio_unitario||(Math.round((precioFinal/cantidad)/100)*100);
   const win=window.open('','_blank');
   if(!win){toast('Permita ventanas emergentes','error');return;}
   win.document.write(`<!DOCTYPE html>
@@ -324,25 +330,27 @@ footer{margin-top:auto;padding-top:20px;border-top:1px solid #e5e7eb;display:fle
   <div class="meta">
     <div class="meta-block"><div class="meta-label">Cliente</div><div class="meta-value">${escHtml(t.cliente||'—')}</div></div>
     <div class="meta-block"><div class="meta-label">Pieza</div><div class="meta-value">${escHtml(t.pieza||'—')}</div></div>
+    <div class="meta-block"><div class="meta-label">Objetos / Placas</div><div class="meta-value">${cantidad} obj · ${placas} placa${placas!==1?'s':''}</div></div>
     <div class="meta-block"><div class="meta-label">Estado</div><div class="meta-value">${escHtml(t.estado||'Cotizado')}</div></div>
   </div>
   <table>
-    <thead><tr><th>Descripción</th><th>Cant.</th><th>Precio unitario</th><th>Total</th></tr></thead>
+    <thead><tr><th>Descripción</th><th>Cant. objetos</th><th>Precio unitario</th><th>Total (${placas} placa${placas!==1?'s':''})</th></tr></thead>
     <tbody><tr>
       <td><strong>${escHtml(t.pieza||'—')}</strong><br>
         <span class="badge-cat">${escHtml(t.categoria||'—')}</span><br>
-        <span style="color:#6b7280;font-size:.75rem">${(t.gramos||0).toFixed(1)}g · ${(t.horas_imp||0).toFixed(1)}h impresión</span>
+        <span style="color:#6b7280;font-size:.75rem">${(t.gramos||0).toFixed(1)}g/placa · ${(t.horas_imp||0).toFixed(1)}h/placa</span>
         ${t.notas?`<br><span style="color:#6b7280;font-size:.72rem;font-style:italic">${escHtml(t.notas)}</span>`:''}
       </td>
-      <td class="td-mono">${t.cantidad||1}</td>
-      <td class="td-mono">${fmt(precioFinal/(t.cantidad||1))}</td>
-      <td class="td-mono"><strong>${fmt(precioFinal)}</strong></td>
+      <td class="td-mono">${cantidad}</td>
+      <td class="td-mono"><strong>${fmt(precioUnitario)}</strong></td>
+      <td class="td-mono">${fmt(precioFinal)}</td>
     </tr></tbody>
   </table>
   <div class="totals-wrap"><div class="totals">
     <div class="totals-row"><span>Subtotal</span><span class="val">${fmt(antesIVA)}</span></div>
     ${pIVA>0?`<div class="totals-row iva"><span>IVA (${pIVA}%)</span><span class="val">${fmt(ivaVal)}</span></div>`:''}
-    <div class="totals-row total-final"><span>TOTAL</span><span class="val">${fmt(precioFinal)}</span></div>
+    <div class="totals-row"><span>Total (${placas} placa${placas!==1?'s':''})</span><span class="val">${fmt(precioFinal)}</span></div>
+    <div class="totals-row total-final"><span>PRECIO POR OBJETO</span><span class="val">${fmt(precioUnitario)}</span></div>
   </div></div>
   ${emp.nota?`<div class="notes"><div class="notes-title">Notas</div>${escHtml(emp.nota)}</div>`:''}
   <div class="sig-block"><div style="height:40px"></div><div class="sig-line">Firma autorizada</div></div>

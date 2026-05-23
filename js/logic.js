@@ -39,16 +39,21 @@ function calcCfg() {
  * actualiza el desglose en pantalla. Devuelve el objeto de valores.
  *
  * Fórmula:
- *   material  = gramos × costo_g
- *   elec      = horas_imp × (watts/1000 × kwh)
- *   desgaste  = horas_imp × desgaste_h
- *   mo        = horas_mo  × mo_h
- *   dis       = horas_dis × dis_h + costo_fijo_dis
- *   subtotal  = Σ anteriores + postpro + otros
+ *   Los valores de gramos/horas son por placa.
+ *   placas    = cantidad de placas (multiplicador de costos variables)
+ *   material  = gramos × costo_g × placas
+ *   elec      = horas_imp × (watts/1000 × kwh) × placas
+ *   desgaste  = horas_imp × desgaste_h × placas
+ *   mo        = horas_mo  × mo_h × placas
+ *   dis       = horas_dis × dis_h × placas + costo_fijo_dis
+ *   postpro   = postpro × placas
+ *   otros     = otros × placas
+ *   subtotal  = Σ anteriores
  *   +fallos   = subtotal × (pFallos/100)
  *   +margen   = (subtotal+fallos) × (pMargen/100)
  *   +IVA      = antesIVA × (pIVA/100)
- *   precioFinal redondeado al 100 más cercano
+ *   precioTotal redondeado al 100 más cercano  (todas las placas)
+ *   precioUnitario = precioTotal / cantidad de objetos
  */
 function calcular() {
   const gramos       = fv('c_gramos');
@@ -61,6 +66,8 @@ function calcular() {
   const pFallos      = fv('c_fallos');
   const pMargen      = fv('c_margen');
   const pIVA         = fv('c_iva');
+  const placas       = Math.max(fv('c_placas'),   1);
+  const cantidad     = Math.max(fv('c_cantidad'), 1);
 
   const costoG    = fv('cfg_costo_g')    || 8;
   const watts     = fv('cfg_watts')      || 200;
@@ -70,12 +77,14 @@ function calcular() {
   const disH      = fv('cfg_dis_h')      || 5000;
 
   const elecH    = (watts / 1000) * kwh;
-  const material = gramos * costoG;
-  const elec     = horasImp * elecH;
-  const desgaste = horasImp * desgasteH;
-  const mo       = horasMO * moH;
-  const dis      = horasDis * disH + costoDisFijo;
-  const subtotal = material + elec + desgaste + mo + dis + postpro + otros;
+
+  // Costos variables × cantidad de placas; costo fijo de diseño se aplica una sola vez
+  const material = gramos * costoG * placas;
+  const elec     = horasImp * elecH * placas;
+  const desgaste = horasImp * desgasteH * placas;
+  const mo       = horasMO * moH * placas;
+  const dis      = horasDis * disH * placas + costoDisFijo;
+  const subtotal = material + elec + desgaste + mo + dis + postpro * placas + otros * placas;
 
   const fallosVal        = subtotal * (pFallos / 100);
   const costoFallos      = subtotal + fallosVal;
@@ -84,28 +93,34 @@ function calcular() {
   const ivaVal           = antesIVA * (pIVA / 100);
   const precioFinal      = antesIVA + ivaVal;
   const precioRedondeado = Math.round(precioFinal / 100) * 100;
+  const precioUnitario   = Math.round((precioRedondeado / cantidad) / 100) * 100;
 
-  set('b_material',     fmt(material));
-  set('b_elec',         fmt(elec));
-  set('b_desgaste',     fmt(desgaste));
-  set('b_mo',           fmt(mo));
-  set('b_dis',          fmt(dis));
-  set('b_post',         fmt(postpro));
-  set('b_otros',        fmt(otros));
-  set('b_sub',          fmt(subtotal));
-  set('b_fallos_label', `+ Fallos (${pFallos}%)`);
-  set('b_fallos_val',   fmt(fallosVal));
-  set('b_costo_fallos', fmt(costoFallos));
-  set('b_margen_label', `+ Ganancia (${pMargen}%)`);
-  set('b_margen_val',   fmt(margenVal));
-  set('b_antes_iva',    fmt(antesIVA));
-  set('b_iva_label',    `+ IVA (${pIVA}%)`);
-  set('b_iva_val',      fmt(ivaVal));
-  set('b_final',        fmt(precioRedondeado));
+  set('b_material',      fmt(material));
+  set('b_elec',          fmt(elec));
+  set('b_desgaste',      fmt(desgaste));
+  set('b_mo',            fmt(mo));
+  set('b_dis',           fmt(dis));
+  set('b_post',          fmt(postpro * placas));
+  set('b_otros',         fmt(otros * placas));
+  set('b_sub',           fmt(subtotal));
+  set('b_fallos_label',  `+ Fallos (${pFallos}%)`);
+  set('b_fallos_val',    fmt(fallosVal));
+  set('b_costo_fallos',  fmt(costoFallos));
+  set('b_margen_label',  `+ Ganancia (${pMargen}%)`);
+  set('b_margen_val',    fmt(margenVal));
+  set('b_antes_iva',     fmt(antesIVA));
+  set('b_iva_label',     `+ IVA (${pIVA}%)`);
+  set('b_iva_val',       fmt(ivaVal));
+  set('b_total_label',   `PRECIO TOTAL (${placas} placa${placas !== 1 ? 's' : ''})`);
+  set('b_final',         fmt(precioRedondeado));
+  set('b_unitario_label',`PRECIO POR OBJETO (÷ ${cantidad})`);
+  set('b_unitario',      fmt(precioUnitario));
 
   return { material, elec, desgaste, mo, dis, postpro, otros,
+           placas, cantidad,
            subtotal, fallosVal, costoFallos, margenVal,
-           antesIVA, ivaVal, precioFinal, precioRedondeado };
+           antesIVA, ivaVal, precioFinal, precioRedondeado,
+           precioUnitario };
 }
 
 /* ----------------------------------------------------------
