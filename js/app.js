@@ -108,8 +108,8 @@ function guardarCotizacion() {
     _desglose: desglose
   };
 
-  // — Venta al detalle: se activa cuando el cliente se llama "Venta" —
-  const esVenta = cliente.trim().toLowerCase() === 'venta';
+  // — Venta al detalle: se activa cuando la categoría es "Venta al Detalle" —
+  const esVenta = data.categoria === 'Venta al Detalle';
   const existing = trabajos.find(t => t.id === id);
   data.ventaDetalle = esVenta;
   if (esVenta) {
@@ -276,6 +276,14 @@ async function guardarModalEdicion() {
     metodoPago:    el('m_metodo_pago')?.value || 'Efectivo',
     fechaActualizacionEstado: new Date().toISOString()
   };
+
+  // Sincronizar flag de venta al detalle si cambia la categoría
+  const esVentaModal = updates.categoria === 'Venta al Detalle';
+  updates.ventaDetalle = esVentaModal;
+  if (esVentaModal) {
+    updates.unidadesVendidas = t.unidadesVendidas || 0;
+    updates.historialVentas  = t.historialVentas  || [];
+  }
 
   Object.assign(t, updates);
   try { localStorage.setItem('trabajos3d', JSON.stringify(trabajos.map(t => { const {_desglose,...c}=t; return c; }))); } catch(e){}
