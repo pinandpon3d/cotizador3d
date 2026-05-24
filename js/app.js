@@ -127,12 +127,11 @@ function guardarCotizacion() {
     .then(() => {})
     .catch(e => { console.error('Firebase error al guardar:', e); });
 
+  const wasEditing = !!editingId;
   if (editingId) {
     editingId = null; el('edit-banner').style.display = 'none';
-    toast('Cotización actualizada correctamente ✓', 'success');
-  } else {
-    toast('Trabajo guardado correctamente ✓', 'success');
   }
+  mostrarPostGuardado(pieza, wasEditing);
 }
 
 /* ----------------------------------------------------------
@@ -508,25 +507,19 @@ function nuevaCotizacion() {
 /* ----------------------------------------------------------
    Modal de edición rápida de trabajo
 ---------------------------------------------------------- */
+/* Abre el modal de pago (solo campos de cobro — sin recálculo de precios) */
 function abrirModalEdicion(id) {
   const t = trabajos.find(t=>t.id===id); if(!t) return;
-  const sv = (k,v) => { const e=el(k); if(e) e.value = v ?? ''; };
-  sv('m_id',           id);
-  sv('m_pieza',        t.pieza);
-  sv('m_cliente',      t.cliente);
-  sv('m_categoria',    t.categoria || 'Funcional');
-  sv('m_material',     t.material  || '');
-  sv('m_gramos',       t.gramos    || 0);
-  sv('m_horas_imp',    t.horas_imp || 0);
-  sv('m_costo_total',  t.costo_total  || 0);
-  sv('m_precio_final', t.precio_final || 0);
-  sv('m_estado',       t.estado    || 'Cotizado');
-  sv('m_notas',        t.notas     || '');
-  sv('m_fecha_entrega',t.fechaEntrega || '');
-  // m_estadoPago es un span, no un input
-  const epEl = el('m_estadoPago'); if (epEl) epEl.textContent = t.estadoPago || 'Pendiente';
-  sv('m_monto_abonado',t.montoAbonado || 0);
-  sv('m_metodo_pago',  t.metodoPago   || '');
+  el('m_id').value           = id;
+  el('m_precio_final').value = t.precio_final || 0;
+  set('m_pieza_display',   t.pieza    || '—');
+  set('m_cliente_display', t.cliente  || '—');
+  set('m_precio_display',  fmt(t.precio_final || 0));
+  el('m_monto_abonado').value = t.montoAbonado || 0;
+  el('m_metodo_pago').value   = t.metodoPago   || '';
+  // Link "abrir en cotizador"
+  const linkEl = el('m_edit_link');
+  if (linkEl) linkEl.onclick = () => { cerrarModalEdicion(); editarEnCotizador(id); };
   calcularPendienteModal();
   el('modal-editar').style.display = 'flex';
 }
@@ -545,58 +538,90 @@ function calcularPendienteModal() {
   set('m_estadoPago', calcEstadoPago(precio, abono));
 }
 
+/* Guarda solo los campos de pago del modal simplificado */
 async function guardarModalEdicion() {
   const id = el('m_id')?.value; if(!id) return;
   const t  = trabajos.find(t=>t.id===id); if(!t) return;
 
-  const precioFinal  = parseFloat(el('m_precio_final')?.value)  || 0;
+  const precioFinal  = parseFloat(el('m_precio_final')?.value)  || t.precio_final || 0;
   const montoAbonado = parseFloat(el('m_monto_abonado')?.value) || 0;
 
   const updates = {
-    pieza:         el('m_pieza')?.value.trim()    || t.pieza,
-    cliente:       el('m_cliente')?.value.trim()  || t.cliente,
-    categoria:     el('m_categoria')?.value       || t.categoria,
-    material:      el('m_material')?.value.trim() || '',
-    gramos:        parseFloat(el('m_gramos')?.value)    || 0,
-    horas_imp:     parseFloat(el('m_horas_imp')?.value) || 0,
-    costo_total:   parseFloat(el('m_costo_total')?.value) || 0,
-    precio_final:  precioFinal,
-    estado:        el('m_estado')?.value     || 'Cotizado',
-    notas:         el('m_notas')?.value      || '',
-    fechaEntrega:  el('m_fecha_entrega')?.value || '',
-    estadoPago:    calcEstadoPago(precioFinal, montoAbonado),
+    estadoPago:     calcEstadoPago(precioFinal, montoAbonado),
     montoAbonado,
     montoPendiente: Math.max(0, precioFinal - montoAbonado),
-    metodoPago:    el('m_metodo_pago')?.value || 'Efectivo',
-    fechaActualizacionEstado: new Date().toISOString()
+    metodoPago:     el('m_metodo_pago')?.value || t.metodoPago || ''
   };
-
-  // Sincronizar flag de venta al detalle si cambia la categoría
-  const esVentaModal = updates.categoria === 'Venta al Detalle';
-  updates.ventaDetalle = esVentaModal;
-  if (esVentaModal) {
-    updates.unidadesVendidas = t.unidadesVendidas || 0;
-    updates.historialVentas  = t.historialVentas  || [];
-  }
 
   Object.assign(t, updates);
   try { localStorage.setItem('trabajos3d', JSON.stringify(trabajos.map(t => { const {_desglose,...c}=t; return c; }))); } catch(e){}
+  cerrarModalEdicion();
+  renderTrabajos();
 
   try {
     await db.collection('cotizaciones').doc(String(id)).update(updates);
-    toast('Trabajo actualizado correctamente ✓', 'success');
+    toast('Pago actualizado ✓', 'success');
   } catch(e) {
-    console.error('Error al actualizar:', e);
-    toast('No se pudo actualizar el trabajo', 'error');
+    console.error('Error al actualizar pago:', e);
+    toast('No se pudo guardar en Firebase', 'error');
   }
+}
 
-  cerrarModalEdicion();
-  renderTrabajos();
+/* ─── EDITAR EN COTIZADOR ─── Carga todos los datos en el formulario de cálculo */
+function editarEnCotizador(id) {
+  const t = trabajos.find(t => t.id === id); if (!t) return;
+  editingId = id;
+
+  const sv = (k, v) => { const e = el(k); if (e) e.value = v ?? ''; };
+  sv('c_pieza',        t.pieza       || '');
+  sv('c_cliente',      t.cliente     || '');
+  sv('c_fecha',        t.fecha       || today());
+  sv('c_fecha_entrega',t.fechaEntrega|| '');
+  sv('c_material',     t.material    || '');
+  sv('c_cantidad',     t.cantidad    || 1);
+  sv('c_placas',       t.placas      || 1);
+  sv('c_notas',        t.notas       || '');
+  if (el('c_categoria')) el('c_categoria').value = t.categoria || 'Funcional';
+
+  sv('c_gramos',    t.gramos    || 0);
+  sv('c_horas_imp', t.horas_imp || 0);
+  sv('c_horas_mo',  t.horas_mo  || 0);
+  sv('c_horas_dis', t.horas_dis || 0);
+  sv('c_costo_dis', t.costo_dis || 0);
+  sv('c_postpro',   t.postpro   || 0);
+  sv('c_otros',     t.otros     || 0);
+  sv('c_fallos',    t.pFallos   ?? 5);
+  sv('c_margen',    t.pMargen   ?? 35);
+  sv('c_iva',       t.pIVA      ?? 0);
+  sv('c_monto_abonado', t.montoAbonado || 0);
+  if (el('c_metodo_pago')) el('c_metodo_pago').value = t.metodoPago || 'Efectivo';
+
+  el('edit-banner').style.display = 'flex';
+  set('edit-banner-text', `Editando: ${t.pieza || 'cotización'} · ${t.cliente || ''}`);
+
+  ocultarPostSave();
+  calcular();
+  navTo('cotizador');
 }
 
 /* Compatibilidad con botones antiguos que usan editarTrabajo */
-function editarTrabajo(id)  { abrirModalEdicion(id); }
+function editarTrabajo(id)  { editarEnCotizador(id); }
 function verTrabajo(id)     { abrirModalEdicion(id); }
+
+/* ─── POST-SAVE BANNER ─── Aparece tras guardar en el Cotizador */
+function mostrarPostGuardado(pieza, isEdit) {
+  const b = el('post-save-banner'); if (!b) return;
+  set('post-save-msg', isEdit ? '¡Cotización actualizada!' : '¡Trabajo guardado!');
+  set('post-save-sub', `"${pieza}" fue ${isEdit ? 'actualizada' : 'guardada'} correctamente.`);
+  b.style.display = 'flex';
+  clearTimeout(b._psTimer);
+  b._psTimer = setTimeout(ocultarPostSave, 10000);
+}
+
+function ocultarPostSave() {
+  const b = el('post-save-banner');
+  if (b) b.style.display = 'none';
+}
 
 /* ----------------------------------------------------------
    WhatsApp — generador de mensajes
@@ -1316,6 +1341,42 @@ button{font-family:inherit;cursor:pointer}
 /* ----------------------------------------------------------
    Inicialización básica (antes de autenticar)
 ---------------------------------------------------------- */
+/* ─── AUTOCOMPLETADO DE CLIENTES ─── */
+function initClienteAutocomplete() {
+  const input = el('c_cliente');
+  const list  = el('cs-suggest');
+  if (!input || !list) return;
+
+  const mostrar = () => {
+    const q = input.value.trim().toLowerCase();
+    if (!q || !clientes.length) { list.classList.remove('cs-open'); return; }
+
+    const matches = clientes
+      .filter(c => (c.nombre || '').toLowerCase().includes(q))
+      .slice(0, 7);
+
+    if (!matches.length) { list.classList.remove('cs-open'); return; }
+
+    list.innerHTML = matches.map(c => {
+      const meta = [c.telefono, c.correo].filter(Boolean).join(' · ');
+      return `<div class="cs-item" onmousedown="seleccionarCliente(${JSON.stringify(c.nombre)})">
+        <span class="cs-nombre">${escHtml(c.nombre || '')}</span>
+        ${meta ? `<span class="cs-meta">${escHtml(meta)}</span>` : ''}
+      </div>`;
+    }).join('');
+    list.classList.add('cs-open');
+  };
+
+  input.addEventListener('input', mostrar);
+  input.addEventListener('focus', mostrar);
+  input.addEventListener('blur', () => setTimeout(() => list.classList.remove('cs-open'), 160));
+}
+
+function seleccionarCliente(nombre) {
+  const input = el('c_cliente'); if (input) input.value = nombre;
+  const list  = el('cs-suggest'); if (list) list.classList.remove('cs-open');
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   const savedTheme = localStorage.getItem('theme');
   if (savedTheme) document.documentElement.setAttribute('data-theme', savedTheme);
@@ -1325,6 +1386,7 @@ document.addEventListener('DOMContentLoaded', () => {
   cargarCfgLocal();
   calcCfg();
   calcular();
+  initClienteAutocomplete();
   // Cerrar modal con Escape
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') cerrarModalEdicion();
