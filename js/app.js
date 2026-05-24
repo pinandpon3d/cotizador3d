@@ -16,7 +16,9 @@ let trabajos   = [];
 let filamentos = [];
 let clientes   = [];
 let editingId  = null;
-let _dashFiltro = 'mes-actual';
+let _dashFiltro    = 'mes-actual';
+let seleccionados  = new Set();   // IDs seleccionados para cotización combinada
+let _trabajosVista = 'tabla';     // 'tabla' | 'kanban'
 
 /* ----------------------------------------------------------
    Navegación
@@ -28,8 +30,34 @@ const PAGE_LABELS = {
   configuracion:'Configuración',
   usuarios:     'Usuarios',
   dashboard:    'Dashboard',
-  clientes:     'Clientes'
+  clientes:     'Clientes',
+  detalle:      'Al Detalle'
 };
+
+/* ─── TABS DE CONFIGURACIÓN ─── */
+function switchCfgTab(tab) {
+  ['costos','empresa','integraciones'].forEach(t => {
+    const panel = el('cfgtab-' + t);
+    const btn   = el('cfgtab-btn-' + t);
+    if (panel) panel.style.display = t === tab ? '' : 'none';
+    if (btn)   btn.classList.toggle('active', t === tab);
+  });
+}
+
+/* ─── VISTA KANBAN / TABLA ─── */
+function toggleTrabajosVista(vista) {
+  _trabajosVista = vista;
+  const tWrap   = el('trabajos-table-wrap');
+  const kanban  = el('trabajos-kanban');
+  const tEmpty  = el('trabajos-empty');
+  if (tWrap)  tWrap.style.display  = vista === 'tabla'  ? '' : 'none';
+  if (kanban) kanban.style.display = vista === 'kanban' ? '' : 'none';
+  if (tEmpty && vista === 'kanban') tEmpty.style.display = 'none';
+  document.querySelectorAll('.vista-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.vista === vista)
+  );
+  renderTrabajos();
+}
 
 function navTo(page) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -37,12 +65,14 @@ function navTo(page) {
   const pg  = el('page-' + page); if (pg)  pg.classList.add('active');
   const nav = document.querySelector(`.nav-item[data-page="${page}"]`); if (nav) nav.classList.add('active');
   set('breadcrumb-current', PAGE_LABELS[page] || page);
+  if (page !== 'trabajos')      limpiarSeleccion();
   if (page === 'trabajos')      cargarTrabajos();
   if (page === 'inventario')    cargarInventario();
   if (page === 'configuracion') { calcCfg(); actualizarUIUsuario && actualizarUIUsuario(); }
   if (page === 'usuarios')      { if (typeof cargarUsuarios === 'function') cargarUsuarios(); }
   if (page === 'dashboard')     cargarDashboard();
   if (page === 'clientes')      cargarClientes();
+  if (page === 'detalle')       cargarVentaDetalle();
   closeSidebar();
 }
 
@@ -106,6 +136,15 @@ function guardarCotizacion() {
     _desglose: desglose
   };
 
+  // — Venta al detalle: se activa cuando la categoría es "Venta al Detalle" —
+  const esVenta = data.categoria === 'Venta al Detalle';
+  const existing = trabajos.find(t => t.id === id);
+  data.ventaDetalle = esVenta;
+  if (esVenta) {
+    data.unidadesVendidas = existing?.unidadesVendidas || 0;
+    data.historialVentas  = existing?.historialVentas  || [];
+  }
+
   const idx = trabajos.findIndex(t => t.id === id);
   if (idx >= 0) trabajos[idx] = data; else trabajos.unshift(data);
   try { localStorage.setItem('trabajos3d', JSON.stringify(trabajos.map(t => { const {_desglose,...c}=t; return c; }))); } catch(e){}
@@ -114,12 +153,11 @@ function guardarCotizacion() {
     .then(() => {})
     .catch(e => { console.error('Firebase error al guardar:', e); });
 
+  const wasEditing = !!editingId;
   if (editingId) {
     editingId = null; el('edit-banner').style.display = 'none';
-    toast('Cotización actualizada correctamente ✓', 'success');
-  } else {
-    toast('Trabajo guardado correctamente ✓', 'success');
   }
+  mostrarPostGuardado(pieza, wasEditing);
 }
 
 /* ----------------------------------------------------------
@@ -181,6 +219,298 @@ async function eliminarTrabajo(id) {
 function pdfTrabajo(id) { const t=trabajos.find(t=>t.id===id); if(t) generarPDFData(t); }
 
 /* ----------------------------------------------------------
+   Selección múltiple — Cotización combinada
+---------------------------------------------------------- */
+
+function toggleSeleccion(id, checkbox) {
+  if (seleccionados.has(id)) seleccionados.delete(id);
+  else seleccionados.add(id);
+  // sincronizar clase visual en la fila
+  if (checkbox) checkbox.closest('tr').classList.toggle('tr-selected', seleccionados.has(id));
+  actualizarBarraSeleccion();
+}
+
+function seleccionarTodosVisibles(checked) {
+  document.querySelectorAll('.sel-check').forEach(cb => {
+    const id = cb.dataset.id;
+    if (checked) seleccionados.add(id); else seleccionados.delete(id);
+    cb.checked = checked;
+    cb.closest('tr').classList.toggle('tr-selected', checked);
+  });
+  actualizarBarraSeleccion();
+}
+
+function actualizarBarraSeleccion() {
+  const n     = seleccionados.size;
+  const barra = el('barra-seleccion');
+  if (!barra) return;
+  barra.classList.toggle('barra-visible', n > 0);
+  const countEl = el('sel-count-text');
+  if (countEl) countEl.textContent =
+    `${n} cotización${n !== 1 ? 'es' : ''} seleccionada${n !== 1 ? 's' : ''}`;
+}
+
+function limpiarSeleccion() {
+  seleccionados.clear();
+  document.querySelectorAll('.sel-check').forEach(cb => {
+    cb.checked = false;
+    cb.closest('tr')?.classList.remove('tr-selected');
+  });
+  const sa = el('sel-all-check'); if (sa) sa.checked = false;
+  actualizarBarraSeleccion();
+}
+
+function generarPDFCombinado() {
+  const ids   = Array.from(seleccionados);
+  const items = ids.map(id => trabajos.find(t => t.id === id)).filter(Boolean);
+  if (items.length < 2) { toast('Seleccioná al menos 2 cotizaciones', 'error'); return; }
+
+  const clUnicos = [...new Set(items.map(t => t.cliente || '').filter(Boolean))];
+  const clienteNombre = clUnicos.length === 1 ? clUnicos[0] : clUnicos.join(' & ');
+  generarPDFMultiple(items, clienteNombre);
+}
+
+/* ----------------------------------------------------------
+   PDF con múltiples ítems (cotización combinada)
+---------------------------------------------------------- */
+function generarPDFMultiple(items, clienteNombre) {
+  const emp        = getEmpresa();
+  const base       = new URL('.', window.location.href).href;
+  const mascotaUrl = base + 'img/Mascota-PNG.png';
+  const nombreUrl  = base + 'img/Nombre-PNG.png';
+
+  const fechaHoy       = today();
+  const ref            = 'COMB-' + Date.now().toString(36).toUpperCase().slice(-6);
+  const totalGeneral   = items.reduce((s, t) => s + (t.precio_final || 0), 0);
+  const nombreArchivo  = `Cotizacion - ${clienteNombre}`;
+  const multiCliente   = [...new Set(items.map(t => t.cliente || ''))].length > 1;
+
+  const win = window.open('','_blank');
+  if (!win) { toast('Permita ventanas emergentes','error'); return; }
+
+  const rowsHtml = items.map(t => {
+    const cant      = Math.max(t.cantidad || 1, 1);
+    const pUnit     = t.precio_unitario || ((t.precio_final || 0) / cant);
+    const total     = t.precio_final || 0;
+    return `<div class="trow">
+      <div class="col-name">
+        <strong>${escHtml(t.pieza || '—')}</strong>
+        ${t.material ? `<span style="color:var(--ink-soft);font-size:11px"> · ${escHtml(t.material)}</span>` : ''}
+        <br><span class="item-badge">${escHtml(t.categoria || 'General')}</span>
+        ${multiCliente ? `<span class="item-badge" style="background:#f0fdf4;color:#16a34a;margin-left:4px">${escHtml(t.cliente || '')}</span>` : ''}
+        ${(t.gramos || t.horas_imp) ? `<div class="item-note">${Number(t.gramos||0).toFixed(1)} g · ${Number(t.horas_imp||0).toFixed(1)} h</div>` : ''}
+        ${t.notas ? `<div class="item-note">${escHtml(t.notas)}</div>` : ''}
+      </div>
+      <div class="col-qty">${cant}</div>
+      <div class="col-price">₡&thinsp;${pUnit.toLocaleString('es-CR',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
+      <div class="col-total">₡&thinsp;${total.toLocaleString('es-CR',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
+    </div>`;
+  }).join('');
+
+  win.document.write(`<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>${escHtml(nombreArchivo)}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,700&display=swap" rel="stylesheet"/>
+<style>
+:root{--navy:#16395A;--navy-deep:#0F2A45;--navy-2:#235A8C;--sky:#4A8FCB;--pale:#E8F0F8;--yellow:#F2C61F;--ink:#1A2433;--ink-soft:#5B6A7E;--line:#DEE5EE;--line-soft:#EEF2F7;--paper:#FFFFFF;--paper-tint:#FBFCFE;--accent:#F2C61F;--radius:10px}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;font-family:"Plus Jakarta Sans",system-ui,sans-serif;color:var(--ink);background:#EEF1F5;-webkit-font-smoothing:antialiased}
+body{min-height:100vh;padding:40px 20px 80px;display:flex;justify-content:center;align-items:flex-start}
+button{font-family:inherit;cursor:pointer}
+.page{width:794px;min-height:1123px;background:var(--paper);position:relative;overflow:hidden;box-shadow:0 20px 60px -20px rgba(15,42,69,.25),0 4px 16px -4px rgba(15,42,69,.12);border-radius:4px;display:flex;flex-direction:column}
+.watermark{position:absolute;right:-60px;bottom:180px;width:360px;opacity:.025;pointer-events:none;z-index:0}
+.doc-header{position:relative;color:white;overflow:hidden}
+.solid-band{position:absolute;inset:0;background:linear-gradient(95deg,var(--navy-deep) 0%,var(--navy) 50%,var(--navy-2) 100%)}
+.header-inner{position:relative;z-index:1;display:grid;grid-template-columns:1fr auto;gap:32px;padding:38px 48px 34px;align-items:center}
+.brand{display:flex;align-items:center;gap:16px}
+.brand-mascot{width:64px;height:auto;display:block;filter:drop-shadow(0 8px 18px rgba(0,0,0,.25))}
+.brand-text{display:flex;flex-direction:column;gap:4px}
+.wordmark{font-weight:800;font-size:28px;letter-spacing:-.02em;color:white;line-height:1;display:inline-flex;align-items:center;gap:2px}
+.amp{color:var(--accent);margin:0 2px;font-style:italic;font-weight:700}
+.badge-3d{font-size:11px;font-weight:700;letter-spacing:.04em;background:var(--sky);color:white;padding:3px 7px;border-radius:5px;margin-left:6px;align-self:flex-start;margin-top:-4px;box-shadow:0 2px 6px rgba(74,143,203,.4)}
+.tagline{font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.65);font-weight:600}
+.title-block{display:flex;flex-direction:column;gap:6px;text-align:right;align-items:flex-end}
+.eyebrow{font-size:10px;font-weight:700;letter-spacing:.24em;text-transform:uppercase;color:var(--accent);opacity:.95}
+.title{font-size:26px;font-weight:700;margin:0;line-height:1;letter-spacing:-.01em;color:white;display:inline-flex;align-items:baseline;gap:6px}
+.title-num{font-weight:800;font-variant-numeric:tabular-nums;padding:0 4px;border-bottom:1px dashed rgba(255,255,255,.3)}
+.meta-row{display:inline-flex;align-items:baseline;gap:10px;font-size:12.5px;margin-top:4px}
+.meta-label{text-transform:uppercase;font-size:9.5px;letter-spacing:.16em;opacity:.7;font-weight:700}
+.meta-value{font-weight:600;border-bottom:1px dashed rgba(255,255,255,.3);padding:0 2px 1px;min-width:120px;text-align:left}
+.title-rule{width:48px;height:2px;background:var(--accent);margin-top:6px;border-radius:1px}
+.doc-strip{position:relative;z-index:1;margin:28px 48px 8px;padding:18px 22px 18px 26px;background:var(--paper-tint);border:1px solid var(--line);border-radius:var(--radius);display:grid;grid-template-columns:2fr 1fr 1fr 1.1fr;gap:22px;align-items:center}
+.doc-strip::before{content:"";position:absolute;left:0;top:14px;bottom:14px;width:3px;background:var(--accent);border-radius:0 2px 2px 0}
+.strip-field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.strip-field+.strip-field{border-left:1px solid var(--line);padding-left:22px}
+.strip-label{font-size:9.5px;text-transform:uppercase;letter-spacing:.18em;color:var(--ink-soft);font-weight:700}
+.strip-value{font-size:13.5px;font-weight:600;color:var(--ink);line-height:1.25;display:inline-flex;align-items:baseline;gap:4px;flex-wrap:wrap}
+.strip-value .hash{color:var(--ink-soft);font-weight:500;font-size:10.5px;letter-spacing:.05em}
+.strip-name{color:var(--navy);font-weight:700;font-size:16px}
+.strip-vigencia{color:var(--navy)}
+.strip-vigencia::after{content:"7 días";display:inline-block;margin-left:6px;font-size:8.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;background:var(--accent);color:var(--navy-deep);padding:2px 5px;border-radius:3px;vertical-align:middle}
+.section-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px;padding:0 48px}
+.section-head h2{font-size:14px;font-weight:700;color:var(--navy);letter-spacing:.14em;text-transform:uppercase;margin:0;display:flex;align-items:center;gap:10px}
+.section-head h2::before{content:"";width:22px;height:2px;background:var(--accent);display:inline-block}
+.detail{position:relative;z-index:1;padding:28px 0 8px}
+.table{margin:0 48px}
+.thead,.trow{display:grid;grid-template-columns:1fr 70px 130px 130px;align-items:center;gap:8px}
+.thead{color:var(--navy);padding:10px 16px 8px;border-top:1.5px solid var(--navy);border-bottom:1px solid var(--line);font-size:10px;font-weight:700;letter-spacing:.18em;text-transform:uppercase}
+.thead .col-qty,.thead .col-price,.thead .col-total{text-align:right}
+.trow{padding:11px 16px;border-bottom:1px solid var(--line-soft);font-size:13px}
+.trow .col-name{color:var(--ink)}
+.trow .col-qty,.trow .col-price,.trow .col-total{text-align:right;font-variant-numeric:tabular-nums}
+.trow .col-total{font-weight:700;color:var(--navy)}
+.item-badge{display:inline-flex;padding:2px 8px;background:var(--pale);color:var(--navy);border-radius:20px;font-size:10px;font-weight:700;margin-top:4px}
+.item-note{font-size:11px;color:var(--ink-soft);font-style:italic;margin-top:3px;line-height:1.4}
+.summary{position:relative;z-index:1;padding:22px 48px 4px;display:flex;justify-content:flex-end}
+.summary-card{width:280px}
+.srow{display:flex;justify-content:space-between;align-items:baseline;padding:7px 0;font-size:12px;border-bottom:1px solid var(--line-soft)}
+.srow:last-child{border-bottom:none}
+.slabel{color:var(--ink-soft);font-weight:500;display:inline-flex;align-items:baseline;gap:6px;letter-spacing:.02em}
+.sval{font-weight:500;color:var(--ink);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.total-row{padding:14px 18px;margin-top:8px;background:var(--navy);color:white;border-radius:8px;border-bottom:none!important;display:flex;justify-content:space-between;align-items:center;position:relative;overflow:hidden;box-shadow:0 6px 16px -8px rgba(15,42,69,.5)}
+.total-row::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--accent)}
+.total-row .slabel{color:rgba(255,255,255,.85);font-weight:700;text-transform:uppercase;letter-spacing:.22em;font-size:10.5px;padding-left:6px}
+.total-row .sval{color:white;font-size:24px;font-weight:800;letter-spacing:-.02em}
+.notes-pay{position:relative;z-index:1;display:grid;grid-template-columns:1.5fr 1fr;gap:24px;padding:28px 48px 24px;margin-top:auto;align-items:stretch}
+.notes h3,.payment h3{font-size:10px;text-transform:uppercase;letter-spacing:.18em;margin:0 0 12px;color:var(--navy);font-weight:700;display:flex;align-items:center;gap:8px}
+.notes h3::before,.payment h3::before{content:"";width:14px;height:1.5px;background:var(--accent)}
+.notes ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:5px;font-size:11.5px;color:var(--ink-soft);line-height:1.5}
+.notes li{position:relative;padding-left:14px}
+.notes li::before{content:"";position:absolute;left:0;top:7px;width:5px;height:5px;background:var(--accent);transform:rotate(45deg)}
+.notes strong{color:var(--ink);font-weight:700}
+.note-extra{margin-top:10px;padding:9px 11px;background:var(--paper-tint);border:1px dashed var(--line);border-radius:6px;font-size:11.5px;color:var(--ink);min-height:32px;line-height:1.5}
+.payment{background:var(--paper-tint);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px}
+.pay-line{display:flex;flex-direction:column;gap:10px;font-size:12.5px;color:var(--ink);font-weight:600}
+.pay-item{display:inline-flex;align-items:center;gap:9px;color:var(--navy)}
+.pay-item svg{color:var(--sky);flex-shrink:0;width:15px;height:15px}
+.doc-footer{position:relative;z-index:1;padding:18px 48px;border-top:1px solid var(--line-soft);display:flex;justify-content:space-between;align-items:center}
+.thanks{font-size:14px;color:var(--navy);font-weight:600;letter-spacing:-.005em;display:inline-flex;align-items:center;gap:8px}
+.thanks-logo{height:26px;width:auto;display:inline-block;vertical-align:middle}
+.footer-accent{width:60px;height:4px;background:linear-gradient(90deg,var(--navy),var(--sky),var(--accent));border-radius:2px}
+.print-btn{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);padding:10px 24px;background:var(--navy);color:white;border:none;border-radius:999px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 10px 30px -6px rgba(15,42,69,.3);font-family:inherit;display:inline-flex;align-items:center;gap:8px;z-index:100}
+@page{size:A4;margin:0}
+@media print{body{background:white;padding:0;display:block}.page{width:210mm;min-height:297mm;box-shadow:none;border-radius:0}.print-btn{display:none}}
+</style>
+</head>
+<body>
+<button class="print-btn" onclick="window.print()">🖨&nbsp; Guardar PDF</button>
+<div class="page">
+
+  <img class="watermark" src="${mascotaUrl}" alt="">
+
+  <!-- HEADER -->
+  <div class="doc-header">
+    <div class="solid-band"></div>
+    <div class="header-inner">
+      <div class="brand">
+        <img class="brand-mascot" src="${mascotaUrl}" alt="Pin&amp;Pon 3D">
+        <div class="brand-text">
+          <div class="wordmark">Pin<span class="amp">&amp;</span>Pon<span class="badge-3d">3D</span></div>
+          <div class="tagline">Impresión 3D · Innovación · Calidad</div>
+        </div>
+      </div>
+      <div class="title-block">
+        <div class="eyebrow">Cotización oficial</div>
+        <h1 class="title">Cotización&nbsp;<span class="title-num">${ref}</span></h1>
+        <div class="meta-row">
+          <span class="meta-label">Fecha</span>
+          <span class="meta-value">${fechaHoy}</span>
+        </div>
+        <div class="title-rule"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DOC STRIP -->
+  <div class="doc-strip">
+    <div class="strip-field">
+      <div class="strip-label">Cliente</div>
+      <div class="strip-value strip-name">${escHtml(clienteNombre || '—')}</div>
+    </div>
+    <div class="strip-field">
+      <div class="strip-label">Referencia</div>
+      <div class="strip-value"><span class="hash">#</span>${ref}</div>
+    </div>
+    <div class="strip-field">
+      <div class="strip-label">Total de ítems</div>
+      <div class="strip-value">${items.length} pieza${items.length !== 1 ? 's' : ''}</div>
+    </div>
+    <div class="strip-field">
+      <div class="strip-label">Vigencia</div>
+      <div class="strip-value strip-vigencia">${fechaHoy}&nbsp;</div>
+    </div>
+  </div>
+
+  <!-- DETAIL TABLE -->
+  <div class="detail">
+    <div class="section-head"><h2>Detalle de la cotización</h2></div>
+    <div class="table">
+      <div class="thead">
+        <div>Descripción</div>
+        <div class="col-qty">Cant.</div>
+        <div class="col-price">P. unitario</div>
+        <div class="col-total">Total</div>
+      </div>
+      ${rowsHtml}
+    </div>
+  </div>
+
+  <!-- SUMMARY -->
+  <div class="summary">
+    <div class="summary-card">
+      <div class="srow total-row"><span class="slabel">TOTAL GENERAL</span><span class="sval">₡&thinsp;${totalGeneral.toLocaleString('es-CR',{minimumFractionDigits:2,maximumFractionDigits:2})}</span></div>
+    </div>
+  </div>
+
+  <!-- NOTES + PAYMENT -->
+  <div class="notes-pay">
+    <div class="notes">
+      <h3>Condiciones</h3>
+      <ul>
+        <li>Esta cotización tiene validez de <strong>7 días</strong> a partir de la fecha de emisión.</li>
+        <li>El precio puede variar si cambian las características del modelo 3D.</li>
+        <li>El tiempo de entrega depende de la carga de trabajo y complejidad de la pieza.</li>
+        <li>Se puede solicitar un <strong>abono</strong> para iniciar el trabajo.</li>
+        <li>Los colores y acabados pueden variar según el material disponible.</li>
+      </ul>
+      ${emp.nota?`<div class="note-extra">${escHtml(emp.nota)}</div>`:''}
+    </div>
+    <div class="payment">
+      <h3>Pago</h3>
+      <div class="pay-line">
+        <div class="pay-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+          Total: <strong>₡&thinsp;${totalGeneral.toLocaleString('es-CR',{minimumFractionDigits:2,maximumFractionDigits:2})}</strong>
+        </div>
+        ${emp.tel?`<div class="pay-item" style="font-size:11.5px;color:var(--ink-soft);font-weight:500;margin-top:4px">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 8.81 19.79 19.79 0 012 2.12h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
+          ${escHtml(emp.tel)}</div>`:''}
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="doc-footer">
+    <div class="thanks">
+      ¡Gracias por confiar en&nbsp;<img class="thanks-logo" src="${nombreUrl}" alt="Pin&amp;Pon 3D">&nbsp;!
+    </div>
+    <div class="footer-accent"></div>
+  </div>
+
+</div>
+</body>
+</html>`);
+  win.document.close();
+  setTimeout(() => { try { win.print(); } catch(e){} }, 900);
+  toast(`PDF combinado generado (${items.length} ítems) ✓`, 'success');
+}
+
+/* ----------------------------------------------------------
    Cotizaciones — Nueva / Limpiar formulario
 ---------------------------------------------------------- */
 function nuevaCotizacion() {
@@ -203,25 +533,19 @@ function nuevaCotizacion() {
 /* ----------------------------------------------------------
    Modal de edición rápida de trabajo
 ---------------------------------------------------------- */
+/* Abre el modal de pago (solo campos de cobro — sin recálculo de precios) */
 function abrirModalEdicion(id) {
   const t = trabajos.find(t=>t.id===id); if(!t) return;
-  const sv = (k,v) => { const e=el(k); if(e) e.value = v ?? ''; };
-  sv('m_id',           id);
-  sv('m_pieza',        t.pieza);
-  sv('m_cliente',      t.cliente);
-  sv('m_categoria',    t.categoria || 'Funcional');
-  sv('m_material',     t.material  || '');
-  sv('m_gramos',       t.gramos    || 0);
-  sv('m_horas_imp',    t.horas_imp || 0);
-  sv('m_costo_total',  t.costo_total  || 0);
-  sv('m_precio_final', t.precio_final || 0);
-  sv('m_estado',       t.estado    || 'Cotizado');
-  sv('m_notas',        t.notas     || '');
-  sv('m_fecha_entrega',t.fechaEntrega || '');
-  // m_estadoPago es un span, no un input
-  const epEl = el('m_estadoPago'); if (epEl) epEl.textContent = t.estadoPago || 'Pendiente';
-  sv('m_monto_abonado',t.montoAbonado || 0);
-  sv('m_metodo_pago',  t.metodoPago   || '');
+  el('m_id').value           = id;
+  el('m_precio_final').value = t.precio_final || 0;
+  set('m_pieza_display',   t.pieza    || '—');
+  set('m_cliente_display', t.cliente  || '—');
+  set('m_precio_display',  fmt(t.precio_final || 0));
+  el('m_monto_abonado').value = t.montoAbonado || 0;
+  el('m_metodo_pago').value   = t.metodoPago   || '';
+  // Link "abrir en cotizador"
+  const linkEl = el('m_edit_link');
+  if (linkEl) linkEl.onclick = () => { cerrarModalEdicion(); editarEnCotizador(id); };
   calcularPendienteModal();
   el('modal-editar').style.display = 'flex';
 }
@@ -240,50 +564,145 @@ function calcularPendienteModal() {
   set('m_estadoPago', calcEstadoPago(precio, abono));
 }
 
+/* Guarda solo los campos de pago del modal simplificado */
 async function guardarModalEdicion() {
   const id = el('m_id')?.value; if(!id) return;
   const t  = trabajos.find(t=>t.id===id); if(!t) return;
 
-  const precioFinal  = parseFloat(el('m_precio_final')?.value)  || 0;
+  const precioFinal  = parseFloat(el('m_precio_final')?.value)  || t.precio_final || 0;
   const montoAbonado = parseFloat(el('m_monto_abonado')?.value) || 0;
 
   const updates = {
-    pieza:         el('m_pieza')?.value.trim()    || t.pieza,
-    cliente:       el('m_cliente')?.value.trim()  || t.cliente,
-    categoria:     el('m_categoria')?.value       || t.categoria,
-    material:      el('m_material')?.value.trim() || '',
-    gramos:        parseFloat(el('m_gramos')?.value)    || 0,
-    horas_imp:     parseFloat(el('m_horas_imp')?.value) || 0,
-    costo_total:   parseFloat(el('m_costo_total')?.value) || 0,
-    precio_final:  precioFinal,
-    estado:        el('m_estado')?.value     || 'Cotizado',
-    notas:         el('m_notas')?.value      || '',
-    fechaEntrega:  el('m_fecha_entrega')?.value || '',
-    estadoPago:    calcEstadoPago(precioFinal, montoAbonado),
+    estadoPago:     calcEstadoPago(precioFinal, montoAbonado),
     montoAbonado,
     montoPendiente: Math.max(0, precioFinal - montoAbonado),
-    metodoPago:    el('m_metodo_pago')?.value || 'Efectivo',
-    fechaActualizacionEstado: new Date().toISOString()
+    metodoPago:     el('m_metodo_pago')?.value || t.metodoPago || ''
   };
 
   Object.assign(t, updates);
   try { localStorage.setItem('trabajos3d', JSON.stringify(trabajos.map(t => { const {_desglose,...c}=t; return c; }))); } catch(e){}
+  cerrarModalEdicion();
+  renderTrabajos();
 
   try {
     await db.collection('cotizaciones').doc(String(id)).update(updates);
-    toast('Trabajo actualizado correctamente ✓', 'success');
+    toast('Pago actualizado ✓', 'success');
   } catch(e) {
-    console.error('Error al actualizar:', e);
-    toast('No se pudo actualizar el trabajo', 'error');
+    console.error('Error al actualizar pago:', e);
+    toast('No se pudo guardar en Firebase', 'error');
   }
+}
 
-  cerrarModalEdicion();
-  renderTrabajos();
+/* ─── EDITAR EN COTIZADOR ─── Carga todos los datos en el formulario de cálculo */
+function editarEnCotizador(id) {
+  const t = trabajos.find(t => t.id === id); if (!t) return;
+  editingId = id;
+
+  const sv = (k, v) => { const e = el(k); if (e) e.value = v ?? ''; };
+  sv('c_pieza',        t.pieza       || '');
+  sv('c_cliente',      t.cliente     || '');
+  sv('c_fecha',        t.fecha       || today());
+  sv('c_fecha_entrega',t.fechaEntrega|| '');
+  sv('c_material',     t.material    || '');
+  sv('c_cantidad',     t.cantidad    || 1);
+  sv('c_placas',       t.placas      || 1);
+  sv('c_notas',        t.notas       || '');
+  if (el('c_categoria')) el('c_categoria').value = t.categoria || 'Funcional';
+
+  sv('c_gramos',    t.gramos    || 0);
+  sv('c_horas_imp', t.horas_imp || 0);
+  sv('c_horas_mo',  t.horas_mo  || 0);
+  sv('c_horas_dis', t.horas_dis || 0);
+  sv('c_costo_dis', t.costo_dis || 0);
+  sv('c_postpro',   t.postpro   || 0);
+  sv('c_otros',     t.otros     || 0);
+  sv('c_fallos',    t.pFallos   ?? 5);
+  sv('c_margen',    t.pMargen   ?? 35);
+  sv('c_iva',       t.pIVA      ?? 0);
+  sv('c_monto_abonado', t.montoAbonado || 0);
+  if (el('c_metodo_pago')) el('c_metodo_pago').value = t.metodoPago || 'Efectivo';
+
+  el('edit-banner').style.display = 'flex';
+  set('edit-banner-text', `Editando: ${t.pieza || 'cotización'} · ${t.cliente || ''}`);
+
+  ocultarPostSave();
+  calcular();
+  navTo('cotizador');
 }
 
 /* Compatibilidad con botones antiguos que usan editarTrabajo */
-function editarTrabajo(id)  { abrirModalEdicion(id); }
+function editarTrabajo(id)  { editarEnCotizador(id); }
 function verTrabajo(id)     { abrirModalEdicion(id); }
+
+/* ─── POST-SAVE BANNER ─── Aparece tras guardar en el Cotizador */
+function mostrarPostGuardado(pieza, isEdit) {
+  const b = el('post-save-banner'); if (!b) return;
+  set('post-save-msg', isEdit ? '¡Cotización actualizada!' : '¡Trabajo guardado!');
+  set('post-save-sub', `"${pieza}" fue ${isEdit ? 'actualizada' : 'guardada'} correctamente.`);
+  b.style.display = 'flex';
+  clearTimeout(b._psTimer);
+  b._psTimer = setTimeout(ocultarPostSave, 10000);
+}
+
+function ocultarPostSave() {
+  const b = el('post-save-banner');
+  if (b) b.style.display = 'none';
+}
+
+/* ----------------------------------------------------------
+   Exportar CSV
+---------------------------------------------------------- */
+function exportarCSV() {
+  const search  = el('tr-search')?.value.toLowerCase()  || '';
+  const estadoF = el('tr-estado')?.value                || '';
+  const catF    = el('tr-categoria')?.value             || '';
+  const pagoF   = el('tr-pago')?.value                  || '';
+
+  const list = trabajos.filter(t => {
+    const matchSearch = !search  || (t.pieza||'').toLowerCase().includes(search)
+                                 || (t.cliente||'').toLowerCase().includes(search);
+    const matchEstado = !estadoF || t.estado    === estadoF;
+    const matchCat    = !catF    || t.categoria === catF;
+    const matchPago   = !pagoF   || (t.estadoPago||'Pendiente') === pagoF;
+    return matchSearch && matchEstado && matchCat && matchPago;
+  });
+
+  if (!list.length) { toast('No hay trabajos para exportar', 'error'); return; }
+
+  const csvQ = s => `"${String(s||'').replace(/"/g,'""')}"`;
+  const heads = ['ID','Fecha','Cliente','Pieza','Categoría','Material',
+                 'Gramos','Horas','Costo Total','Precio Final','Gan/Objeto',
+                 'Estado','Estado Pago','Monto Abonado','Monto Pendiente',
+                 'Fecha Entrega','Notas'];
+  const rows = list.map(t => {
+    const ganObj = t.ganancia_por_objeto != null
+      ? t.ganancia_por_objeto
+      : ((t.precio_final||0) - (t.costo_total||0)) / Math.max(t.cantidad||1,1);
+    const pendiente = t.montoPendiente != null
+      ? t.montoPendiente
+      : Math.max(0,(t.precio_final||0)-(t.montoAbonado||0));
+    return [
+      t.id, t.fecha||'', csvQ(t.cliente), csvQ(t.pieza), t.categoria||'',
+      csvQ(t.material), (t.gramos||0).toFixed(1), (t.horas_imp||0).toFixed(1),
+      (t.costo_total||0).toFixed(0), (t.precio_final||0).toFixed(0), ganObj.toFixed(0),
+      t.estado||'Cotizado', t.estadoPago||'Pendiente',
+      (t.montoAbonado||0).toFixed(0), pendiente.toFixed(0),
+      t.fechaEntrega||'', csvQ(t.notas)
+    ].join(',');
+  });
+
+  const csv  = [heads.join(','), ...rows].join('\n');
+  const blob = new Blob(['﻿'+csv], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `trabajos-${new Date().toISOString().split('T')[0]}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast(`CSV exportado (${list.length} trabajos)`, 'success');
+}
 
 /* ----------------------------------------------------------
    WhatsApp — generador de mensajes
@@ -500,6 +919,144 @@ async function eliminarCliente(id) {
 }
 
 /* ----------------------------------------------------------
+   Venta al Detalle
+---------------------------------------------------------- */
+
+async function cargarVentaDetalle() {
+  try {
+    // Siempre recargar desde Firestore para tener datos frescos
+    trabajos = await fbCargarTrabajos();
+    try { localStorage.setItem('trabajos3d', JSON.stringify(trabajos)); } catch(e){}
+
+    // Incluir tanto los que tienen ventaDetalle:true como los que
+    // tienen categoria "Venta al Detalle" (registros creados antes del flag)
+    const esLote = t => t.ventaDetalle === true || t.categoria === 'Venta al Detalle';
+    const lotes  = trabajos.filter(esLote);
+
+    // Auto-corregir agotados: los que tienen todas las unidades vendidas
+    // y todavía no están marcados como Entregado + Pagado
+    const agotados = lotes.filter(l =>
+      (l.unidadesVendidas || 0) >= Math.max(l.cantidad || 1, 1) &&
+      (l.estado !== 'Entregado' || l.estadoPago !== 'Pagado')
+    );
+
+    if (agotados.length) {
+      for (const l of agotados) {
+        const fix = {
+          ventaDetalle:    true,
+          estado:          'Entregado',
+          estadoPago:      'Pagado',
+          montoAbonado:    l.precio_final || 0,
+          montoPendiente:  0,
+          fechaActualizacionEstado: new Date().toISOString()
+        };
+        try {
+          await db.collection('cotizaciones').doc(String(l.id)).update(fix);
+          Object.assign(l, fix);
+        } catch(e) { console.error('Fix agotado:', l.id, e); }
+      }
+      toast(`${agotados.length} lote${agotados.length > 1 ? 's' : ''} agotado${agotados.length > 1 ? 's' : ''} actualizado${agotados.length > 1 ? 's' : ''} ✓`, 'success');
+    }
+
+    renderVentaDetalle(lotes);
+  } catch(e) {
+    console.error(e);
+    toast('Error al cargar ventas al detalle', 'error');
+  }
+}
+
+function abrirModalVenta(id) {
+  const t = trabajos.find(t => t.id === id);
+  if (!t) return;
+  const disponibles = Math.max((t.cantidad || 1) - (t.unidadesVendidas || 0), 0);
+  if (disponibles <= 0) { toast('No hay unidades disponibles', 'error'); return; }
+  const mv = el('modal-venta');
+  if (!mv) return;
+  el('mv-id').value           = id;
+  el('mv-pieza-lbl').textContent = t.pieza || '—';
+  el('mv-disp-num').textContent  = disponibles;
+  el('mv-cantidad').value     = 1;
+  el('mv-cantidad').max       = disponibles;
+  el('mv-nota').value         = '';
+  mv.style.display = 'flex';
+}
+
+function cerrarModalVenta() {
+  const mv = el('modal-venta');
+  if (mv) mv.style.display = 'none';
+}
+
+async function guardarVenta() {
+  const id       = el('mv-id')?.value;
+  const cantidad = parseInt(el('mv-cantidad')?.value) || 1;
+  const nota     = el('mv-nota')?.value?.trim() || '';
+  const t        = trabajos.find(t => t.id === id);
+  if (!t) return;
+  const disponibles = Math.max((t.cantidad || 1) - (t.unidadesVendidas || 0), 0);
+  if (cantidad < 1 || cantidad > disponibles) {
+    toast(`Cantidad inválida. Disponibles: ${disponibles}`, 'error'); return;
+  }
+
+  // Actualización optimista local
+  const idx    = trabajos.findIndex(t => t.id === id);
+  const entrada = { fecha: new Date().toISOString(), cantidad, nota };
+  if (idx >= 0) {
+    trabajos[idx].unidadesVendidas = (trabajos[idx].unidadesVendidas || 0) + cantidad;
+    trabajos[idx].historialVentas  = [...(trabajos[idx].historialVentas || []), entrada];
+  }
+
+  // ¿Se agotó el lote con esta venta?
+  const totalUnidades   = t.cantidad || 1;
+  const totalVendidas   = trabajos[idx]?.unidadesVendidas || 0;
+  const ahoraAgotado    = totalVendidas >= totalUnidades;
+
+  if (ahoraAgotado && idx >= 0) {
+    trabajos[idx].estado         = 'Entregado';
+    trabajos[idx].estadoPago     = 'Pagado';
+    trabajos[idx].montoAbonado   = trabajos[idx].precio_final || 0;
+    trabajos[idx].montoPendiente = 0;
+    trabajos[idx].fechaActualizacionEstado = new Date().toISOString();
+  }
+
+  cerrarModalVenta();
+  renderVentaDetalle(trabajos.filter(t => t.ventaDetalle === true));
+
+  try {
+    await fbRegistrarVenta(id, cantidad, nota);
+
+    if (ahoraAgotado) {
+      // Marcar Entregado + Pagado en Firestore
+      await db.collection('cotizaciones').doc(String(id)).update({
+        estado:          'Entregado',
+        estadoPago:      'Pagado',
+        montoAbonado:    t.precio_final || 0,
+        montoPendiente:  0,
+        fechaActualizacionEstado: new Date().toISOString()
+      });
+      toast('Lote agotado — Entregado y Pagado ✓', 'success');
+    } else {
+      const u = cantidad === 1 ? '1 unidad vendida' : `${cantidad} unidades vendidas`;
+      toast(`${u} ✓`, 'success');
+    }
+  } catch(e) {
+    console.error(e);
+    toast('Error al registrar la venta', 'error');
+    // Revertir local
+    if (idx >= 0) {
+      trabajos[idx].unidadesVendidas -= cantidad;
+      trabajos[idx].historialVentas.pop();
+      if (ahoraAgotado) {
+        trabajos[idx].estado         = t.estado         || 'Cotizado';
+        trabajos[idx].estadoPago     = t.estadoPago     || 'Pendiente';
+        trabajos[idx].montoAbonado   = t.montoAbonado   || 0;
+        trabajos[idx].montoPendiente = t.montoPendiente || t.precio_final || 0;
+      }
+    }
+    renderVentaDetalle(trabajos.filter(t => t.ventaDetalle === true));
+  }
+}
+
+/* ----------------------------------------------------------
    Dashboard
 ---------------------------------------------------------- */
 async function cargarDashboard() {
@@ -588,153 +1145,509 @@ function generarPDF() {
   if (!pieza||!cliente) { toast('Complete pieza y cliente','error'); return; }
   const desglose = calcular();
   generarPDFData({
-    id:           editingId || 'BORRADOR',
+    id:             editingId || 'BORRADOR',
     pieza, cliente,
-    fecha:        el('c_fecha').value,
-    fechaEntrega: el('c_fecha_entrega')?.value || '',
-    cantidad:     fv('c_cantidad'),
-    placas:       fv('c_placas'),
-    categoria:    el('c_categoria').value,
-    material:     el('c_material')?.value || '',
-    notas:        el('c_notas').value,
-    gramos:       fv('c_gramos'),
-    horas_imp:    fv('c_horas_imp'),
-    pIVA:         fv('c_iva'),
-    costo_total:  desglose.costoTotalPlacas,
-    precio_final: desglose.precioTotal,
-    precio_unitario: desglose.precioRedondeado,
-    _desglose:    desglose
+    fecha:          el('c_fecha').value,
+    fechaEntrega:   el('c_fecha_entrega')?.value || '',
+    cantidad:       fv('c_cantidad'),
+    placas:         fv('c_placas'),
+    categoria:      el('c_categoria').value,
+    material:       el('c_material')?.value || '',
+    notas:          el('c_notas').value,
+    gramos:         fv('c_gramos'),
+    horas_imp:      fv('c_horas_imp'),
+    pIVA:           fv('c_iva'),
+    costo_total:    desglose.costoTotalPlacas,
+    precio_final:   desglose.precioTotal,
+    precio_unitario:desglose.precioRedondeado,
+    metodoPago:     el('c_metodo_pago')?.value || '',
+    montoAbonado:   fv('c_monto_abonado'),
+    _desglose:      desglose
   });
 }
 
 function generarPDFData(t) {
-  const emp          = getEmpresa();
-  const d            = t._desglose || {};
-  const pIVA         = t.pIVA || 0;
-  const antesIVA     = d.antesIVA    || t.precio_final || 0;
-  const ivaVal       = d.ivaVal      || 0;
-  const precioFinal  = t.precio_final || 0;
-  const ref          = String(t.id).toUpperCase().slice(0,10);
-  const cantidad     = Math.max(t.cantidad||1,1);
-  const placas       = Math.max(t.placas||1,1);
-  const precioUnit   = t.precio_unitario || (Math.round((precioFinal/cantidad)/100)*100);
-  const win = window.open('','_blank');
-  if (!win) { toast('Permita ventanas emergentes','error'); return; }
+  const emp         = getEmpresa();
+  const d           = t._desglose || {};
+  const pIVA        = t.pIVA || 0;
+  const antesIVA    = d.antesIVA   || t.precio_final || 0;
+  const ivaVal      = d.ivaVal     || 0;
+  const precioFinal = t.precio_final || 0;
+  const ref         = String(t.id).toUpperCase().slice(0,10);
+  const cantidad    = Math.max(t.cantidad||1,1);
+  const placas      = Math.max(t.placas||1,1);
+  const precioUnit  = t.precio_unitario || (precioFinal / cantidad);
+  const abono       = Number(t.montoAbonado) || 0;
+  const pendiente   = Math.max(precioFinal - abono, 0);
+  const metodo      = t.metodoPago || '';
 
-  win.document.write(`<!DOCTYPE html>
-<html lang="es"><head><meta charset="UTF-8">
-<title>Cotización — ${escHtml(t.pieza||'')} — ${escHtml(t.cliente||'')}</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  const base       = new URL('.', window.location.href).href;
+  const mascotaUrl = base + 'img/Mascota-PNG.png';
+  const nombreUrl  = base + 'img/Nombre-PNG.png';
+
+  // Nombre de archivo y fecha de vigencia
+  const nombreArchivo = `Cotizacion - ${t.cliente||'Cliente'}`;
+  const vigenciaDate  = t.fecha ? new Date(t.fecha + 'T12:00:00') : new Date();
+  vigenciaDate.setDate(vigenciaDate.getDate() + 7);
+  const vigencia = vigenciaDate.toLocaleDateString('es-CR', { day:'numeric', month:'short', year:'numeric' });
+  const hoyStr   = new Date().toISOString().split('T')[0];
+
+  const htmlContent = `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>${escHtml(nombreArchivo)}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,700&display=swap" rel="stylesheet"/>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Inter',sans-serif;font-size:13px;color:#1a1a2e;background:#fff}
-.page{max-width:780px;margin:0 auto;padding:40px 48px;min-height:100vh;display:flex;flex-direction:column}
-.header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:32px;padding-bottom:20px;border-bottom:2px solid #ede9fe}
-.brand-name{font-size:1.4rem;font-weight:700;color:#7c3aed}
-.brand-sub{font-size:.75rem;color:#6b7280;margin-top:2px}
-.doc-type h1{font-size:1.5rem;font-weight:700;color:#111827;text-transform:uppercase;letter-spacing:.04em;text-align:right}
-.ref{font-size:.78rem;color:#6b7280;font-family:monospace;text-align:right}
-.meta{display:flex;gap:22px;flex-wrap:wrap;margin-bottom:22px;background:#f8f9fc;border-radius:10px;padding:14px 18px}
-.meta-block{display:flex;flex-direction:column;gap:3px}
-.meta-label{font-size:.63rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#9ca3af}
-.meta-value{font-size:.84rem;font-weight:600;color:#111827}
-table{width:100%;border-collapse:collapse;margin-bottom:18px}
-thead{background:#7c3aed}
-thead th{padding:9px 12px;text-align:left;color:#fff;font-size:.72rem;font-weight:600;text-transform:uppercase}
-tbody tr:nth-child(even){background:#f9f9fd}
-tbody td{padding:9px 12px;border-bottom:1px solid #e5e7eb;font-size:.8rem}
-.badge-cat{display:inline-flex;padding:2px 8px;background:#ede9fe;color:#7c3aed;border-radius:20px;font-size:.65rem;font-weight:600}
-.td-mono{font-family:monospace}
-.totals-wrap{display:flex;justify-content:flex-end;margin-bottom:22px}
-.totals{width:280px;background:#f8f9fc;border-radius:10px;overflow:hidden;border:1px solid #e5e7eb}
-.totals-row{display:flex;justify-content:space-between;padding:7px 14px;font-size:.8rem;color:#374151}
-.totals-row.iva{color:#d97706;font-size:.76rem}
-.totals-row.hi{background:#ede9fe;font-weight:600;color:#7c3aed}
-.totals-row.final{background:#7c3aed;color:#fff;padding:12px 14px;font-size:.92rem;font-weight:700}
-.totals-row .val{font-family:monospace;font-weight:600}
-.conds{background:#f0fdf4;border-left:3px solid #059669;border-radius:5px;padding:12px 16px;margin-bottom:18px;font-size:.76rem;color:#374151}
-.conds-title{font-size:.65rem;font-weight:700;text-transform:uppercase;color:#9ca3af;margin-bottom:6px}
-.conds ul{margin-left:14px} .conds li{margin-bottom:3px;line-height:1.5}
-.notes-box{background:#fff9e6;border-left:3px solid #d97706;border-radius:5px;padding:12px 16px;margin-bottom:18px;font-size:.78rem;color:#374151}
-.sig-block{text-align:center;width:200px;margin:24px 0 18px auto}
-.sig-line{border-top:1px solid #d1d5db;padding-top:8px;font-size:.7rem;color:#6b7280}
-footer{margin-top:auto;padding-top:16px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;font-size:.7rem;color:#9ca3af}
-.print-btn{position:fixed;top:16px;right:16px;padding:10px 20px;background:#7c3aed;color:#fff;border:none;border-radius:8px;font-size:.82rem;font-weight:600;cursor:pointer}
-@media print{.print-btn{display:none}@page{margin:0;size:A4}}
-</style></head><body>
-<button class="print-btn" onclick="window.print()">Imprimir / Guardar PDF</button>
+html,body{font-family:"Plus Jakarta Sans",system-ui,sans-serif;background:#EEF1F5;-webkit-font-smoothing:antialiased}
+body{min-height:100vh;padding:40px 20px 80px;display:flex;justify-content:center;align-items:flex-start}
+.page{width:794px;min-height:1123px;background:#fff;border-radius:6px;overflow:hidden;
+      box-shadow:0 20px 60px -16px rgba(15,42,69,.22),0 4px 16px rgba(15,42,69,.1);
+      display:flex;flex-direction:column}
+/* ── HEADER ── */
+.header{background:linear-gradient(130deg,#0F2A45 0%,#16395A 45%,#235A8C 100%);
+        position:relative;overflow:hidden;padding:32px 48px;
+        display:flex;justify-content:space-between;align-items:center}
+.header::before{content:"";position:absolute;right:140px;top:-50px;
+  width:220px;height:220px;background:rgba(255,255,255,.04);
+  clip-path:polygon(50% 0%,100% 100%,0% 100%)}
+.header::after{content:"";position:absolute;right:40px;top:-20px;
+  width:180px;height:180px;background:rgba(255,255,255,.055);
+  clip-path:polygon(0 0,100% 0,100% 100%)}
+.brand{display:flex;align-items:center;gap:14px;z-index:1}
+.brand-mascot{width:54px;height:auto;filter:drop-shadow(0 4px 12px rgba(0,0,0,.25))}
+.brand-text{display:flex;flex-direction:column;gap:4px}
+.brand-name{font-size:26px;font-weight:800;color:#fff;line-height:1;letter-spacing:-.02em}
+.brand-name .amp{color:#F2C61F;font-style:italic}
+.badge-3d{display:inline-block;background:#4A8FCB;color:#fff;font-size:10px;font-weight:700;
+           padding:2px 6px;border-radius:4px;margin-left:5px;letter-spacing:.05em;vertical-align:middle}
+.brand-sub{font-size:10px;letter-spacing:.18em;text-transform:uppercase;
+            color:rgba(255,255,255,.55);font-weight:600}
+.title-block{text-align:right;z-index:1}
+.title-eyebrow{font-size:10px;font-weight:700;letter-spacing:.24em;text-transform:uppercase;color:#F2C61F}
+.title-main{font-size:26px;font-weight:800;color:#fff;line-height:1.1;margin-top:4px;letter-spacing:-.01em}
+.title-rule{width:40px;height:2px;background:#F2C61F;margin:8px 0 0 auto;border-radius:1px}
+/* ── CLIENT BAR ── */
+.client-bar{background:#F8FAFB;border-bottom:1px solid #E0EAF4;padding:16px 48px;
+            display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:0}
+.cb-field{display:flex;flex-direction:column;gap:3px;padding-right:20px}
+.cb-field+.cb-field{border-left:1px solid #DEE9F3;padding-left:20px;padding-right:0}
+.cb-label{font-size:8.5px;text-transform:uppercase;letter-spacing:.2em;color:#8CAFD2;font-weight:700}
+.cb-value{font-size:14px;font-weight:700;color:#133658;line-height:1.2}
+.cb-tag{display:inline-block;background:#F2C61F;color:#133658;font-size:8.5px;font-weight:700;
+         padding:2px 7px;border-radius:4px;letter-spacing:.06em;margin-top:3px;width:fit-content}
+/* ── BODY ── */
+.body{padding:28px 48px 8px;flex:1;display:flex;flex-direction:column}
+.sec-label{font-size:10.5px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;
+            color:#133658;display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.sec-label::before{content:"";width:18px;height:2px;background:#F2C61F;border-radius:1px;flex-shrink:0}
+/* ── TABLE ── */
+.tbl{width:100%;border-collapse:collapse}
+.tbl thead tr{border-top:2px solid #16395A;border-bottom:1.5px solid #16395A}
+.tbl thead th{font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;
+               color:#16395A;padding:10px 12px;text-align:left}
+.tbl thead th:not(:first-child){text-align:right}
+.tbl tbody tr{border-bottom:1px solid #F0F5FB}
+.tbl tbody td{padding:12px 12px;font-size:13px;color:#1A2433;vertical-align:top}
+.tbl tbody td:not(:first-child){text-align:right;font-variant-numeric:tabular-nums}
+.item-name{font-weight:600;color:#133658}
+.item-sub{font-size:11px;color:#8CAFD2;margin-top:2px}
+/* ── SUMMARY ── */
+.summary{display:flex;justify-content:flex-end;padding:12px 0 16px}
+.sum-card{width:280px}
+.sum-row{display:flex;justify-content:space-between;align-items:baseline;
+          padding:7px 0;font-size:12.5px;border-bottom:1px solid #F0F5FB}
+.sum-label{color:#5B6A7E}
+.sum-val{font-weight:600;font-variant-numeric:tabular-nums}
+.sum-total{background:#16395A;color:#fff;padding:14px 18px;border-radius:8px;
+            display:flex;justify-content:space-between;align-items:center;
+            margin-top:8px;position:relative;overflow:hidden;
+            box-shadow:0 6px 16px -8px rgba(15,42,69,.5)}
+.sum-total::before{content:"";position:absolute;left:0;top:0;bottom:0;
+                    width:4px;background:#F2C61F}
+.sum-total-label{font-size:10.5px;font-weight:700;text-transform:uppercase;
+                  letter-spacing:.2em;color:rgba(255,255,255,.8);padding-left:6px}
+.sum-total-val{font-size:24px;font-weight:800;letter-spacing:-.02em}
+/* ── FOOTER GRID ── */
+.footer-grid{display:grid;grid-template-columns:1.5fr 1fr;gap:24px;
+              padding:16px 0 0;margin-top:auto}
+.fnotes ul{list-style:none;display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.fnotes li{font-size:11.5px;color:#5B6A7E;padding-left:14px;position:relative;line-height:1.5}
+.fnotes li::before{content:"";position:absolute;left:0;top:6px;
+                    width:5px;height:5px;background:#F2C61F;border-radius:50%}
+.fnotes li strong{color:#1A2433}
+.note-box{background:#F8FAFB;border:1px dashed #DDE6F0;border-radius:6px;
+           padding:9px 12px;font-size:11px;color:#1A2433;margin-top:10px;line-height:1.5}
+/* ── PAYMENT METHODS ── */
+.pay-card{background:#F8FAFB;border:1px solid #E0EAF4;border-radius:10px;padding:14px 16px}
+.pay-item{display:flex;align-items:center;gap:10px;font-size:12.5px;
+           color:#133658;font-weight:500;padding:6px 0}
+.pay-item+.pay-item{border-top:1px solid #EEF3F8}
+.pay-icon{width:28px;height:28px;border-radius:6px;background:#E8F0F8;
+           display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.pay-icon svg{width:14px;height:14px;stroke:#16395A}
+.pay-selected{font-weight:700;color:#059669}
+.pay-selected .pay-icon{background:#D1FAE5}
+.pay-selected .pay-icon svg{stroke:#059669}
+/* ── DOC FOOTER ── */
+.doc-footer{padding:16px 48px;border-top:1px solid #EEF3F8;
+             display:flex;justify-content:space-between;align-items:center}
+.thanks{font-size:13.5px;font-weight:600;color:#133658;
+         display:flex;align-items:center;gap:8px}
+.thanks-logo{height:24px;width:auto}
+.footer-rule{width:48px;height:3px;
+              background:linear-gradient(90deg,#16395A,#4A8FCB,#F2C61F);border-radius:2px}
+/* ── PRINT BUTTON ── */
+.print-btn{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+            background:#16395A;color:#fff;border:none;border-radius:99px;
+            padding:10px 24px;font-size:13px;font-weight:600;cursor:pointer;
+            box-shadow:0 10px 30px rgba(15,42,69,.3);font-family:inherit;
+            display:inline-flex;align-items:center;gap:8px;z-index:100}
+@page{size:letter;margin:0}
+*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}
+@media print{body{background:#fff;padding:0;display:block}
+  .page{width:215.9mm;min-height:279.4mm;box-shadow:none;border-radius:0}
+  .print-btn{display:none}}
+</style>
+</head>
+<body>
+<button class="print-btn" onclick="window.print()">🖨&nbsp; Imprimir / PDF</button>
 <div class="page">
+
+  <!-- HEADER -->
   <div class="header">
-    <div>
-      <div class="brand-name">${escHtml(emp.nombre)}</div>
-      ${emp.cedula?`<div class="brand-sub">Cédula: ${escHtml(emp.cedula)}</div>`:''}
-      ${emp.web   ?`<div class="brand-sub">🌐 ${escHtml(emp.web)}</div>`:''}
-      ${emp.email ?`<div class="brand-sub">✉ ${escHtml(emp.email)}</div>`:''}
-      ${emp.tel   ?`<div class="brand-sub">📞 ${escHtml(emp.tel)}</div>`:''}
+    <div class="brand">
+      <img class="brand-mascot" src="${mascotaUrl}" alt="Pin&amp;Pon 3D">
+      <div class="brand-text">
+        <div class="brand-name">Pin<span class="amp">&amp;</span>Pon<span class="badge-3d">3D</span></div>
+        <div class="brand-sub">Impresión 3D · Costa Rica</div>
+      </div>
     </div>
-    <div>
-      <div class="doc-type"><h1>Cotización</h1></div>
-      <div class="ref">REF: ${ref}</div>
-      <div class="ref">Fecha: ${t.fecha||'—'}</div>
-      ${t.fechaEntrega?`<div class="ref">Entrega estimada: ${t.fechaEntrega}</div>`:''}
+    <div class="title-block">
+      <div class="title-eyebrow">Cotización oficial</div>
+      <div class="title-main">${escHtml(t.categoria || 'Impresión 3D')}</div>
+      <div class="title-rule"></div>
     </div>
   </div>
-  <div class="meta">
-    <div class="meta-block"><div class="meta-label">Cliente</div><div class="meta-value">${escHtml(t.cliente||'—')}</div></div>
-    <div class="meta-block"><div class="meta-label">Pieza</div><div class="meta-value">${escHtml(t.pieza||'—')}</div></div>
-    <div class="meta-block"><div class="meta-label">Material</div><div class="meta-value">${escHtml(t.material||'—')}</div></div>
-    <div class="meta-block"><div class="meta-label">Cantidad</div><div class="meta-value">${cantidad} obj · ${placas} placa${placas!==1?'s':''}</div></div>
-    <div class="meta-block"><div class="meta-label">Estado</div><div class="meta-value">${escHtml(t.estado||'Cotizado')}</div></div>
-  </div>
-  <table>
-    <thead><tr><th>Descripción</th><th>Gramos</th><th>Horas imp.</th><th>Cant.</th><th>Precio unitario</th><th>Total</th></tr></thead>
-    <tbody><tr>
-      <td><strong>${escHtml(t.pieza||'—')}</strong><br>
-        <span class="badge-cat">${escHtml(t.categoria||'—')}</span>
-        ${t.notas?`<br><span style="color:#6b7280;font-size:.7rem;font-style:italic">${escHtml(t.notas)}</span>`:''}
-      </td>
-      <td class="td-mono">${(t.gramos||0).toFixed(1)}g</td>
-      <td class="td-mono">${(t.horas_imp||0).toFixed(1)}h</td>
-      <td class="td-mono">${cantidad}</td>
-      <td class="td-mono"><strong>₡${precioUnit.toLocaleString('es-CR')}</strong></td>
-      <td class="td-mono">₡${precioFinal.toLocaleString('es-CR')}</td>
-    </tr></tbody>
-  </table>
-  <div class="totals-wrap"><div class="totals">
-    <div class="totals-row"><span>Costo de producción</span><span class="val">₡${(t.costo_total||0).toLocaleString('es-CR')}</span></div>
-    <div class="totals-row"><span>Precio antes de IVA</span><span class="val">₡${antesIVA.toLocaleString('es-CR')}</span></div>
-    ${pIVA>0?`<div class="totals-row iva"><span>IVA (${pIVA}%)</span><span class="val">₡${ivaVal.toLocaleString('es-CR')}</span></div>`:''}
-    <div class="totals-row hi"><span>Precio por objeto</span><span class="val">₡${precioUnit.toLocaleString('es-CR')}</span></div>
-    <div class="totals-row final"><span>PRECIO TOTAL</span><span class="val">₡${precioFinal.toLocaleString('es-CR')}</span></div>
-  </div></div>
-  ${t.notas?`<div class="notes-box"><div class="conds-title">Notas del trabajo</div>${escHtml(t.notas)}</div>`:''}
-  <div class="conds">
-    <div class="conds-title">Condiciones de la cotización</div>
-    <ul>
-      <li>La cotización puede variar si cambian las características del modelo.</li>
-      <li>El tiempo de entrega depende de la carga de trabajo y complejidad de la pieza.</li>
-      <li>Se puede solicitar un abono para iniciar el trabajo.</li>
-      <li>Los colores y acabados pueden variar ligeramente según el material disponible.</li>
-    </ul>
-  </div>
-  ${emp.nota?`<div class="notes-box"><div class="conds-title">Nota adicional</div>${escHtml(emp.nota)}</div>`:''}
-  <div class="sig-block"><div style="height:40px"></div><div class="sig-line">Firma autorizada</div></div>
-  <footer>
-    <div style="display:flex;gap:14px;flex-wrap:wrap">
-      ${emp.tel  ?`<span>📞 ${escHtml(emp.tel)}</span>`:''}
-      ${emp.email?`<span>✉ ${escHtml(emp.email)}</span>`:''}
-      ${emp.web  ?`<span>🌐 ${escHtml(emp.web)}</span>`:''}
+
+  <!-- CLIENT BAR -->
+  <div class="client-bar">
+    <div class="cb-field">
+      <div class="cb-label">Cliente</div>
+      <div class="cb-value">${escHtml(t.cliente || 'Nombre del cliente')}</div>
     </div>
-    <div>Generado con Cotizador 3D CR · ${new Date().toLocaleDateString('es-CR')}</div>
-  </footer>
-</div></body></html>`);
+    <div class="cb-field">
+      <div class="cb-label">Cotización</div>
+      <div class="cb-value">N.° ${ref}</div>
+    </div>
+    <div class="cb-field">
+      <div class="cb-label">Fecha</div>
+      <div class="cb-value">${t.fecha || hoyStr}</div>
+    </div>
+    <div class="cb-field">
+      <div class="cb-label">Vigencia</div>
+      <div class="cb-value">${vigencia}</div>
+      <span class="cb-tag">7 DÍAS</span>
+    </div>
+  </div>
+
+  <!-- BODY -->
+  <div class="body">
+    <div class="sec-label">Detalle</div>
+
+    <table class="tbl">
+      <thead>
+        <tr>
+          <th>Pieza / Producto</th>
+          <th>Cant.</th>
+          <th>Precio unitario</th>
+          <th>Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>
+            <div class="item-name">${escHtml(t.pieza || '—')}</div>
+            ${t.notas ? `<div class="item-sub" style="font-style:italic">${escHtml(t.notas)}</div>` : ''}
+          </td>
+          <td>${cantidad}</td>
+          <td>&#8353;&thinsp;${precioUnit.toLocaleString('es-CR',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
+          <td><strong>&#8353;&thinsp;${precioFinal.toLocaleString('es-CR',{minimumFractionDigits:2,maximumFractionDigits:2})}</strong></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- SUMMARY -->
+    <div class="summary">
+      <div class="sum-card">
+        ${pIVA > 0 ? `
+        <div class="sum-row"><span class="sum-label">Subtotal (sin IVA)</span><span class="sum-val">&#8353;&thinsp;${antesIVA.toLocaleString('es-CR',{minimumFractionDigits:2})}</span></div>
+        <div class="sum-row"><span class="sum-label">IVA (${pIVA}%)</span><span class="sum-val">&#8353;&thinsp;${ivaVal.toLocaleString('es-CR',{minimumFractionDigits:2})}</span></div>` : ''}
+        ${abono > 0 ? `
+        <div class="sum-row"><span class="sum-label">Abono recibido</span><span class="sum-val" style="color:#059669">&#8722; &#8353;&thinsp;${abono.toLocaleString('es-CR',{minimumFractionDigits:2})}</span></div>
+        <div class="sum-row"><span class="sum-label">Saldo pendiente</span><span class="sum-val">&#8353;&thinsp;${pendiente.toLocaleString('es-CR',{minimumFractionDigits:2})}</span></div>` : ''}
+        <div class="sum-total">
+          <span class="sum-total-label">Total final</span>
+          <span class="sum-total-val">&#8353;&thinsp;${precioFinal.toLocaleString('es-CR',{minimumFractionDigits:0})}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- NOTAS + PAGO -->
+    <div class="footer-grid">
+      <div class="fnotes">
+        <div class="sec-label">Notas</div>
+        <ul>
+          <li>La cotización tiene validez de <strong>7 días</strong> a partir de la fecha de emisión.</li>
+          <li>El precio puede variar si cambian las características del modelo 3D.</li>
+          <li>Para iniciar el trabajo se puede solicitar un <strong>abono del 50%</strong>.</li>
+          <li>El tiempo de entrega se confirma al aprobar la cotización.</li>
+          ${t.notas ? `<li>${escHtml(t.notas)}</li>` : ''}
+        </ul>
+        ${t.fechaEntrega ? `<div class="note-box">⏰ Entrega estimada: <strong>${escHtml(t.fechaEntrega)}</strong></div>` : ''}
+        ${emp.nota ? `<div class="note-box">${escHtml(emp.nota)}</div>` : ''}
+      </div>
+      <div>
+        <div class="sec-label">Método de pago</div>
+        <div class="pay-card">
+          <div class="pay-item">
+            <div class="pay-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg></div>
+            SINPEMóvil
+          </div>
+          <div class="pay-item">
+            <div class="pay-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></div>
+            Efectivo
+          </div>
+          <div class="pay-item">
+            <div class="pay-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></div>
+            Transferencia
+          </div>
+        </div>
+        ${emp.tel ? `<div style="font-size:11px;color:#8CAFD2;margin-top:10px;display:flex;align-items:center;gap:6px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 3.07 8.81A19.79 19.79 0 0 1 2 2.12h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L6.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>${escHtml(emp.tel)}</div>` : ''}
+      </div>
+    </div>
+  </div>
+
+  <!-- DOC FOOTER -->
+  <div class="doc-footer">
+    <img class="thanks-logo" src="${nombreUrl}" alt="Pin&amp;Pon 3D">
+    <div class="footer-rule"></div>
+  </div>
+
+</div>
+</body>
+</html>`;
+
+  const win = window.open('','_blank');
+  if (!win) { toast('Permita ventanas emergentes','error'); return; }
+  win.document.write(htmlContent);
   win.document.close();
-  toast('PDF generado correctamente ✓', 'success');
+  setTimeout(() => { try { win.print(); } catch(e){} }, 900);
+  toast('PDF generado ✓', 'success');
+
+  // Subir a Google Drive si está conectado
+  if (typeof _gDriveToken !== 'undefined' && _gDriveToken && _gDriveFolderId) {
+    const fname = `Cotizacion - ${(t.cliente||'Cliente').replace(/[<>:"/\\|?*]/g,'_')}.html`;
+    _gDriveSubirHTML(fname, htmlContent);
+  }
+}
+
+/* ----------------------------------------------------------
+   Google Drive — guardar cotizaciones en carpeta COTIZACIONES
+---------------------------------------------------------- */
+let _gDriveToken    = null;
+let _gDriveFolderId = null;
+
+/** Actualiza la UI del panel de Drive según estado de conexión. */
+function _gDriveActualizarUI(connected) {
+  const dot   = el('gdrive-dot');
+  const txt   = el('gdrive-status-text');
+  const bCon  = el('gdrive-btn-conectar');
+  const bDes  = el('gdrive-btn-desconectar');
+  const bTest = el('gdrive-btn-test');
+  if (dot)   dot.className   = 'status-dot ' + (connected ? 'connected' : '');
+  if (txt)   txt.textContent = connected
+    ? 'Conectado · carpeta COTIZACIONES lista'
+    : 'Sin conexión';
+  if (bCon)  bCon.style.display  = connected ? 'none' : '';
+  if (bDes)  bDes.style.display  = connected ? '' : 'none';
+  if (bTest) bTest.style.display = connected ? '' : 'none';
+}
+
+/** Sube un archivo de prueba a la carpeta COTIZACIONES para verificar la conexión. */
+async function probarDrive() {
+  if (!_gDriveToken || !_gDriveFolderId) {
+    toast('Drive no está conectado', 'error'); return;
+  }
+  const btn = el('gdrive-btn-test');
+  if (btn) { btn.disabled = true; btn.textContent = 'Subiendo…'; }
+  const ahora   = new Date().toLocaleString('es-CR');
+  const nombre  = `TEST-conexion-${new Date().toISOString().split('T')[0]}.html`;
+  const contenido = `<!DOCTYPE html>
+<html lang="es"><head><meta charset="UTF-8">
+<title>Prueba Drive — Pin&amp;Pon 3D</title>
+<style>
+  body{font-family:system-ui,sans-serif;background:#f0f5fc;display:flex;
+       align-items:center;justify-content:center;min-height:100vh;margin:0}
+  .card{background:#fff;border-radius:16px;padding:40px 48px;
+        box-shadow:0 8px 32px rgba(19,54,88,.12);text-align:center;max-width:400px}
+  h1{color:#133658;font-size:1.4rem;margin:0 0 8px}
+  p{color:#4e6882;font-size:.9rem;margin:4px 0}
+  .ok{display:inline-block;background:#d1fae5;color:#065f46;
+      border-radius:99px;padding:6px 18px;font-weight:700;margin-top:20px;font-size:1rem}
+</style></head>
+<body>
+  <div class="card">
+    <div style="font-size:2.5rem">✅</div>
+    <h1>¡Conexión exitosa!</h1>
+    <p>Google Drive conectado correctamente.</p>
+    <p>Carpeta: <strong>COTIZACIONES</strong></p>
+    <p style="margin-top:12px;font-size:.8rem;color:#8cafd2">Generado: ${ahora}</p>
+    <span class="ok">Pin&amp;Pon 3D · Cotizador</span>
+  </div>
+</body></html>`;
+  await _gDriveSubirHTML(nombre, contenido);
+  if (btn) { btn.disabled = false; btn.innerHTML = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg> Probar conexión'; }
+}
+
+/** Solicita autorización OAuth de Google Drive. */
+async function conectarGDrive() {
+  const cid = (el('cfg_gdrive_client_id')?.value?.trim()) || localStorage.getItem('gdrive_client_id');
+  if (!cid) { toast('Ingrese el Client ID de Google Cloud', 'error'); return; }
+  if (typeof google === 'undefined' || !google.accounts?.oauth2) {
+    toast('Google Identity Services no disponible. Verifique su conexión.', 'error');
+    return;
+  }
+  localStorage.setItem('gdrive_client_id', cid);
+  if (el('cfg_gdrive_client_id')) el('cfg_gdrive_client_id').value = cid;
+  google.accounts.oauth2.initTokenClient({
+    client_id: cid,
+    scope: 'https://www.googleapis.com/auth/drive.file',
+    callback: async (resp) => {
+      if (resp.error) { toast('Error al conectar Drive: ' + resp.error, 'error'); return; }
+      _gDriveToken = resp.access_token;
+      await _gDriveEnsureFolder();
+    }
+  }).requestAccessToken({ prompt: '' });
+}
+
+/** Revoca el token y limpia el estado. */
+function desconectarGDrive() {
+  if (_gDriveToken && typeof google !== 'undefined') {
+    try { google.accounts.oauth2.revoke(_gDriveToken, () => {}); } catch(e) {}
+  }
+  _gDriveToken = null; _gDriveFolderId = null;
+  _gDriveActualizarUI(false);
+  toast('Google Drive desconectado', 'info');
+}
+
+/** Busca o crea la carpeta COTIZACIONES en Drive. */
+async function _gDriveEnsureFolder() {
+  if (!_gDriveToken) return;
+  try {
+    const q = encodeURIComponent(
+      `name='COTIZACIONES' and mimeType='application/vnd.google-apps.folder' and trashed=false`
+    );
+    const r = await fetch(
+      `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)&pageSize=1`,
+      { headers: { Authorization: `Bearer ${_gDriveToken}` } }
+    );
+    const data = await r.json();
+    if (data.files?.length) {
+      _gDriveFolderId = data.files[0].id;
+      toast('Google Drive conectado · carpeta COTIZACIONES lista ✓', 'success');
+    } else {
+      const cr = await fetch('https://www.googleapis.com/drive/v3/files', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${_gDriveToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: 'COTIZACIONES', mimeType: 'application/vnd.google-apps.folder' })
+      });
+      const f = await cr.json();
+      if (!f.id) throw new Error('No se pudo crear la carpeta');
+      _gDriveFolderId = f.id;
+      toast('Google Drive conectado · carpeta COTIZACIONES creada ✓', 'success');
+    }
+    _gDriveActualizarUI(true);
+  } catch(e) {
+    console.error('Drive folder error:', e);
+    toast('Error al configurar carpeta en Drive: ' + e.message, 'error');
+    _gDriveToken = null;
+    _gDriveActualizarUI(false);
+  }
+}
+
+/** Sube un archivo HTML a la carpeta COTIZACIONES. */
+async function _gDriveSubirHTML(nombre, htmlStr) {
+  if (!_gDriveToken || !_gDriveFolderId) return;
+  try {
+    const meta = { name: nombre, mimeType: 'text/html', parents: [_gDriveFolderId] };
+    const form = new FormData();
+    form.append('metadata', new Blob([JSON.stringify(meta)], { type: 'application/json' }));
+    form.append('file',     new Blob([htmlStr],              { type: 'text/html;charset=utf-8' }));
+    const r = await fetch(
+      'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
+      { method: 'POST', headers: { Authorization: `Bearer ${_gDriveToken}` }, body: form }
+    );
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      if (err.error?.code === 401) {        // Token expirado
+        _gDriveToken = null;
+        _gDriveActualizarUI(false);
+        toast('Sesión de Drive expirada. Reconecte en Configuración → Integraciones.', 'error', 6000);
+        return;
+      }
+      throw new Error(err.error?.message || r.status);
+    }
+    toast(`📁 Guardado en Drive → COTIZACIONES/${nombre}`, 'success', 5000);
+  } catch(e) {
+    console.error('Drive upload error:', e);
+    toast('No se pudo guardar en Drive: ' + e.message, 'error');
+  }
 }
 
 /* ----------------------------------------------------------
    Inicialización básica (antes de autenticar)
 ---------------------------------------------------------- */
+/* ─── AUTOCOMPLETADO DE CLIENTES ─── */
+function initClienteAutocomplete() {
+  const input = el('c_cliente');
+  const list  = el('cs-suggest');
+  if (!input || !list) return;
+
+  const mostrar = () => {
+    const q = input.value.trim().toLowerCase();
+    if (!q || !clientes.length) { list.classList.remove('cs-open'); return; }
+
+    const matches = clientes
+      .filter(c => (c.nombre || '').toLowerCase().includes(q))
+      .slice(0, 7);
+
+    if (!matches.length) { list.classList.remove('cs-open'); return; }
+
+    list.innerHTML = matches.map(c => {
+      const meta = [c.telefono, c.correo].filter(Boolean).join(' · ');
+      return `<div class="cs-item" onmousedown="seleccionarCliente(${JSON.stringify(c.nombre)})">
+        <span class="cs-nombre">${escHtml(c.nombre || '')}</span>
+        ${meta ? `<span class="cs-meta">${escHtml(meta)}</span>` : ''}
+      </div>`;
+    }).join('');
+    list.classList.add('cs-open');
+  };
+
+  input.addEventListener('input', mostrar);
+  input.addEventListener('focus', mostrar);
+  input.addEventListener('blur', () => setTimeout(() => list.classList.remove('cs-open'), 160));
+}
+
+function seleccionarCliente(nombre) {
+  const input = el('c_cliente'); if (input) input.value = nombre;
+  const list  = el('cs-suggest'); if (list) list.classList.remove('cs-open');
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   const savedTheme = localStorage.getItem('theme');
   if (savedTheme) document.documentElement.setAttribute('data-theme', savedTheme);
@@ -744,6 +1657,14 @@ document.addEventListener('DOMContentLoaded', () => {
   cargarCfgLocal();
   calcCfg();
   calcular();
+  initClienteAutocomplete();
+  // Restaurar Client ID de Drive (predeterminado + localStorage)
+  const DEFAULT_GDRIVE_CID = '1087662880090-o7ammg0cc2sofe5r3hoq4ur5dcf11j6j.apps.googleusercontent.com';
+  const savedCid = localStorage.getItem('gdrive_client_id') || DEFAULT_GDRIVE_CID;
+  if (savedCid) {
+    localStorage.setItem('gdrive_client_id', savedCid);
+    if (el('cfg_gdrive_client_id')) el('cfg_gdrive_client_id').value = savedCid;
+  }
   // Cerrar modal con Escape
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') cerrarModalEdicion();
@@ -758,6 +1679,6 @@ function onAuthSuccess() {
   try { const l=localStorage.getItem('trabajos3d');   if(l) trabajos=JSON.parse(l);   } catch(e){}
   try { const l=localStorage.getItem('filamentos3d'); if(l) filamentos=JSON.parse(l); } catch(e){}
   try { const l=localStorage.getItem('clientes3d');   if(l) clientes=JSON.parse(l);  } catch(e){}
-  navTo('cotizador');
+  navTo('dashboard');
   cargarConfiguracion();
 }
