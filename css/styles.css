@@ -885,3 +885,99 @@ tbody td{padding:10px 14px;color:var(--text);vertical-align:middle}
 .mv-disp{font-size:.8rem;color:var(--text2)}
 .mv-disp strong{color:var(--accent);font-weight:700}
 
+/* =========================================================
+   SELECCIÓN MÚLTIPLE — Cotización combinada
+========================================================= */
+
+/* Columna de checkbox */
+.th-check, .td-check {
+  width: 38px;
+  min-width: 38px;
+  padding: 0 6px;
+  text-align: center;
+}
+.th-check input, .sel-check {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+  cursor: pointer;
+  border-radius: 4px;
+  display: block;
+  margin: 0 auto;
+}
+
+/* Fila seleccionada */
+.tr-selected {
+  background: var(--accent-soft) !important;
+}
+.tr-selected td {
+  border-color: rgba(26,96,166,.15);
+}
+
+/* Barra flotante de selección */
+.barra-seleccion {
+  position: fixed;
+  bottom: -90px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  background: var(--accent);
+  color: white;
+  padding: 13px 20px 13px 24px;
+  border-radius: 999px;
+  box-shadow: 0 10px 36px rgba(26,96,166,.45), 0 2px 8px rgba(0,0,0,.15);
+  transition: bottom .3s cubic-bezier(.34,1.56,.64,1);
+  z-index: 2000;
+  white-space: nowrap;
+}
+.barra-seleccion.barra-visible {
+  bottom: 28px;
+}
+.barra-sel-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  font-size: .875rem;
+}
+.barra-sel-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.btn-sel-pdf {
+  background: white;
+  color: var(--accent);
+  border: none;
+  border-radius: 999px;
+  padding: 8px 18px;
+  font-size: .8rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font);
+  transition: opacity .15s;
+  box-shadow: 0 2px 8px rgba(0,0,0,.12);
+}
+.btn-sel-pdf:hover { opacity: .88; }
+.btn-sel-clear {
+  background: rgba(255,255,255,.18);
+  color: white;
+  border: none;
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: .8rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--font);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: background .15s;
+}
+.btn-sel-clear:hover { background: rgba(255,255,255,.28); }
+

@@ -136,8 +136,10 @@ function renderTrabajos() {
     const fechaAct  = t.fechaActualizacionEstado
                     ? t.fechaActualizacionEstado.split('T')[0]
                     : (t.fecha || '—');
+    const checked   = (typeof seleccionados !== 'undefined' && seleccionados.has(t.id)) ? 'checked' : '';
 
-    return `<tr>
+    return `<tr class="${checked ? 'tr-selected' : ''}">
+      <td class="td-check"><input type="checkbox" class="sel-check" data-id="${t.id}" ${checked} onchange="toggleSeleccion('${t.id}', this)"></td>
       <td class="td-mono">${t.fecha||'—'}</td>
       <td>${escHtml(t.cliente||'')}</td>
       <td>
