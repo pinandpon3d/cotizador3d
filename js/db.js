@@ -181,3 +181,20 @@ async function fbEliminarCliente(id) {
 async function fbActualizarPago(id, pago) {
   await db.collection('cotizaciones').doc(String(id)).update(pago);
 }
+
+/* ----------------------------------------------------------
+   Venta al Detalle
+---------------------------------------------------------- */
+
+/** Registra una venta unitaria en el historial del lote. */
+async function fbRegistrarVenta(id, cantVendida, nota) {
+  const entrada = {
+    fecha:    new Date().toISOString(),
+    cantidad: cantVendida,
+    nota:     nota || ''
+  };
+  await db.collection('cotizaciones').doc(String(id)).update({
+    unidadesVendidas: firebase.firestore.FieldValue.increment(cantVendida),
+    historialVentas:  firebase.firestore.FieldValue.arrayUnion(entrada)
+  });
+}

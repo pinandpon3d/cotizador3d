@@ -1,43 +1,49 @@
 /* =========================================================
    CSS VARIABLES — Pin&Pon 3D Brand
+   Paleta extraída del logo oficial:
+     #133658 → navy oscuro (sombras del zorro)
+     #1a60a6 → azul primario (cuerpo principal)
+     #4185c6 → azul medio (zonas claras)
+     #b5d3f0 → azul claro (reflejos)
+     #f4c70f → dorado (patas y detalles)
 ========================================================= */
 :root {
-  --bg:#f0f4fa;--surface:#ffffff;--surface2:#f5f8ff;--surface3:#dbeafe;
-  --border:#e2e8f0;--border-strong:#cbd5e1;
-  /* Brand: azul primario + dorado */
-  --accent:#2563EB;--accent2:#1D4ED8;--accent-soft:rgba(37,99,235,.09);--accent-glow:rgba(37,99,235,.22);
-  --brand-gold:#EAB308;--brand-navy:#1E3A8A;
+  --bg:#f0f5fc;--surface:#ffffff;--surface2:#f4f8ff;--surface3:#dbeafe;
+  --border:#dde6f0;--border-strong:#c4d4e8;
+  /* Colores exactos del zorro */
+  --accent:#1a60a6;--accent2:#133658;--accent-soft:rgba(26,96,166,.09);--accent-glow:rgba(26,96,166,.22);
+  --brand-gold:#f4c70f;--brand-gold-dark:#d2ac09;--brand-navy:#133658;--brand-blue:#4185c6;--brand-light:#b5d3f0;
   --success:#059669;--success-soft:rgba(5,150,105,.1);
   --warn:#d97706;--danger:#dc2626;--danger-soft:rgba(220,38,38,.1);
-  --text:#0f172a;--text2:#64748b;--text3:#94a3b8;
+  --text:#0f1f33;--text2:#4e6882;--text3:#8cafd2;
   --input-bg:#ffffff;--radius:12px;--radius-sm:8px;--radius-xs:5px;
-  --shadow:0 1px 3px rgba(0,0,0,.07),0 1px 2px rgba(0,0,0,.04);
-  --shadow-md:0 4px 12px rgba(0,0,0,.08),0 2px 4px rgba(0,0,0,.04);
-  --shadow-accent:0 4px 14px rgba(37,99,235,.28);
+  --shadow:0 1px 3px rgba(19,54,88,.08),0 1px 2px rgba(19,54,88,.05);
+  --shadow-md:0 4px 16px rgba(19,54,88,.1),0 2px 4px rgba(19,54,88,.06);
+  --shadow-accent:0 4px 16px rgba(26,96,166,.3);
   --font:'Inter',-apple-system,sans-serif;--mono:'JetBrains Mono',monospace;
   --transition:all .16s ease;
-  --sb-bg:#ffffff;--sb-w:248px;--sb-border:#e2e8f0;
-  --sb-text:#64748b;--sb-text-hover:#0f172a;--sb-text-active:#2563EB;
-  --sb-hover:#EFF6FF;--sb-active:#DBEAFE;--sb-active-border:rgba(37,99,235,.2);--sb-active-bar:#2563EB;
-  --topbar-bg:#ffffff;--topbar-border:#e2e8f0;
+  --sb-bg:#ffffff;--sb-w:252px;--sb-border:#dde6f0;
+  --sb-text:#4e6882;--sb-text-hover:#0f1f33;--sb-text-active:#1a60a6;
+  --sb-hover:#eef5fc;--sb-active:#dbeafe;--sb-active-border:rgba(26,96,166,.2);--sb-active-bar:#1a60a6;
+  --topbar-bg:#ffffff;--topbar-border:#dde6f0;
 }
 [data-theme="dark"] {
-  --bg:#090e1a;--surface:#0d1526;--surface2:#121e35;--surface3:#1a2d4f;
-  --border:#1e2d45;--border-strong:#273d5e;
-  --accent:#3B82F6;--accent2:#2563EB;--accent-soft:rgba(59,130,246,.12);
-  --accent-glow:rgba(59,130,246,.22);
-  --brand-gold:#FCD34D;--brand-navy:#1E3A8A;
+  --bg:#07101e;--surface:#0c1828;--surface2:#101f32;--surface3:#162840;
+  --border:#1a2d42;--border-strong:#243d58;
+  --accent:#4185c6;--accent2:#1a60a6;--accent-soft:rgba(65,133,198,.12);
+  --accent-glow:rgba(65,133,198,.22);
+  --brand-gold:#f4c70f;--brand-gold-dark:#d2ac09;--brand-navy:#133658;--brand-blue:#4185c6;--brand-light:#b5d3f0;
   --success:#34d399;--success-soft:rgba(52,211,153,.12);
   --warn:#fbbf24;--danger:#f87171;--danger-soft:rgba(248,113,113,.12);
-  --text:#e2eaf8;--text2:#7f9cc0;--text3:#4a6688;--input-bg:#0a1220;
+  --text:#dceeff;--text2:#7fadd4;--text3:#3e6a94;--input-bg:#09121e;
   /* Sidebar navy oscuro — identidad Pin&Pon */
-  --sb-bg:#0c1628;--sb-border:rgba(59,130,246,.12);
-  --sb-text:rgba(190,215,255,.55);--sb-text-hover:#e2eaf8;--sb-text-active:#60A5FA;
-  --sb-hover:rgba(59,130,246,.08);--sb-active:rgba(59,130,246,.18);
-  --sb-active-border:rgba(59,130,246,.3);--sb-active-bar:#3B82F6;
-  --topbar-bg:#0d1526;--topbar-border:#1e2d45;
-  --shadow:0 1px 3px rgba(0,0,0,.4),0 1px 2px rgba(0,0,0,.25);
-  --shadow-md:0 4px 12px rgba(0,0,0,.5),0 2px 4px rgba(0,0,0,.3);
+  --sb-bg:#0a1525;--sb-border:rgba(65,133,198,.15);
+  --sb-text:rgba(181,211,240,.5);--sb-text-hover:#dceeff;--sb-text-active:#b5d3f0;
+  --sb-hover:rgba(65,133,198,.08);--sb-active:rgba(65,133,198,.18);
+  --sb-active-border:rgba(65,133,198,.3);--sb-active-bar:#4185c6;
+  --topbar-bg:#0c1828;--topbar-border:#1a2d42;
+  --shadow:0 1px 3px rgba(0,0,0,.5),0 1px 2px rgba(0,0,0,.3);
+  --shadow-md:0 4px 16px rgba(0,0,0,.5),0 2px 4px rgba(0,0,0,.3);
 }
 
 /* =========================================================
@@ -86,31 +92,26 @@ table{border-collapse:collapse;width:100%}
   align-items:center;
   gap:11px;
   border-bottom:1px solid var(--sb-border);
-  background:linear-gradient(135deg,rgba(37,99,235,.04) 0%,rgba(37,99,235,.01) 100%);
+  background:linear-gradient(135deg,rgba(26,96,166,.05) 0%,rgba(26,96,166,.01) 100%);
 }
 [data-theme="dark"] .logo{
-  background:linear-gradient(135deg,rgba(59,130,246,.07) 0%,rgba(59,130,246,.02) 100%);
+  background:linear-gradient(135deg,rgba(65,133,198,.08) 0%,rgba(65,133,198,.02) 100%);
 }
-/* Logo sidebar — imagen del zorro */
+/* Logo sidebar — mascota + nombre PNG */
 .logo-icon{
-  width:42px;height:42px;
+  width:46px;height:46px;
   display:flex;align-items:center;justify-content:center;
   flex-shrink:0;
-  background:transparent;
-  border-radius:0;
-  box-shadow:none;
+  background:transparent;border-radius:0;box-shadow:none;
 }
-.logo-icon img,.logo-icon svg{width:42px;height:42px;object-fit:contain;display:block}
-.logo-text{display:flex;flex-direction:column;line-height:1.18}
-.logo-text strong{
-  font-size:.96rem;font-weight:800;
-  color:var(--brand-navy);
-  letter-spacing:-.01em;
-}
-[data-theme="dark"] .logo-text strong{color:#7EC8FF}
+.logo-icon img{width:46px;height:46px;object-fit:contain;display:block}
+.logo-text{display:flex;flex-direction:column;gap:2px;line-height:1}
+/* Imagen del nombre en lugar de texto */
+.logo-brand-text{height:18px;width:auto;object-fit:contain;display:block}
+[data-theme="dark"] .logo-brand-text{filter:brightness(0) invert(1)}
 .logo-text span{
-  font-size:.64rem;color:var(--sb-text);font-weight:600;
-  text-transform:uppercase;letter-spacing:.06em;margin-top:1px;
+  font-size:.62rem;color:var(--sb-text);font-weight:600;
+  text-transform:uppercase;letter-spacing:.07em;
 }
 
 nav{padding:12px 10px;flex:1}
@@ -283,7 +284,7 @@ main.main{padding:28px;flex:1}
   background:var(--accent);color:#fff;
   box-shadow:var(--shadow-accent);
 }
-.btn-primary:hover{background:var(--accent2);box-shadow:0 4px 18px rgba(124,58,237,.4)}
+.btn-primary:hover{background:var(--accent2);box-shadow:0 4px 18px rgba(26,96,166,.4)}
 .btn-secondary{
   background:var(--surface2);color:var(--text);
   border-color:var(--border);
@@ -561,23 +562,23 @@ tbody td{padding:10px 14px;color:var(--text);vertical-align:middle}
   border:1px solid var(--border);
   border-radius:var(--radius);
   padding:40px 36px;
-  box-shadow:0 8px 32px rgba(37,99,235,.12), 0 2px 8px rgba(0,0,0,.06);
+  box-shadow:0 8px 32px rgba(26,96,166,.15), 0 2px 8px rgba(0,0,0,.06);
 }
-/* Auth pantalla — logo Pin&Pon */
+/* Auth pantalla — logo oficial Pin&Pon */
 .auth-logo{
   flex-direction:column;
   align-items:center;
-  gap:12px;
-  margin-bottom:32px;
+  gap:0;
+  margin-bottom:28px;
   text-align:center;
   display:flex;
 }
 .auth-logo-icon{
-  width:80px;height:80px;
+  width:200px;height:auto;
   display:flex;align-items:center;justify-content:center;
   background:transparent;border-radius:0;box-shadow:none;
 }
-.auth-logo-icon img,.auth-logo-icon svg{width:80px;height:80px;object-fit:contain}
+.auth-logo-icon img{width:200px;height:auto;object-fit:contain;display:block}
 .auth-logo-text{text-align:center}
 .auth-logo-text strong{
   font-size:1.35rem;font-weight:800;
@@ -663,9 +664,9 @@ tbody td{padding:10px 14px;color:var(--text);vertical-align:middle}
 /* =========================================================
    ESTADOS EXTENDIDOS — 7 estados de pedido
 ========================================================= */
-.badge-blue{background:rgba(37,99,235,.1);color:#2563eb}
+.badge-blue{background:rgba(26,96,166,.1);color:#1a60a6}
 .badge-darkgreen{background:rgba(4,120,87,.12);color:#047857}
-[data-theme="dark"] .badge-blue{background:rgba(59,130,246,.15);color:#60a5fa}
+[data-theme="dark"] .badge-blue{background:rgba(65,133,198,.15);color:#b5d3f0}
 [data-theme="dark"] .badge-darkgreen{background:rgba(16,185,129,.12);color:#34d399}
 
 /* =========================================================
@@ -808,3 +809,625 @@ tbody td{padding:10px 14px;color:var(--text);vertical-align:middle}
 /* Acento de color en selects de estado para combinar con la marca */
 .estado-select{font-size:.72rem;font-weight:600;border:none;cursor:pointer;border-radius:20px;padding:3px 8px}
 
+/* ================================================================
+   AL DETALLE — Venta por unidades
+================================================================ */
+.detalle-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(320px,1fr));
+  gap:18px;
+}
+
+/* Tarjeta de lote */
+.vd-card{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:20px;
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+  transition:box-shadow .18s;
+}
+.vd-card:hover{box-shadow:0 4px 18px rgba(26,96,166,.10)}
+.vd-agotado{opacity:.72;border-color:var(--border)}
+
+/* Header de tarjeta */
+.vd-header{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.vd-nombre{font-size:.975rem;font-weight:700;color:var(--text1);margin-bottom:4px}
+.vd-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+
+/* Barra de progreso */
+.vd-progress-wrap{display:flex;flex-direction:column;gap:5px}
+.vd-progress-bar{height:8px;background:var(--surface3);border-radius:99px;overflow:hidden}
+.vd-progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--brand-blue));border-radius:99px;transition:width .4s ease}
+.vd-agotado .vd-progress-fill{background:linear-gradient(90deg,#16a34a,#22c55e)}
+.vd-progress-labels{display:flex;justify-content:space-between;font-size:.72rem;color:var(--text2)}
+
+/* Stats grid */
+.vd-stats{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:10px;
+  background:var(--surface2);
+  border-radius:10px;
+  padding:12px 14px;
+}
+.vd-stat{}
+.vd-stat-lbl{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);margin-bottom:2px}
+.vd-stat-val{font-size:.88rem;font-weight:700;color:var(--text1);font-variant-numeric:tabular-nums}
+.vd-stat-green{color:#16a34a}
+.vd-stat-gray{color:var(--text3)}
+
+/* Historial */
+.vd-hist{border-top:1px solid var(--border);padding-top:12px;display:flex;flex-direction:column;gap:8px}
+.vd-hist-title{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text2)}
+.vd-hist-list{display:flex;flex-direction:column;gap:5px;max-height:140px;overflow-y:auto}
+.vd-hist-item{
+  display:flex;align-items:center;gap:8px;
+  background:var(--surface2);border-radius:7px;
+  padding:5px 10px;font-size:.78rem;
+}
+.vd-hist-fecha{color:var(--text2);min-width:80px}
+.vd-hist-cant{
+  background:var(--accent-soft);color:var(--accent);
+  font-weight:700;border-radius:20px;padding:1px 8px;font-size:.72rem
+}
+.vd-hist-nota{color:var(--text2);font-style:italic;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* Modal venta */
+.mv-info{
+  background:var(--surface2);border-radius:10px;
+  padding:12px 16px;display:flex;justify-content:space-between;align-items:center;
+  margin-bottom:4px;
+}
+.mv-pieza{font-weight:700;font-size:.9rem;color:var(--text1)}
+.mv-disp{font-size:.8rem;color:var(--text2)}
+.mv-disp strong{color:var(--accent);font-weight:700}
+
+/* =========================================================
+   SELECCIÓN MÚLTIPLE — Cotización combinada
+========================================================= */
+
+/* Columna de checkbox */
+.th-check, .td-check {
+  width: 38px;
+  min-width: 38px;
+  padding: 0 6px;
+  text-align: center;
+}
+.th-check input, .sel-check {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+  cursor: pointer;
+  border-radius: 4px;
+  display: block;
+  margin: 0 auto;
+}
+
+/* Fila seleccionada */
+.tr-selected {
+  background: var(--accent-soft) !important;
+}
+.tr-selected td {
+  border-color: rgba(26,96,166,.15);
+}
+
+/* Barra flotante de selección */
+.barra-seleccion {
+  position: fixed;
+  bottom: -90px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  background: var(--accent);
+  color: white;
+  padding: 13px 20px 13px 24px;
+  border-radius: 999px;
+  box-shadow: 0 10px 36px rgba(26,96,166,.45), 0 2px 8px rgba(0,0,0,.15);
+  transition: bottom .3s cubic-bezier(.34,1.56,.64,1);
+  z-index: 2000;
+  white-space: nowrap;
+}
+.barra-seleccion.barra-visible {
+  bottom: 28px;
+}
+.barra-sel-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  font-size: .875rem;
+}
+.barra-sel-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.btn-sel-pdf {
+  background: white;
+  color: var(--accent);
+  border: none;
+  border-radius: 999px;
+  padding: 8px 18px;
+  font-size: .8rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font);
+  transition: opacity .15s;
+  box-shadow: 0 2px 8px rgba(0,0,0,.12);
+}
+.btn-sel-pdf:hover { opacity: .88; }
+.btn-sel-clear {
+  background: rgba(255,255,255,.18);
+  color: white;
+  border: none;
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: .8rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--font);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: background .15s;
+}
+.btn-sel-clear:hover { background: rgba(255,255,255,.28); }
+
+/* =========================================================
+   AUTOCOMPLETADO DE CLIENTES
+========================================================= */
+.cs-suggest {
+  display: none;
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 0;
+  right: 0;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+  z-index: 200;
+  max-height: 224px;
+  overflow-y: auto;
+}
+.cs-suggest.cs-open { display: block; }
+.cs-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 9px 13px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  transition: background .1s;
+}
+.cs-item:last-child { border-bottom: none; }
+.cs-item:hover { background: var(--surface2); }
+.cs-nombre { font-size: .875rem; font-weight: 600; color: var(--text); }
+.cs-meta   { font-size: .75rem; color: var(--text2); }
+
+/* =========================================================
+   MODAL DE PAGO (versión simplificada)
+========================================================= */
+.modal-pago-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  background: var(--surface2);
+  border-radius: var(--radius-sm);
+  padding: 13px 16px;
+  margin-bottom: 18px;
+  border: 1px solid var(--border);
+}
+.mph-label  { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--text2); margin-bottom: 3px; }
+.mph-pieza  { font-weight: 700; font-size: .95rem; color: var(--text); }
+.mph-cliente{ font-size: .78rem; color: var(--text2); margin-top: 2px; }
+.mph-precio { font-weight: 800; font-size: 1.15rem; color: var(--accent); font-variant-numeric: tabular-nums; }
+.modal-edit-link {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: .78rem;
+  color: var(--text2);
+  margin-top: 16px;
+  padding: 9px 12px;
+  background: var(--surface2);
+  border-radius: var(--radius-xs);
+  border: 1px dashed var(--border-strong);
+}
+.mel-link {
+  color: var(--accent);
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.mel-link:hover { opacity: .8; }
+
+/* =========================================================
+   BANNER POST-GUARDADO (cotizador)
+========================================================= */
+.post-save-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  background: var(--success-soft);
+  border: 1px solid rgba(5,150,105,.25);
+  border-radius: var(--radius-sm);
+  padding: 13px 16px;
+  margin-bottom: 16px;
+  animation: slideDown .25s ease;
+}
+@keyframes slideDown {
+  from { opacity:0; transform:translateY(-8px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+.psb-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.psb-check {
+  width: 30px; height: 30px;
+  background: var(--success);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.psb-left strong { font-size: .875rem; font-weight: 700; color: var(--text); display: block; }
+.psb-sub { font-size: .78rem; color: var(--text2); }
+.psb-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.psb-close {
+  background: none;
+  border: none;
+  color: var(--text2);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  transition: color .15s;
+}
+.psb-close:hover { color: var(--text); }
+
+/* =========================================================
+   SIDEBAR — nav divider
+========================================================= */
+.nav-divider {
+  height: 1px;
+  background: var(--sb-border);
+  margin: 6px 16px;
+  opacity: .6;
+}
+
+/* =========================================================
+   TABS DE CONFIGURACIÓN
+========================================================= */
+.cfg-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 18px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 4px;
+}
+.cfg-tab-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 9px 16px;
+  border: none;
+  border-radius: calc(var(--radius-sm) - 2px);
+  font-family: var(--font);
+  font-size: .8125rem;
+  font-weight: 600;
+  color: var(--text2);
+  background: transparent;
+  cursor: pointer;
+  transition: background .15s, color .15s, box-shadow .15s;
+}
+.cfg-tab-btn.active {
+  background: var(--surface);
+  color: var(--accent);
+  box-shadow: 0 1px 4px rgba(19,54,88,.1);
+}
+.cfg-tab-btn:not(.active):hover {
+  background: var(--surface);
+  color: var(--text);
+}
+
+/* =========================================================
+   VISTA TOGGLE (tabla / kanban)
+========================================================= */
+.vista-toggle {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  padding: 3px;
+}
+.vista-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 28px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text2);
+  cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.vista-btn.active {
+  background: var(--surface);
+  color: var(--accent);
+  box-shadow: 0 1px 3px rgba(19,54,88,.12);
+}
+.vista-btn:not(.active):hover {
+  background: var(--surface);
+  color: var(--text);
+}
+
+/* =========================================================
+   KANBAN BOARD
+========================================================= */
+.kanban-board {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 4px 2px 12px;
+  min-height: 300px;
+}
+.kanban-board::-webkit-scrollbar { height: 6px; }
+.kanban-board::-webkit-scrollbar-track { background: var(--surface2); border-radius: 99px; }
+.kanban-board::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 99px; }
+
+.kanban-col {
+  flex: 0 0 220px;
+  min-width: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.kanban-col-sm {
+  flex: 0 0 180px;
+  min-width: 180px;
+  opacity: .75;
+}
+
+.kanban-col-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px 8px 14px;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  border-top: 3px solid var(--kc, var(--border));
+  background: var(--surface2);
+  border-left: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+}
+.kanban-col-title {
+  font-size: .75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--text2);
+}
+.kanban-col-count {
+  font-size: .72rem;
+  font-weight: 700;
+  background: var(--surface3);
+  color: var(--text2);
+  border-radius: 99px;
+  padding: 1px 7px;
+  min-width: 20px;
+  text-align: center;
+}
+
+.kanban-col-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  min-height: 120px;
+  overflow-y: auto;
+  max-height: 70vh;
+}
+.kanban-col-body::-webkit-scrollbar { width: 4px; }
+.kanban-col-body::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 99px; }
+
+.kc-empty {
+  text-align: center;
+  font-size: .75rem;
+  color: var(--text3);
+  padding: 16px 8px;
+  font-style: italic;
+}
+
+/* Tarjeta kanban */
+.kanban-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  padding: 10px 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  cursor: default;
+  transition: box-shadow .15s, border-color .15s;
+}
+.kanban-card:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--border-strong);
+}
+.kc-top { display: flex; flex-direction: column; gap: 2px; }
+.kc-pieza   { font-size: .825rem; font-weight: 700; color: var(--text); line-height: 1.3; }
+.kc-cliente { font-size: .75rem; color: var(--text2); }
+.kc-material{ font-size: .68rem; color: var(--text3); }
+.kc-mid {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.kc-precio {
+  font-size: .8rem;
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.kc-bot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.kc-fecha  { font-size: .68rem; color: var(--text3); font-variant-numeric: tabular-nums; }
+.kc-entrega{ font-size: .68rem; color: var(--accent); }
+.kc-actions {
+  display: flex;
+  gap: 2px;
+  padding-top: 5px;
+  border-top: 1px solid var(--border);
+  margin-top: 2px;
+}
+
+/* =========================================================
+   ALERTAS DE ENTREGA VENCIDA / PRÓXIMA
+========================================================= */
+
+/* Highlight de fila en tabla */
+.tr-entrega-overdue {
+  background: rgba(220, 38, 38, .045) !important;
+}
+.tr-entrega-overdue:hover {
+  background: rgba(220, 38, 38, .08) !important;
+}
+.tr-entrega-today {
+  background: rgba(217, 119, 6, .05) !important;
+}
+.tr-entrega-today:hover {
+  background: rgba(217, 119, 6, .1) !important;
+}
+
+/* Badge inline dentro de la celda de pieza */
+.badge-entrega {
+  display: inline-block;
+  font-size: .62rem;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-top: 3px;
+  line-height: 1.5;
+}
+.badge-entrega.urgente {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+.badge-entrega.hoy {
+  background: rgba(217,119,6,.12);
+  color: var(--warn);
+}
+
+/* Kanban card urgente */
+.kc-urgente-overdue {
+  border-left: 3px solid var(--danger) !important;
+}
+.kc-urgente-today {
+  border-left: 3px solid var(--warn) !important;
+}
+.kc-entrega.overdue {
+  color: var(--danger);
+  font-weight: 600;
+}
+.kc-entrega.today {
+  color: var(--warn);
+  font-weight: 600;
+}
+
+/* stat-value danger (entregas urgentes en dashboard) */
+.stat-value.danger {
+  color: var(--danger);
+}
+
+/* =========================================================
+   INTEGRACIÓN GOOGLE DRIVE
+========================================================= */
+.drive-info {
+  font-size: .875rem;
+  color: var(--text2);
+  line-height: 1.65;
+  margin-bottom: 4px;
+}
+.drive-info strong { color: var(--text); }
+.drive-info a { color: var(--accent); text-decoration: none; }
+.drive-info a:hover { text-decoration: underline; }
+
+.drive-steps {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.drive-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: .8125rem;
+  color: var(--text2);
+  line-height: 1.5;
+}
+.drive-step strong { color: var(--text); }
+.step-n {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .72rem;
+  font-weight: 700;
+  margin-top: 1px;
+}
+
+.drive-status-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 10px 14px;
+  background: var(--surface2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  width: fit-content;
+  min-width: 260px;
+}

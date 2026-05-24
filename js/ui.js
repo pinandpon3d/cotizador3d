@@ -106,6 +106,8 @@ function renderTrabajos() {
     return matchSearch && matchEstado && matchCat && matchPago;
   });
 
+  const hoy = new Date().toISOString().split('T')[0];
+
   // Estadísticas
   const total      = trabajos.length;
   const aprobados  = trabajos.filter(t => t.estado === 'Aprobado').length;
@@ -113,13 +115,25 @@ function renderTrabajos() {
   const ingresos   = trabajos.filter(t => t.estado === 'Entregado').reduce((s,t) => s + (t.precio_final||0), 0);
   const ganancias  = trabajos.filter(t => t.estado === 'Entregado').reduce((s,t) => s + ((t.precio_final||0) - (t.costo_total||0)), 0);
   const pendPago   = trabajos.filter(t => (t.estadoPago||'Pendiente') !== 'Pagado').length;
+  const porCobrar  = trabajos
+    .filter(t => t.estado !== 'Cancelado' && (t.estadoPago||'Pendiente') !== 'Pagado')
+    .reduce((s,t) => s + (t.montoPendiente != null
+      ? t.montoPendiente
+      : Math.max(0,(t.precio_final||0)-(t.montoAbonado||0))), 0);
 
-  set('st-total',     total);
-  set('st-aprobados', aprobados);
-  set('st-entregados',entregados);
-  set('st-ingresos',  fmt(ingresos));
-  set('st-ganancias', fmt(ganancias));
-  set('st-pend-pago', pendPago);
+  set('st-total',      total);
+  set('st-aprobados',  aprobados);
+  set('st-entregados', entregados);
+  set('st-ingresos',   fmt(ingresos));
+  set('st-ganancias',  fmt(ganancias));
+  set('st-pend-pago',  pendPago);
+  set('st-por-cobrar', fmt(porCobrar));
+
+  // Vista kanban: delegar renderizado y salir
+  if (typeof _trabajosVista !== 'undefined' && _trabajosVista === 'kanban') {
+    renderKanban(list);
+    return;
+  }
 
   const tbody = el('trabajos-tbody');
   if (!tbody) return;
@@ -136,13 +150,24 @@ function renderTrabajos() {
     const fechaAct  = t.fechaActualizacionEstado
                     ? t.fechaActualizacionEstado.split('T')[0]
                     : (t.fecha || '—');
+    const checked      = (typeof seleccionados !== 'undefined' && seleccionados.has(t.id)) ? 'checked' : '';
+    const entregaAlerta = t.fechaEntrega && t.estado !== 'Entregado' && t.estado !== 'Cancelado'
+      ? (t.fechaEntrega < hoy ? 'overdue' : t.fechaEntrega === hoy ? 'today' : '')
+      : '';
+    const trClass = [
+      checked ? 'tr-selected' : '',
+      entregaAlerta ? `tr-entrega-${entregaAlerta}` : ''
+    ].filter(Boolean).join(' ');
 
-    return `<tr>
+    return `<tr class="${trClass}">
+      <td class="td-check"><input type="checkbox" class="sel-check" data-id="${t.id}" ${checked} onchange="toggleSeleccion('${t.id}', this)"></td>
       <td class="td-mono">${t.fecha||'—'}</td>
       <td>${escHtml(t.cliente||'')}</td>
       <td>
         <strong>${escHtml(t.pieza||'')}</strong>
         ${t.material ? `<br><span style="font-size:.68rem;color:var(--text3)">${escHtml(t.material)}</span>` : ''}
+        ${entregaAlerta === 'overdue' ? `<br><span class="badge-entrega urgente">⚠ Entrega vencida: ${t.fechaEntrega}</span>` : ''}
+        ${entregaAlerta === 'today'   ? `<br><span class="badge-entrega hoy">📦 Entrega hoy: ${t.fechaEntrega}</span>` : ''}
       </td>
       <td><span class="badge badge-accent">${escHtml(t.categoria||'')}</span></td>
       <td class="td-mono">${(t.gramos||0).toFixed(1)}g / ${(t.horas_imp||0).toFixed(1)}h</td>
@@ -170,11 +195,17 @@ function renderTrabajos() {
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
           </svg>
         </button>
-        <button class="btn btn-ghost btn-icon btn-sm" title="Editar"
-          onclick='abrirModalEdicion("${t.id}")'>
+        <button class="btn btn-ghost btn-icon btn-sm" title="Editar en cotizador"
+          onclick='editarEnCotizador("${t.id}")'>
           <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+        </button>
+        <button class="btn btn-ghost btn-icon btn-sm" title="Actualizar pago"
+          onclick='abrirModalEdicion("${t.id}")'>
+          <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/>
           </svg>
         </button>
         <button class="btn btn-danger btn-icon btn-sm" title="Eliminar"
@@ -349,19 +380,33 @@ function renderDashboard(filtro = 'mes-actual') {
   const clientTop  = Object.entries(clientCount).sort((a,b) => b[1]-a[1])[0];
   const clienteTop = clientTop ? `${clientTop[0]} (${clientTop[1]})` : '—';
 
+  // Monto por cobrar y entregas urgentes
+  const montoPorCobrar = lista
+    .filter(t => t.estado !== 'Cancelado' && (t.estadoPago||'Pendiente') !== 'Pagado')
+    .reduce((s,t) => s + (t.montoPendiente != null
+      ? t.montoPendiente
+      : Math.max(0,(t.precio_final||0)-(t.montoAbonado||0))), 0);
+  const hoyDash = new Date().toISOString().split('T')[0];
+  const urgentes = lista.filter(t =>
+    t.fechaEntrega && t.fechaEntrega <= hoyDash &&
+    t.estado !== 'Entregado' && t.estado !== 'Cancelado'
+  ).length;
+
   // Actualizar DOM
-  set('dash-ventas',      fmt(ventasMes));
-  set('dash-ganancia',    fmt(gananciaMes));
-  set('dash-total-lista', lista.length);
-  set('dash-cotizados',   countByEstado['Cotizado']     || 0);
-  set('dash-aprobados',   countByEstado['Aprobado']     || 0);
-  set('dash-enimpresion', (countByEstado['En impresión']||0) + (countByEstado['Post-proceso']||0));
-  set('dash-listos',      countByEstado['Listo']        || 0);
-  set('dash-entregados',  countByEstado['Entregado']    || 0);
-  set('dash-cancelados',  countByEstado['Cancelado']    || 0);
-  set('dash-pend-pago',   pendPago);
-  set('dash-material',    materialTop);
-  set('dash-cliente',     clienteTop);
+  set('dash-ventas',       fmt(ventasMes));
+  set('dash-ganancia',     fmt(gananciaMes));
+  set('dash-total-lista',  lista.length);
+  set('dash-monto-cobrar', fmt(montoPorCobrar));
+  set('dash-urgentes',     urgentes);
+  set('dash-cotizados',    countByEstado['Cotizado']     || 0);
+  set('dash-aprobados',    countByEstado['Aprobado']     || 0);
+  set('dash-enimpresion',  (countByEstado['En impresión']||0) + (countByEstado['Post-proceso']||0));
+  set('dash-listos',       countByEstado['Listo']        || 0);
+  set('dash-entregados',   countByEstado['Entregado']    || 0);
+  set('dash-cancelados',   countByEstado['Cancelado']    || 0);
+  set('dash-pend-pago',    pendPago);
+  set('dash-material',     materialTop);
+  set('dash-cliente',      clienteTop);
 
   // Mostrar/ocultar sección de gráficos
   const sinDatos    = lista.length === 0;
@@ -451,4 +496,186 @@ function _renderCharts(lista, countByEstado, anio, mes) {
       }
     });
   }
+}
+
+/* ----------------------------------------------------------
+   Venta al Detalle — render de lotes
+---------------------------------------------------------- */
+function renderVentaDetalle(lotes) {
+  const grid    = el('detalle-grid');
+  const emptyEl = el('detalle-empty');
+  if (!grid) return;
+
+  // Ocultar cancelados y agotados
+  const activos = (lotes || []).filter(l =>
+    l.estado !== 'Cancelado' &&
+    (l.unidadesVendidas || 0) < Math.max(l.cantidad || 1, 1)
+  );
+
+  if (!activos.length) {
+    grid.innerHTML = '';
+    if (emptyEl) emptyEl.style.display = 'flex';
+    return;
+  }
+  if (emptyEl) emptyEl.style.display = 'none';
+
+  grid.innerHTML = activos.map(l => {
+    const total      = Math.max(l.cantidad || 1, 1);
+    const vendidas   = Math.min(l.unidadesVendidas || 0, total);
+    const disponibles = total - vendidas;
+    const pct        = Math.round((vendidas / total) * 100);
+    const precioUnit = l.precio_unitario || 0;
+    const recaudado  = vendidas * precioUnit;
+    const potencial  = total   * precioUnit;
+    const agotado    = disponibles === 0;
+
+    const histItems = (l.historialVentas || [])
+      .slice()
+      .reverse()
+      .map(v => `
+        <div class="vd-hist-item">
+          <span class="vd-hist-fecha">${(v.fecha||'').split('T')[0] || '—'}</span>
+          <span class="vd-hist-cant">×${v.cantidad}</span>
+          ${v.nota ? `<span class="vd-hist-nota">${escHtml(v.nota)}</span>` : ''}
+        </div>
+      `).join('');
+
+    const histLen = (l.historialVentas || []).length;
+
+    return `
+    <div class="vd-card${agotado ? ' vd-agotado' : ''}">
+
+      <div class="vd-header">
+        <div>
+          <div class="vd-nombre">${escHtml(l.pieza || '—')}</div>
+          <div class="vd-meta">
+            <span class="badge badge-gray">${escHtml(l.categoria || 'General')}</span>
+            ${l.material ? `<span style="font-size:.74rem;color:var(--text2)">${escHtml(l.material)}</span>` : ''}
+            ${l.fecha    ? `<span style="font-size:.74rem;color:var(--text2)">${l.fecha}</span>` : ''}
+          </div>
+        </div>
+        ${agotado
+          ? `<span class="badge badge-success" style="align-self:flex-start;white-space:nowrap">Agotado ✓</span>`
+          : `<span class="badge badge-accent"  style="align-self:flex-start;white-space:nowrap">${disponibles} disp.</span>`}
+      </div>
+
+      <!-- Barra de progreso -->
+      <div class="vd-progress-wrap">
+        <div class="vd-progress-bar">
+          <div class="vd-progress-fill" style="width:${pct}%"></div>
+        </div>
+        <div class="vd-progress-labels">
+          <span>${vendidas} vendida${vendidas !== 1 ? 's' : ''}</span>
+          <span>${pct}% de ${total}</span>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="vd-stats">
+        <div class="vd-stat">
+          <div class="vd-stat-lbl">Precio unitario</div>
+          <div class="vd-stat-val">₡${precioUnit.toLocaleString('es-CR')}</div>
+        </div>
+        <div class="vd-stat">
+          <div class="vd-stat-lbl">Recaudado</div>
+          <div class="vd-stat-val vd-stat-green">₡${recaudado.toLocaleString('es-CR')}</div>
+        </div>
+        <div class="vd-stat">
+          <div class="vd-stat-lbl">Potencial total</div>
+          <div class="vd-stat-val">₡${potencial.toLocaleString('es-CR')}</div>
+        </div>
+        <div class="vd-stat">
+          <div class="vd-stat-lbl">Disponibles</div>
+          <div class="vd-stat-val${agotado ? ' vd-stat-gray' : ''}">${disponibles}</div>
+        </div>
+      </div>
+
+      <!-- Acción -->
+      ${agotado
+        ? `<div style="text-align:center;font-size:.8rem;color:var(--text2);padding:4px 0">✓ Todas las unidades vendidas</div>`
+        : `<button class="btn btn-primary btn-sm" style="width:100%" onclick="abrirModalVenta('${l.id}')">
+             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+             Registrar venta
+           </button>`}
+
+      <!-- Historial -->
+      ${histLen > 0 ? `
+      <div class="vd-hist">
+        <div class="vd-hist-title">Historial (${histLen} transacción${histLen !== 1 ? 'es' : ''})</div>
+        <div class="vd-hist-list">${histItems}</div>
+      </div>` : ''}
+
+    </div>`;
+  }).join('');
+}
+
+/* ----------------------------------------------------------
+   Vista Kanban de Trabajos
+---------------------------------------------------------- */
+
+const KANBAN_KEY = {
+  'Cotizado':     'Cotizado',
+  'Aprobado':     'Aprobado',
+  'En impresión': 'EnImpresion',
+  'Post-proceso': 'PostProceso',
+  'Listo':        'Listo',
+  'Entregado':    'Entregado',
+  'Cancelado':    'Cancelado'
+};
+
+function renderKanban(list) {
+  const items = list || trabajos;
+  Object.entries(KANBAN_KEY).forEach(([estado, key]) => {
+    const body = el('kb-' + key);
+    const cnt  = el('kc-' + key);
+    if (!body) return;
+    const cards = items.filter(t => t.estado === estado);
+    if (cnt) cnt.textContent = cards.length;
+    body.innerHTML = cards.length
+      ? cards.map(t => renderKanbanCard(t)).join('')
+      : `<div class="kc-empty">Sin trabajos</div>`;
+  });
+}
+
+function renderKanbanCard(t) {
+  const pagoClass    = PAGO_COLOR[t.estadoPago || 'Pendiente'] || 'badge-pago-pendiente';
+  const hoyKc        = new Date().toISOString().split('T')[0];
+  const entregaAlerta = t.fechaEntrega && t.estado !== 'Entregado' && t.estado !== 'Cancelado'
+    ? (t.fechaEntrega < hoyKc ? 'overdue' : t.fechaEntrega === hoyKc ? 'today' : '')
+    : '';
+  const entregaLabel = entregaAlerta === 'overdue' ? '⚠ Vencida'
+                     : entregaAlerta === 'today'   ? '📦 Hoy'
+                     : '📅';
+  const entrega   = t.fechaEntrega
+    ? `<span class="kc-entrega${entregaAlerta ? ' '+entregaAlerta : ''}">${entregaLabel} ${t.fechaEntrega}</span>` : '';
+  const cardClass = entregaAlerta ? ` kc-urgente-${entregaAlerta}` : '';
+  return `<div class="kanban-card${cardClass}">
+    <div class="kc-top">
+      <div class="kc-pieza">${escHtml(t.pieza || '—')}</div>
+      <div class="kc-cliente">${escHtml(t.cliente || '')}</div>
+      ${t.material ? `<div class="kc-material">${escHtml(t.material)}</div>` : ''}
+    </div>
+    <div class="kc-mid">
+      <span class="badge ${pagoClass}" style="font-size:.66rem;padding:2px 7px">${t.estadoPago || 'Pendiente'}</span>
+      <span class="kc-precio">${fmt(t.precio_final || 0)}</span>
+    </div>
+    <div class="kc-bot">
+      <span class="kc-fecha">${t.fecha || '—'}</span>
+      ${entrega}
+    </div>
+    <div class="kc-actions">
+      <button class="btn btn-ghost btn-icon btn-sm" title="Generar PDF" onclick='pdfTrabajo("${t.id}")'>
+        <svg width="13" height="13" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      </button>
+      <button class="btn btn-ghost btn-icon btn-sm" title="Editar en cotizador" onclick='editarEnCotizador("${t.id}")'>
+        <svg width="13" height="13" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      </button>
+      <button class="btn btn-ghost btn-icon btn-sm" title="Actualizar pago" onclick='abrirModalEdicion("${t.id}")'>
+        <svg width="13" height="13" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+      </button>
+      <button class="btn btn-danger btn-icon btn-sm" title="Eliminar" onclick='eliminarTrabajo("${t.id}")'>
+        <svg width="13" height="13" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+      </button>
+    </div>
+  </div>`;
 }
