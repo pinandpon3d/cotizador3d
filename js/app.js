@@ -781,6 +781,250 @@ function generarPDFData(t) {
   const pendiente   = Math.max(precioFinal - abono, 0);
   const metodo      = t.metodoPago || '';
 
+  const base       = new URL('.', window.location.href).href;
+  const mascotaUrl = base + 'img/Mascota-PNG.png';
+  const nombreUrl  = base + 'img/Nombre-PNG.png';
+
+  // Nombre de archivo = "Cotizacion - [Cliente]"
+  const nombreArchivo = `Cotizacion - ${t.cliente||'Cliente'}`;
+
+  const win = window.open('','_blank');
+  if (!win) { toast('Permita ventanas emergentes','error'); return; }
+
+  win.document.write(`<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>${escHtml(nombreArchivo)}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,700&display=swap" rel="stylesheet"/>
+<style>
+:root{--navy:#16395A;--navy-deep:#0F2A45;--navy-2:#235A8C;--sky:#4A8FCB;--pale:#E8F0F8;--yellow:#F2C61F;--ink:#1A2433;--ink-soft:#5B6A7E;--line:#DEE5EE;--line-soft:#EEF2F7;--paper:#FFFFFF;--paper-tint:#FBFCFE;--accent:#F2C61F;--radius:10px}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;font-family:"Plus Jakarta Sans",system-ui,sans-serif;color:var(--ink);background:#EEF1F5;-webkit-font-smoothing:antialiased}
+body{min-height:100vh;padding:40px 20px 80px;display:flex;justify-content:center;align-items:flex-start}
+button{font-family:inherit;cursor:pointer}
+.page{width:794px;min-height:1123px;background:var(--paper);position:relative;overflow:hidden;box-shadow:0 20px 60px -20px rgba(15,42,69,.25),0 4px 16px -4px rgba(15,42,69,.12);border-radius:4px;display:flex;flex-direction:column}
+.watermark{position:absolute;right:-60px;bottom:180px;width:360px;opacity:.025;pointer-events:none;z-index:0}
+.doc-header{position:relative;color:white;overflow:hidden}
+.solid-band{position:absolute;inset:0;background:linear-gradient(95deg,var(--navy-deep) 0%,var(--navy) 50%,var(--navy-2) 100%)}
+.header-inner{position:relative;z-index:1;display:grid;grid-template-columns:1fr auto;gap:32px;padding:38px 48px 34px;align-items:center}
+.brand{display:flex;align-items:center;gap:16px}
+.brand-mascot{width:64px;height:auto;display:block;filter:drop-shadow(0 8px 18px rgba(0,0,0,.25))}
+.brand-text{display:flex;flex-direction:column;gap:4px}
+.wordmark{font-weight:800;font-size:28px;letter-spacing:-.02em;color:white;line-height:1;display:inline-flex;align-items:center;gap:2px}
+.amp{color:var(--accent);margin:0 2px;font-style:italic;font-weight:700}
+.badge-3d{font-size:11px;font-weight:700;letter-spacing:.04em;background:var(--sky);color:white;padding:3px 7px;border-radius:5px;margin-left:6px;align-self:flex-start;margin-top:-4px;box-shadow:0 2px 6px rgba(74,143,203,.4)}
+.tagline{font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.65);font-weight:600}
+.title-block{display:flex;flex-direction:column;gap:6px;text-align:right;align-items:flex-end}
+.eyebrow{font-size:10px;font-weight:700;letter-spacing:.24em;text-transform:uppercase;color:var(--accent);opacity:.95}
+.title{font-size:26px;font-weight:700;margin:0;line-height:1;letter-spacing:-.01em;color:white;display:inline-flex;align-items:baseline;gap:6px}
+.title-num{font-weight:800;font-variant-numeric:tabular-nums;padding:0 4px;border-bottom:1px dashed rgba(255,255,255,.3)}
+.meta-row{display:inline-flex;align-items:baseline;gap:10px;font-size:12.5px;margin-top:4px}
+.meta-label{text-transform:uppercase;font-size:9.5px;letter-spacing:.16em;opacity:.7;font-weight:700}
+.meta-value{font-weight:600;border-bottom:1px dashed rgba(255,255,255,.3);padding:0 2px 1px;min-width:120px;text-align:left}
+.title-rule{width:48px;height:2px;background:var(--accent);margin-top:6px;border-radius:1px}
+.doc-strip{position:relative;z-index:1;margin:28px 48px 8px;padding:18px 22px 18px 26px;background:var(--paper-tint);border:1px solid var(--line);border-radius:var(--radius);display:grid;grid-template-columns:2fr 1fr 1fr 1.1fr;gap:22px;align-items:center}
+.doc-strip::before{content:"";position:absolute;left:0;top:14px;bottom:14px;width:3px;background:var(--accent);border-radius:0 2px 2px 0}
+.strip-field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.strip-field+.strip-field{border-left:1px solid var(--line);padding-left:22px}
+.strip-label{font-size:9.5px;text-transform:uppercase;letter-spacing:.18em;color:var(--ink-soft);font-weight:700}
+.strip-value{font-size:13.5px;font-weight:600;color:var(--ink);line-height:1.25;display:inline-flex;align-items:baseline;gap:4px;flex-wrap:wrap}
+.strip-value .hash{color:var(--ink-soft);font-weight:500;font-size:10.5px;letter-spacing:.05em}
+.strip-name{color:var(--navy);font-weight:700;font-size:16px}
+.strip-vigencia{color:var(--navy)}
+.strip-vigencia::after{content:"7 días";display:inline-block;margin-left:6px;font-size:8.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;background:var(--accent);color:var(--navy-deep);padding:2px 5px;border-radius:3px;vertical-align:middle}
+.section-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px;padding:0 48px}
+.section-head h2{font-size:14px;font-weight:700;color:var(--navy);letter-spacing:.14em;text-transform:uppercase;margin:0;display:flex;align-items:center;gap:10px}
+.section-head h2::before{content:"";width:22px;height:2px;background:var(--accent);display:inline-block}
+.detail{position:relative;z-index:1;padding:28px 0 8px}
+.table{margin:0 48px}
+.thead,.trow{display:grid;grid-template-columns:1fr 70px 130px 130px;align-items:center;gap:8px}
+.thead{color:var(--navy);padding:10px 16px 8px;border-top:1.5px solid var(--navy);border-bottom:1px solid var(--line);font-size:10px;font-weight:700;letter-spacing:.18em;text-transform:uppercase}
+.thead .col-qty,.thead .col-price,.thead .col-total{text-align:right}
+.trow{padding:11px 16px;border-bottom:1px solid var(--line-soft);font-size:13px}
+.trow .col-name{color:var(--ink)}
+.trow .col-qty,.trow .col-price,.trow .col-total{text-align:right;font-variant-numeric:tabular-nums}
+.trow .col-total{font-weight:700;color:var(--navy)}
+.item-badge{display:inline-flex;padding:2px 8px;background:var(--pale);color:var(--navy);border-radius:20px;font-size:10px;font-weight:700;margin-top:4px}
+.item-note{font-size:11px;color:var(--ink-soft);font-style:italic;margin-top:3px;line-height:1.4}
+.summary{position:relative;z-index:1;padding:22px 48px 4px;display:flex;justify-content:flex-end}
+.summary-card{width:280px}
+.srow{display:flex;justify-content:space-between;align-items:baseline;padding:7px 0;font-size:12px;border-bottom:1px solid var(--line-soft)}
+.srow:last-child{border-bottom:none}
+.slabel{color:var(--ink-soft);font-weight:500;display:inline-flex;align-items:baseline;gap:6px;letter-spacing:.02em}
+.sval{font-weight:500;color:var(--ink);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.total-row{padding:14px 18px;margin-top:8px;background:var(--navy);color:white;border-radius:8px;border-bottom:none!important;display:flex;justify-content:space-between;align-items:center;position:relative;overflow:hidden;box-shadow:0 6px 16px -8px rgba(15,42,69,.5)}
+.total-row::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--accent)}
+.total-row .slabel{color:rgba(255,255,255,.85);font-weight:700;text-transform:uppercase;letter-spacing:.22em;font-size:10.5px;padding-left:6px}
+.total-row .sval{color:white;font-size:24px;font-weight:800;letter-spacing:-.02em}
+.notes-pay{position:relative;z-index:1;display:grid;grid-template-columns:1.5fr 1fr;gap:24px;padding:28px 48px 24px;margin-top:auto;align-items:stretch}
+.notes h3,.payment h3{font-size:10px;text-transform:uppercase;letter-spacing:.18em;margin:0 0 12px;color:var(--navy);font-weight:700;display:flex;align-items:center;gap:8px}
+.notes h3::before,.payment h3::before{content:"";width:14px;height:1.5px;background:var(--accent)}
+.notes ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:5px;font-size:11.5px;color:var(--ink-soft);line-height:1.5}
+.notes li{position:relative;padding-left:14px}
+.notes li::before{content:"";position:absolute;left:0;top:7px;width:5px;height:5px;background:var(--accent);transform:rotate(45deg)}
+.notes strong{color:var(--ink);font-weight:700}
+.note-extra{margin-top:10px;padding:9px 11px;background:var(--paper-tint);border:1px dashed var(--line);border-radius:6px;font-size:11.5px;color:var(--ink);min-height:32px;line-height:1.5}
+.payment{background:var(--paper-tint);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px}
+.pay-line{display:flex;flex-direction:column;gap:10px;font-size:12.5px;color:var(--ink);font-weight:600}
+.pay-item{display:inline-flex;align-items:center;gap:9px;color:var(--navy)}
+.pay-item svg{color:var(--sky);flex-shrink:0;width:15px;height:15px}
+.doc-footer{position:relative;z-index:1;padding:18px 48px;border-top:1px solid var(--line-soft);display:flex;justify-content:space-between;align-items:center}
+.thanks{font-size:14px;color:var(--navy);font-weight:600;letter-spacing:-.005em;display:inline-flex;align-items:center;gap:8px}
+.thanks-logo{height:26px;width:auto;display:inline-block;vertical-align:middle}
+.footer-accent{width:60px;height:4px;background:linear-gradient(90deg,var(--navy),var(--sky),var(--accent));border-radius:2px}
+.print-btn{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);padding:10px 24px;background:var(--navy);color:white;border:none;border-radius:999px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 10px 30px -6px rgba(15,42,69,.3);font-family:inherit;display:inline-flex;align-items:center;gap:8px;z-index:100}
+@page{size:A4;margin:0}
+@media print{body{background:white;padding:0;display:block}.page{width:210mm;min-height:297mm;box-shadow:none;border-radius:0}.print-btn{display:none}}
+</style>
+</head>
+<body>
+<button class="print-btn" onclick="window.print()">🖨&nbsp; Guardar PDF</button>
+<div class="page">
+
+  <img class="watermark" src="${mascotaUrl}" alt="">
+
+  <!-- HEADER -->
+  <div class="doc-header">
+    <div class="solid-band"></div>
+    <div class="header-inner">
+      <div class="brand">
+        <img class="brand-mascot" src="${mascotaUrl}" alt="Pin&amp;Pon 3D">
+        <div class="brand-text">
+          <div class="wordmark">Pin<span class="amp">&amp;</span>Pon<span class="badge-3d">3D</span></div>
+          <div class="tagline">Impresión 3D · Innovación · Calidad</div>
+        </div>
+      </div>
+      <div class="title-block">
+        <div class="eyebrow">Cotización oficial</div>
+        <h1 class="title">Cotización&nbsp;<span class="title-num">${ref}</span></h1>
+        <div class="meta-row">
+          <span class="meta-label">Fecha</span>
+          <span class="meta-value">${t.fecha||'—'}</span>
+        </div>
+        ${t.fechaEntrega?`<div class="meta-row"><span class="meta-label">Entrega est.</span><span class="meta-value">${escHtml(t.fechaEntrega)}</span></div>`:''}
+        <div class="title-rule"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DOC STRIP -->
+  <div class="doc-strip">
+    <div class="strip-field">
+      <div class="strip-label">Cliente</div>
+      <div class="strip-value strip-name">${escHtml(t.cliente||'—')}</div>
+    </div>
+    <div class="strip-field">
+      <div class="strip-label">Referencia</div>
+      <div class="strip-value"><span class="hash">#</span>${ref}</div>
+    </div>
+    <div class="strip-field">
+      <div class="strip-label">Pieza / Modelo</div>
+      <div class="strip-value">${escHtml(t.pieza||'—')}</div>
+    </div>
+    <div class="strip-field">
+      <div class="strip-label">Vigencia</div>
+      <div class="strip-value strip-vigencia">${t.fecha||'—'}&nbsp;</div>
+    </div>
+  </div>
+
+  <!-- DETAIL -->
+  <div class="detail">
+    <div class="section-head"><h2>Detalle de la cotización</h2></div>
+    <div class="table">
+      <div class="thead">
+        <div>Descripción</div>
+        <div class="col-qty">Cant.</div>
+        <div class="col-price">P. unitario</div>
+        <div class="col-total">Total</div>
+      </div>
+      <div class="trow">
+        <div class="col-name">
+          <strong>${escHtml(t.pieza||'—')}</strong>
+          ${t.material?`<span style="color:var(--ink-soft);font-size:11px"> · ${escHtml(t.material)}</span>`:''}
+          <br><span class="item-badge">${escHtml(t.categoria||'General')}</span>
+          ${(t.gramos||t.horas_imp)?`<div class="item-note">${Number(t.gramos||0).toFixed(1)} g · ${Number(t.horas_imp||0).toFixed(1)} h · ${placas} placa${placas!==1?'s':''}</div>`:''}
+          ${t.notas?`<div class="item-note">${escHtml(t.notas)}</div>`:''}
+        </div>
+        <div class="col-qty">${cantidad}</div>
+        <div class="col-price">₡&thinsp;${precioUnit.toLocaleString('es-CR',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
+        <div class="col-total">₡&thinsp;${precioFinal.toLocaleString('es-CR',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SUMMARY -->
+  <div class="summary">
+    <div class="summary-card">
+      <div class="srow"><span class="slabel">Costo de producción</span><span class="sval">₡&thinsp;${(t.costo_total||0).toLocaleString('es-CR',{minimumFractionDigits:2,maximumFractionDigits:2})}</span></div>
+      <div class="srow"><span class="slabel">Subtotal (sin IVA)</span><span class="sval">₡&thinsp;${antesIVA.toLocaleString('es-CR',{minimumFractionDigits:2,maximumFractionDigits:2})}</span></div>
+      ${pIVA>0?`<div class="srow"><span class="slabel">IVA (${pIVA}%)</span><span class="sval">₡&thinsp;${ivaVal.toLocaleString('es-CR',{minimumFractionDigits:2,maximumFractionDigits:2})}</span></div>`:''}
+      ${abono>0?`<div class="srow"><span class="slabel">Abono recibido</span><span class="sval" style="color:var(--sky)">₡&thinsp;${abono.toLocaleString('es-CR',{minimumFractionDigits:2,maximumFractionDigits:2})}</span></div>`:''}
+      <div class="srow total-row"><span class="slabel">TOTAL</span><span class="sval">₡&thinsp;${precioFinal.toLocaleString('es-CR',{minimumFractionDigits:2,maximumFractionDigits:2})}</span></div>
+    </div>
+  </div>
+
+  <!-- NOTES + PAYMENT -->
+  <div class="notes-pay">
+    <div class="notes">
+      <h3>Condiciones</h3>
+      <ul>
+        <li>Esta cotización tiene validez de <strong>7 días</strong> a partir de la fecha de emisión.</li>
+        <li>El precio puede variar si cambian las características del modelo 3D.</li>
+        <li>El tiempo de entrega depende de la carga de trabajo y complejidad de la pieza.</li>
+        <li>Se puede solicitar un <strong>abono</strong> para iniciar el trabajo.</li>
+        <li>Los colores y acabados pueden variar según el material disponible.</li>
+        ${t.notas?`<li><strong>Nota:</strong> ${escHtml(t.notas)}</li>`:''}
+      </ul>
+      ${emp.nota?`<div class="note-extra">${escHtml(emp.nota)}</div>`:''}
+    </div>
+    <div class="payment">
+      <h3>Pago</h3>
+      <div class="pay-line">
+        ${metodo?`<div class="pay-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+          ${escHtml(metodo)}</div>`:''}
+        ${abono>0?`<div class="pay-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          Abono: <strong>₡&thinsp;${abono.toLocaleString('es-CR',{minimumFractionDigits:2,maximumFractionDigits:2})}</strong></div>
+        <div class="pay-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+          Pendiente: <strong>₡&thinsp;${pendiente.toLocaleString('es-CR',{minimumFractionDigits:2,maximumFractionDigits:2})}</strong></div>`:''}
+        <div class="pay-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+          Total: <strong>₡&thinsp;${precioFinal.toLocaleString('es-CR',{minimumFractionDigits:2,maximumFractionDigits:2})}</strong></div>
+        ${emp.tel?`<div class="pay-item" style="font-size:11.5px;color:var(--ink-soft);font-weight:500;margin-top:4px">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 8.81 19.79 19.79 0 012 2.12h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
+          ${escHtml(emp.tel)}</div>`:''}
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="doc-footer">
+    <div class="thanks">
+      ¡Gracias por confiar en&nbsp;<img class="thanks-logo" src="${nombreUrl}" alt="Pin&amp;Pon 3D">&nbsp;!
+    </div>
+    <div class="footer-accent"></div>
+  </div>
+
+</div>
+</body>
+</html>`);
+  win.document.close();
+  setTimeout(() => { try { win.print(); } catch(e){} }, 900);
+  toast('PDF generado ✓', 'success');
+}
+  const cantidad    = Math.max(t.cantidad||1,1);
+  const placas      = Math.max(t.placas||1,1);
+  const precioUnit  = t.precio_unitario || (precioFinal / cantidad);
+  const abono       = Number(t.montoAbonado) || 0;
+  const pendiente   = Math.max(precioFinal - abono, 0);
+  const metodo      = t.metodoPago || '';
+
   const base        = new URL('.', window.location.href).href;
   const mascotaUrl  = base + 'img/Mascota-PNG.png';
   const nombreUrl   = base + 'img/Nombre-PNG.png';
