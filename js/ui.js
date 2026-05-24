@@ -109,14 +109,15 @@ function renderTrabajos() {
   const hoy = new Date().toISOString().split('T')[0];
 
   // Estadísticas
+  const ESTADOS_POR_COBRAR = ['Aprobado', 'En impresión', 'Post-proceso'];
   const total      = trabajos.length;
   const aprobados  = trabajos.filter(t => t.estado === 'Aprobado').length;
   const entregados = trabajos.filter(t => t.estado === 'Entregado').length;
-  const ingresos   = trabajos.filter(t => t.estado === 'Entregado').reduce((s,t) => s + (t.precio_final||0), 0);
-  const ganancias  = trabajos.filter(t => t.estado === 'Entregado').reduce((s,t) => s + ((t.precio_final||0) - (t.costo_total||0)), 0);
-  const pendPago   = trabajos.filter(t => (t.estadoPago||'Pendiente') !== 'Pagado').length;
+  const ingresos   = trabajos.filter(t => t.estado === 'Entregado' && t.estado !== 'Cancelado').reduce((s,t) => s + (t.precio_final||0), 0);
+  const ganancias  = trabajos.filter(t => t.estado === 'Entregado' && t.estado !== 'Cancelado').reduce((s,t) => s + ((t.precio_final||0) - (t.costo_total||0)), 0);
+  const pendPago   = trabajos.filter(t => t.estado !== 'Cancelado' && (t.estadoPago||'Pendiente') !== 'Pagado').length;
   const porCobrar  = trabajos
-    .filter(t => t.estado !== 'Cancelado' && (t.estadoPago||'Pendiente') !== 'Pagado')
+    .filter(t => ESTADOS_POR_COBRAR.includes(t.estado))
     .reduce((s,t) => s + (t.montoPendiente != null
       ? t.montoPendiente
       : Math.max(0,(t.precio_final||0)-(t.montoAbonado||0))), 0);
@@ -183,6 +184,7 @@ function renderTrabajos() {
       </td>
       <td><span class="badge ${pagoClass}">${t.estadoPago||'Pendiente'}</span></td>
       <td><div class="td-actions">
+        ${t.categoria === 'Venta' ? '' : `
         <button class="btn btn-ghost btn-icon btn-sm" title="Copiar WhatsApp"
           onclick='copiarMensajeWA("${t.id}")'>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -215,6 +217,7 @@ function renderTrabajos() {
             <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
           </svg>
         </button>
+        `}
       </div></td>
     </tr>`;
   }).join('');
@@ -381,8 +384,9 @@ function renderDashboard(filtro = 'mes-actual') {
   const clienteTop = clientTop ? `${clientTop[0]} (${clientTop[1]})` : '—';
 
   // Monto por cobrar y entregas urgentes
+  const ESTADOS_POR_COBRAR_DASH = ['Aprobado', 'En impresión', 'Post-proceso'];
   const montoPorCobrar = lista
-    .filter(t => t.estado !== 'Cancelado' && (t.estadoPago||'Pendiente') !== 'Pagado')
+    .filter(t => ESTADOS_POR_COBRAR_DASH.includes(t.estado))
     .reduce((s,t) => s + (t.montoPendiente != null
       ? t.montoPendiente
       : Math.max(0,(t.precio_final||0)-(t.montoAbonado||0))), 0);
