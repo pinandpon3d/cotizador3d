@@ -16,8 +16,9 @@ let trabajos   = [];
 let filamentos = [];
 let clientes   = [];
 let editingId  = null;
-let _dashFiltro = 'mes-actual';
-let seleccionados = new Set();   // IDs seleccionados para cotización combinada
+let _dashFiltro    = 'mes-actual';
+let seleccionados  = new Set();   // IDs seleccionados para cotización combinada
+let _trabajosVista = 'tabla';     // 'tabla' | 'kanban'
 
 /* ----------------------------------------------------------
    Navegación
@@ -32,6 +33,31 @@ const PAGE_LABELS = {
   clientes:     'Clientes',
   detalle:      'Al Detalle'
 };
+
+/* ─── TABS DE CONFIGURACIÓN ─── */
+function switchCfgTab(tab) {
+  ['costos','empresa'].forEach(t => {
+    const panel = el('cfgtab-' + t);
+    const btn   = el('cfgtab-btn-' + t);
+    if (panel) panel.style.display = t === tab ? '' : 'none';
+    if (btn)   btn.classList.toggle('active', t === tab);
+  });
+}
+
+/* ─── VISTA KANBAN / TABLA ─── */
+function toggleTrabajosVista(vista) {
+  _trabajosVista = vista;
+  const tWrap   = el('trabajos-table-wrap');
+  const kanban  = el('trabajos-kanban');
+  const tEmpty  = el('trabajos-empty');
+  if (tWrap)  tWrap.style.display  = vista === 'tabla'  ? '' : 'none';
+  if (kanban) kanban.style.display = vista === 'kanban' ? '' : 'none';
+  if (tEmpty && vista === 'kanban') tEmpty.style.display = 'none';
+  document.querySelectorAll('.vista-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.vista === vista)
+  );
+  renderTrabajos();
+}
 
 function navTo(page) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -1401,6 +1427,6 @@ function onAuthSuccess() {
   try { const l=localStorage.getItem('trabajos3d');   if(l) trabajos=JSON.parse(l);   } catch(e){}
   try { const l=localStorage.getItem('filamentos3d'); if(l) filamentos=JSON.parse(l); } catch(e){}
   try { const l=localStorage.getItem('clientes3d');   if(l) clientes=JSON.parse(l);  } catch(e){}
-  navTo('cotizador');
+  navTo('dashboard');
   cargarConfiguracion();
 }

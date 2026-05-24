@@ -121,6 +121,12 @@ function renderTrabajos() {
   set('st-ganancias', fmt(ganancias));
   set('st-pend-pago', pendPago);
 
+  // Vista kanban: delegar renderizado y salir
+  if (typeof _trabajosVista !== 'undefined' && _trabajosVista === 'kanban') {
+    renderKanban(list);
+    return;
+  }
+
   const tbody = el('trabajos-tbody');
   if (!tbody) return;
   el('trabajos-empty').style.display = list.length ? 'none'  : 'block';
@@ -570,4 +576,67 @@ function renderVentaDetalle(lotes) {
 
     </div>`;
   }).join('');
+}
+
+/* ----------------------------------------------------------
+   Vista Kanban de Trabajos
+---------------------------------------------------------- */
+
+const KANBAN_KEY = {
+  'Cotizado':     'Cotizado',
+  'Aprobado':     'Aprobado',
+  'En impresión': 'EnImpresion',
+  'Post-proceso': 'PostProceso',
+  'Listo':        'Listo',
+  'Entregado':    'Entregado',
+  'Cancelado':    'Cancelado'
+};
+
+function renderKanban(list) {
+  const items = list || trabajos;
+  Object.entries(KANBAN_KEY).forEach(([estado, key]) => {
+    const body = el('kb-' + key);
+    const cnt  = el('kc-' + key);
+    if (!body) return;
+    const cards = items.filter(t => t.estado === estado);
+    if (cnt) cnt.textContent = cards.length;
+    body.innerHTML = cards.length
+      ? cards.map(t => renderKanbanCard(t)).join('')
+      : `<div class="kc-empty">Sin trabajos</div>`;
+  });
+}
+
+function renderKanbanCard(t) {
+  const pagoClass = PAGO_COLOR[t.estadoPago || 'Pendiente'] || 'badge-pago-pendiente';
+  const entrega   = t.fechaEntrega
+    ? `<span class="kc-entrega">📅 ${t.fechaEntrega}</span>` : '';
+  return `<div class="kanban-card">
+    <div class="kc-top">
+      <div class="kc-pieza">${escHtml(t.pieza || '—')}</div>
+      <div class="kc-cliente">${escHtml(t.cliente || '')}</div>
+      ${t.material ? `<div class="kc-material">${escHtml(t.material)}</div>` : ''}
+    </div>
+    <div class="kc-mid">
+      <span class="badge ${pagoClass}" style="font-size:.66rem;padding:2px 7px">${t.estadoPago || 'Pendiente'}</span>
+      <span class="kc-precio">${fmt(t.precio_final || 0)}</span>
+    </div>
+    <div class="kc-bot">
+      <span class="kc-fecha">${t.fecha || '—'}</span>
+      ${entrega}
+    </div>
+    <div class="kc-actions">
+      <button class="btn btn-ghost btn-icon btn-sm" title="Generar PDF" onclick='pdfTrabajo("${t.id}")'>
+        <svg width="13" height="13" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      </button>
+      <button class="btn btn-ghost btn-icon btn-sm" title="Editar en cotizador" onclick='editarEnCotizador("${t.id}")'>
+        <svg width="13" height="13" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      </button>
+      <button class="btn btn-ghost btn-icon btn-sm" title="Actualizar pago" onclick='abrirModalEdicion("${t.id}")'>
+        <svg width="13" height="13" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+      </button>
+      <button class="btn btn-danger btn-icon btn-sm" title="Eliminar" onclick='eliminarTrabajo("${t.id}")'>
+        <svg width="13" height="13" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+      </button>
+    </div>
+  </div>`;
 }

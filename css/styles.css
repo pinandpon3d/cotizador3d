@@ -1106,3 +1106,215 @@ tbody td{padding:10px 14px;color:var(--text);vertical-align:middle}
 }
 .psb-close:hover { color: var(--text); }
 
+/* =========================================================
+   SIDEBAR — nav divider
+========================================================= */
+.nav-divider {
+  height: 1px;
+  background: var(--sb-border);
+  margin: 6px 16px;
+  opacity: .6;
+}
+
+/* =========================================================
+   TABS DE CONFIGURACIÓN
+========================================================= */
+.cfg-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 18px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 4px;
+}
+.cfg-tab-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 9px 16px;
+  border: none;
+  border-radius: calc(var(--radius-sm) - 2px);
+  font-family: var(--font);
+  font-size: .8125rem;
+  font-weight: 600;
+  color: var(--text2);
+  background: transparent;
+  cursor: pointer;
+  transition: background .15s, color .15s, box-shadow .15s;
+}
+.cfg-tab-btn.active {
+  background: var(--surface);
+  color: var(--accent);
+  box-shadow: 0 1px 4px rgba(19,54,88,.1);
+}
+.cfg-tab-btn:not(.active):hover {
+  background: var(--surface);
+  color: var(--text);
+}
+
+/* =========================================================
+   VISTA TOGGLE (tabla / kanban)
+========================================================= */
+.vista-toggle {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  padding: 3px;
+}
+.vista-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 28px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text2);
+  cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.vista-btn.active {
+  background: var(--surface);
+  color: var(--accent);
+  box-shadow: 0 1px 3px rgba(19,54,88,.12);
+}
+.vista-btn:not(.active):hover {
+  background: var(--surface);
+  color: var(--text);
+}
+
+/* =========================================================
+   KANBAN BOARD
+========================================================= */
+.kanban-board {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 4px 2px 12px;
+  min-height: 300px;
+}
+.kanban-board::-webkit-scrollbar { height: 6px; }
+.kanban-board::-webkit-scrollbar-track { background: var(--surface2); border-radius: 99px; }
+.kanban-board::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 99px; }
+
+.kanban-col {
+  flex: 0 0 220px;
+  min-width: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.kanban-col-sm {
+  flex: 0 0 180px;
+  min-width: 180px;
+  opacity: .75;
+}
+
+.kanban-col-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px 8px 14px;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  border-top: 3px solid var(--kc, var(--border));
+  background: var(--surface2);
+  border-left: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+}
+.kanban-col-title {
+  font-size: .75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--text2);
+}
+.kanban-col-count {
+  font-size: .72rem;
+  font-weight: 700;
+  background: var(--surface3);
+  color: var(--text2);
+  border-radius: 99px;
+  padding: 1px 7px;
+  min-width: 20px;
+  text-align: center;
+}
+
+.kanban-col-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  min-height: 120px;
+  overflow-y: auto;
+  max-height: 70vh;
+}
+.kanban-col-body::-webkit-scrollbar { width: 4px; }
+.kanban-col-body::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 99px; }
+
+.kc-empty {
+  text-align: center;
+  font-size: .75rem;
+  color: var(--text3);
+  padding: 16px 8px;
+  font-style: italic;
+}
+
+/* Tarjeta kanban */
+.kanban-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  padding: 10px 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  cursor: default;
+  transition: box-shadow .15s, border-color .15s;
+}
+.kanban-card:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--border-strong);
+}
+.kc-top { display: flex; flex-direction: column; gap: 2px; }
+.kc-pieza   { font-size: .825rem; font-weight: 700; color: var(--text); line-height: 1.3; }
+.kc-cliente { font-size: .75rem; color: var(--text2); }
+.kc-material{ font-size: .68rem; color: var(--text3); }
+.kc-mid {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.kc-precio {
+  font-size: .8rem;
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.kc-bot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.kc-fecha  { font-size: .68rem; color: var(--text3); font-variant-numeric: tabular-nums; }
+.kc-entrega{ font-size: .68rem; color: var(--accent); }
+.kc-actions {
+  display: flex;
+  gap: 2px;
+  padding-top: 5px;
+  border-top: 1px solid var(--border);
+  margin-top: 2px;
+}
+
