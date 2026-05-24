@@ -500,6 +500,7 @@
         <div class="stat-card"><div class="stat-label">Pendientes de pago</div><div class="stat-value warn" id="st-pend-pago">0</div></div>
         <div class="stat-card"><div class="stat-label">Ingresos totales</div><div class="stat-value accent" id="st-ingresos">₡0</div></div>
         <div class="stat-card"><div class="stat-label">Ganancia entregados</div><div class="stat-value success" id="st-ganancias">₡0</div></div>
+        <div class="stat-card"><div class="stat-label">Por cobrar</div><div class="stat-value warn" id="st-por-cobrar">₡0</div></div>
       </div>
       <div class="card">
         <div class="filter-bar">
@@ -530,6 +531,10 @@
           <button class="btn btn-secondary btn-sm" onclick="cargarTrabajos()">
             <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
             Recargar
+          </button>
+          <button class="btn btn-secondary btn-sm" onclick="exportarCSV()" title="Exportar trabajos filtrados como CSV">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            CSV
           </button>
           <!-- Toggle tabla / kanban -->
           <div class="vista-toggle">
@@ -651,6 +656,14 @@
         <div class="stat-card">
           <div class="stat-label">Pendientes de pago</div>
           <div class="stat-value warn" id="dash-pend-pago">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Por cobrar</div>
+          <div class="stat-value warn" id="dash-monto-cobrar">₡0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Entregas urgentes</div>
+          <div class="stat-value danger" id="dash-urgentes">0</div>
         </div>
       </div>
 

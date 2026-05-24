@@ -650,6 +650,61 @@ function ocultarPostSave() {
 }
 
 /* ----------------------------------------------------------
+   Exportar CSV
+---------------------------------------------------------- */
+function exportarCSV() {
+  const search  = el('tr-search')?.value.toLowerCase()  || '';
+  const estadoF = el('tr-estado')?.value                || '';
+  const catF    = el('tr-categoria')?.value             || '';
+  const pagoF   = el('tr-pago')?.value                  || '';
+
+  const list = trabajos.filter(t => {
+    const matchSearch = !search  || (t.pieza||'').toLowerCase().includes(search)
+                                 || (t.cliente||'').toLowerCase().includes(search);
+    const matchEstado = !estadoF || t.estado    === estadoF;
+    const matchCat    = !catF    || t.categoria === catF;
+    const matchPago   = !pagoF   || (t.estadoPago||'Pendiente') === pagoF;
+    return matchSearch && matchEstado && matchCat && matchPago;
+  });
+
+  if (!list.length) { toast('No hay trabajos para exportar', 'error'); return; }
+
+  const csvQ = s => `"${String(s||'').replace(/"/g,'""')}"`;
+  const heads = ['ID','Fecha','Cliente','Pieza','Categoría','Material',
+                 'Gramos','Horas','Costo Total','Precio Final','Gan/Objeto',
+                 'Estado','Estado Pago','Monto Abonado','Monto Pendiente',
+                 'Fecha Entrega','Notas'];
+  const rows = list.map(t => {
+    const ganObj = t.ganancia_por_objeto != null
+      ? t.ganancia_por_objeto
+      : ((t.precio_final||0) - (t.costo_total||0)) / Math.max(t.cantidad||1,1);
+    const pendiente = t.montoPendiente != null
+      ? t.montoPendiente
+      : Math.max(0,(t.precio_final||0)-(t.montoAbonado||0));
+    return [
+      t.id, t.fecha||'', csvQ(t.cliente), csvQ(t.pieza), t.categoria||'',
+      csvQ(t.material), (t.gramos||0).toFixed(1), (t.horas_imp||0).toFixed(1),
+      (t.costo_total||0).toFixed(0), (t.precio_final||0).toFixed(0), ganObj.toFixed(0),
+      t.estado||'Cotizado', t.estadoPago||'Pendiente',
+      (t.montoAbonado||0).toFixed(0), pendiente.toFixed(0),
+      t.fechaEntrega||'', csvQ(t.notas)
+    ].join(',');
+  });
+
+  const csv  = [heads.join(','), ...rows].join('\n');
+  const blob = new Blob(['﻿'+csv], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `trabajos-${new Date().toISOString().split('T')[0]}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast(`CSV exportado (${list.length} trabajos)`, 'success');
+}
+
+/* ----------------------------------------------------------
    WhatsApp — generador de mensajes
 ---------------------------------------------------------- */
 function generarMensajeWA(t) {

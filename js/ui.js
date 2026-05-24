@@ -106,6 +106,8 @@ function renderTrabajos() {
     return matchSearch && matchEstado && matchCat && matchPago;
   });
 
+  const hoy = new Date().toISOString().split('T')[0];
+
   // Estadísticas
   const total      = trabajos.length;
   const aprobados  = trabajos.filter(t => t.estado === 'Aprobado').length;
@@ -113,13 +115,19 @@ function renderTrabajos() {
   const ingresos   = trabajos.filter(t => t.estado === 'Entregado').reduce((s,t) => s + (t.precio_final||0), 0);
   const ganancias  = trabajos.filter(t => t.estado === 'Entregado').reduce((s,t) => s + ((t.precio_final||0) - (t.costo_total||0)), 0);
   const pendPago   = trabajos.filter(t => (t.estadoPago||'Pendiente') !== 'Pagado').length;
+  const porCobrar  = trabajos
+    .filter(t => t.estado !== 'Cancelado' && (t.estadoPago||'Pendiente') !== 'Pagado')
+    .reduce((s,t) => s + (t.montoPendiente != null
+      ? t.montoPendiente
+      : Math.max(0,(t.precio_final||0)-(t.montoAbonado||0))), 0);
 
-  set('st-total',     total);
-  set('st-aprobados', aprobados);
-  set('st-entregados',entregados);
-  set('st-ingresos',  fmt(ingresos));
-  set('st-ganancias', fmt(ganancias));
-  set('st-pend-pago', pendPago);
+  set('st-total',      total);
+  set('st-aprobados',  aprobados);
+  set('st-entregados', entregados);
+  set('st-ingresos',   fmt(ingresos));
+  set('st-ganancias',  fmt(ganancias));
+  set('st-pend-pago',  pendPago);
+  set('st-por-cobrar', fmt(porCobrar));
 
   // Vista kanban: delegar renderizado y salir
   if (typeof _trabajosVista !== 'undefined' && _trabajosVista === 'kanban') {
@@ -142,15 +150,24 @@ function renderTrabajos() {
     const fechaAct  = t.fechaActualizacionEstado
                     ? t.fechaActualizacionEstado.split('T')[0]
                     : (t.fecha || '—');
-    const checked   = (typeof seleccionados !== 'undefined' && seleccionados.has(t.id)) ? 'checked' : '';
+    const checked      = (typeof seleccionados !== 'undefined' && seleccionados.has(t.id)) ? 'checked' : '';
+    const entregaAlerta = t.fechaEntrega && t.estado !== 'Entregado' && t.estado !== 'Cancelado'
+      ? (t.fechaEntrega < hoy ? 'overdue' : t.fechaEntrega === hoy ? 'today' : '')
+      : '';
+    const trClass = [
+      checked ? 'tr-selected' : '',
+      entregaAlerta ? `tr-entrega-${entregaAlerta}` : ''
+    ].filter(Boolean).join(' ');
 
-    return `<tr class="${checked ? 'tr-selected' : ''}">
+    return `<tr class="${trClass}">
       <td class="td-check"><input type="checkbox" class="sel-check" data-id="${t.id}" ${checked} onchange="toggleSeleccion('${t.id}', this)"></td>
       <td class="td-mono">${t.fecha||'—'}</td>
       <td>${escHtml(t.cliente||'')}</td>
       <td>
         <strong>${escHtml(t.pieza||'')}</strong>
         ${t.material ? `<br><span style="font-size:.68rem;color:var(--text3)">${escHtml(t.material)}</span>` : ''}
+        ${entregaAlerta === 'overdue' ? `<br><span class="badge-entrega urgente">⚠ Entrega vencida: ${t.fechaEntrega}</span>` : ''}
+        ${entregaAlerta === 'today'   ? `<br><span class="badge-entrega hoy">📦 Entrega hoy: ${t.fechaEntrega}</span>` : ''}
       </td>
       <td><span class="badge badge-accent">${escHtml(t.categoria||'')}</span></td>
       <td class="td-mono">${(t.gramos||0).toFixed(1)}g / ${(t.horas_imp||0).toFixed(1)}h</td>
@@ -363,19 +380,33 @@ function renderDashboard(filtro = 'mes-actual') {
   const clientTop  = Object.entries(clientCount).sort((a,b) => b[1]-a[1])[0];
   const clienteTop = clientTop ? `${clientTop[0]} (${clientTop[1]})` : '—';
 
+  // Monto por cobrar y entregas urgentes
+  const montoPorCobrar = lista
+    .filter(t => t.estado !== 'Cancelado' && (t.estadoPago||'Pendiente') !== 'Pagado')
+    .reduce((s,t) => s + (t.montoPendiente != null
+      ? t.montoPendiente
+      : Math.max(0,(t.precio_final||0)-(t.montoAbonado||0))), 0);
+  const hoyDash = new Date().toISOString().split('T')[0];
+  const urgentes = lista.filter(t =>
+    t.fechaEntrega && t.fechaEntrega <= hoyDash &&
+    t.estado !== 'Entregado' && t.estado !== 'Cancelado'
+  ).length;
+
   // Actualizar DOM
-  set('dash-ventas',      fmt(ventasMes));
-  set('dash-ganancia',    fmt(gananciaMes));
-  set('dash-total-lista', lista.length);
-  set('dash-cotizados',   countByEstado['Cotizado']     || 0);
-  set('dash-aprobados',   countByEstado['Aprobado']     || 0);
-  set('dash-enimpresion', (countByEstado['En impresión']||0) + (countByEstado['Post-proceso']||0));
-  set('dash-listos',      countByEstado['Listo']        || 0);
-  set('dash-entregados',  countByEstado['Entregado']    || 0);
-  set('dash-cancelados',  countByEstado['Cancelado']    || 0);
-  set('dash-pend-pago',   pendPago);
-  set('dash-material',    materialTop);
-  set('dash-cliente',     clienteTop);
+  set('dash-ventas',       fmt(ventasMes));
+  set('dash-ganancia',     fmt(gananciaMes));
+  set('dash-total-lista',  lista.length);
+  set('dash-monto-cobrar', fmt(montoPorCobrar));
+  set('dash-urgentes',     urgentes);
+  set('dash-cotizados',    countByEstado['Cotizado']     || 0);
+  set('dash-aprobados',    countByEstado['Aprobado']     || 0);
+  set('dash-enimpresion',  (countByEstado['En impresión']||0) + (countByEstado['Post-proceso']||0));
+  set('dash-listos',       countByEstado['Listo']        || 0);
+  set('dash-entregados',   countByEstado['Entregado']    || 0);
+  set('dash-cancelados',   countByEstado['Cancelado']    || 0);
+  set('dash-pend-pago',    pendPago);
+  set('dash-material',     materialTop);
+  set('dash-cliente',      clienteTop);
 
   // Mostrar/ocultar sección de gráficos
   const sinDatos    = lista.length === 0;
@@ -607,10 +638,18 @@ function renderKanban(list) {
 }
 
 function renderKanbanCard(t) {
-  const pagoClass = PAGO_COLOR[t.estadoPago || 'Pendiente'] || 'badge-pago-pendiente';
+  const pagoClass    = PAGO_COLOR[t.estadoPago || 'Pendiente'] || 'badge-pago-pendiente';
+  const hoyKc        = new Date().toISOString().split('T')[0];
+  const entregaAlerta = t.fechaEntrega && t.estado !== 'Entregado' && t.estado !== 'Cancelado'
+    ? (t.fechaEntrega < hoyKc ? 'overdue' : t.fechaEntrega === hoyKc ? 'today' : '')
+    : '';
+  const entregaLabel = entregaAlerta === 'overdue' ? '⚠ Vencida'
+                     : entregaAlerta === 'today'   ? '📦 Hoy'
+                     : '📅';
   const entrega   = t.fechaEntrega
-    ? `<span class="kc-entrega">📅 ${t.fechaEntrega}</span>` : '';
-  return `<div class="kanban-card">
+    ? `<span class="kc-entrega${entregaAlerta ? ' '+entregaAlerta : ''}">${entregaLabel} ${t.fechaEntrega}</span>` : '';
+  const cardClass = entregaAlerta ? ` kc-urgente-${entregaAlerta}` : '';
+  return `<div class="kanban-card${cardClass}">
     <div class="kc-top">
       <div class="kc-pieza">${escHtml(t.pieza || '—')}</div>
       <div class="kc-cliente">${escHtml(t.cliente || '')}</div>

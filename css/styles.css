@@ -1318,3 +1318,61 @@ tbody td{padding:10px 14px;color:var(--text);vertical-align:middle}
   margin-top: 2px;
 }
 
+/* =========================================================
+   ALERTAS DE ENTREGA VENCIDA / PRÓXIMA
+========================================================= */
+
+/* Highlight de fila en tabla */
+.tr-entrega-overdue {
+  background: rgba(220, 38, 38, .045) !important;
+}
+.tr-entrega-overdue:hover {
+  background: rgba(220, 38, 38, .08) !important;
+}
+.tr-entrega-today {
+  background: rgba(217, 119, 6, .05) !important;
+}
+.tr-entrega-today:hover {
+  background: rgba(217, 119, 6, .1) !important;
+}
+
+/* Badge inline dentro de la celda de pieza */
+.badge-entrega {
+  display: inline-block;
+  font-size: .62rem;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-top: 3px;
+  line-height: 1.5;
+}
+.badge-entrega.urgente {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+.badge-entrega.hoy {
+  background: rgba(217,119,6,.12);
+  color: var(--warn);
+}
+
+/* Kanban card urgente */
+.kc-urgente-overdue {
+  border-left: 3px solid var(--danger) !important;
+}
+.kc-urgente-today {
+  border-left: 3px solid var(--warn) !important;
+}
+.kc-entrega.overdue {
+  color: var(--danger);
+  font-weight: 600;
+}
+.kc-entrega.today {
+  color: var(--warn);
+  font-weight: 600;
+}
+
+/* stat-value danger (entregas urgentes en dashboard) */
+.stat-value.danger {
+  color: var(--danger);
+}
+
