@@ -1308,6 +1308,7 @@ body{min-height:100vh;padding:40px 20px 80px;display:flex;justify-content:center
             box-shadow:0 10px 30px rgba(15,42,69,.3);font-family:inherit;
             display:inline-flex;align-items:center;gap:8px;z-index:100}
 @page{size:A4;margin:0}
+*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}
 @media print{body{background:#fff;padding:0;display:block}
   .page{width:210mm;min-height:297mm;box-shadow:none;border-radius:0}
   .print-btn{display:none}}
