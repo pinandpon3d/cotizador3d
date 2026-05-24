@@ -461,8 +461,11 @@ function renderVentaDetalle(lotes) {
   const emptyEl = el('detalle-empty');
   if (!grid) return;
 
-  // Solo ocultar cancelados; los agotados se muestran con su badge
-  const activos = (lotes || []).filter(l => l.estado !== 'Cancelado');
+  // Ocultar cancelados y agotados
+  const activos = (lotes || []).filter(l =>
+    l.estado !== 'Cancelado' &&
+    (l.unidadesVendidas || 0) < Math.max(l.cantidad || 1, 1)
+  );
 
   if (!activos.length) {
     grid.innerHTML = '';
