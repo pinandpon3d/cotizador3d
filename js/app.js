@@ -1434,16 +1434,54 @@ let _gDriveFolderId = null;
 
 /** Actualiza la UI del panel de Drive según estado de conexión. */
 function _gDriveActualizarUI(connected) {
-  const dot  = el('gdrive-dot');
-  const txt  = el('gdrive-status-text');
-  const bCon = el('gdrive-btn-conectar');
-  const bDes = el('gdrive-btn-desconectar');
-  if (dot)  dot.className   = 'status-dot ' + (connected ? 'connected' : '');
-  if (txt)  txt.textContent = connected
+  const dot   = el('gdrive-dot');
+  const txt   = el('gdrive-status-text');
+  const bCon  = el('gdrive-btn-conectar');
+  const bDes  = el('gdrive-btn-desconectar');
+  const bTest = el('gdrive-btn-test');
+  if (dot)   dot.className   = 'status-dot ' + (connected ? 'connected' : '');
+  if (txt)   txt.textContent = connected
     ? 'Conectado · carpeta COTIZACIONES lista'
     : 'Sin conexión';
-  if (bCon) bCon.style.display = connected ? 'none' : '';
-  if (bDes) bDes.style.display = connected ? '' : 'none';
+  if (bCon)  bCon.style.display  = connected ? 'none' : '';
+  if (bDes)  bDes.style.display  = connected ? '' : 'none';
+  if (bTest) bTest.style.display = connected ? '' : 'none';
+}
+
+/** Sube un archivo de prueba a la carpeta COTIZACIONES para verificar la conexión. */
+async function probarDrive() {
+  if (!_gDriveToken || !_gDriveFolderId) {
+    toast('Drive no está conectado', 'error'); return;
+  }
+  const btn = el('gdrive-btn-test');
+  if (btn) { btn.disabled = true; btn.textContent = 'Subiendo…'; }
+  const ahora   = new Date().toLocaleString('es-CR');
+  const nombre  = `TEST-conexion-${new Date().toISOString().split('T')[0]}.html`;
+  const contenido = `<!DOCTYPE html>
+<html lang="es"><head><meta charset="UTF-8">
+<title>Prueba Drive — Pin&amp;Pon 3D</title>
+<style>
+  body{font-family:system-ui,sans-serif;background:#f0f5fc;display:flex;
+       align-items:center;justify-content:center;min-height:100vh;margin:0}
+  .card{background:#fff;border-radius:16px;padding:40px 48px;
+        box-shadow:0 8px 32px rgba(19,54,88,.12);text-align:center;max-width:400px}
+  h1{color:#133658;font-size:1.4rem;margin:0 0 8px}
+  p{color:#4e6882;font-size:.9rem;margin:4px 0}
+  .ok{display:inline-block;background:#d1fae5;color:#065f46;
+      border-radius:99px;padding:6px 18px;font-weight:700;margin-top:20px;font-size:1rem}
+</style></head>
+<body>
+  <div class="card">
+    <div style="font-size:2.5rem">✅</div>
+    <h1>¡Conexión exitosa!</h1>
+    <p>Google Drive conectado correctamente.</p>
+    <p>Carpeta: <strong>COTIZACIONES</strong></p>
+    <p style="margin-top:12px;font-size:.8rem;color:#8cafd2">Generado: ${ahora}</p>
+    <span class="ok">Pin&amp;Pon 3D · Cotizador</span>
+  </div>
+</body></html>`;
+  await _gDriveSubirHTML(nombre, contenido);
+  if (btn) { btn.disabled = false; btn.innerHTML = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg> Probar conexión'; }
 }
 
 /** Solicita autorización OAuth de Google Drive. */
