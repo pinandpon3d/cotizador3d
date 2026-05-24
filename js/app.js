@@ -36,7 +36,7 @@ const PAGE_LABELS = {
 
 /* ─── TABS DE CONFIGURACIÓN ─── */
 function switchCfgTab(tab) {
-  ['costos','empresa'].forEach(t => {
+  ['costos','empresa','integraciones'].forEach(t => {
     const panel = el('cfgtab-' + t);
     const btn   = el('cfgtab-btn-' + t);
     if (panel) panel.style.display = t === tab ? '' : 'none';
@@ -1188,10 +1188,7 @@ function generarPDFData(t) {
   // Nombre de archivo = "Cotizacion - [Cliente]"
   const nombreArchivo = `Cotizacion - ${t.cliente||'Cliente'}`;
 
-  const win = window.open('','_blank');
-  if (!win) { toast('Permita ventanas emergentes','error'); return; }
-
-  win.document.write(`<!DOCTYPE html>
+  const htmlContent = `<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
@@ -1413,10 +1410,135 @@ button{font-family:inherit;cursor:pointer}
 
 </div>
 </body>
-</html>`);
+</html>`;
+
+  const win = window.open('','_blank');
+  if (!win) { toast('Permita ventanas emergentes','error'); return; }
+  win.document.write(htmlContent);
   win.document.close();
   setTimeout(() => { try { win.print(); } catch(e){} }, 900);
   toast('PDF generado ✓', 'success');
+
+  // Subir a Google Drive si está conectado
+  if (typeof _gDriveToken !== 'undefined' && _gDriveToken && _gDriveFolderId) {
+    const fname = `Cotizacion - ${(t.cliente||'Cliente').replace(/[<>:"/\\|?*]/g,'_')}.html`;
+    _gDriveSubirHTML(fname, htmlContent);
+  }
+}
+
+/* ----------------------------------------------------------
+   Google Drive — guardar cotizaciones en carpeta COTIZACIONES
+---------------------------------------------------------- */
+let _gDriveToken    = null;
+let _gDriveFolderId = null;
+
+/** Actualiza la UI del panel de Drive según estado de conexión. */
+function _gDriveActualizarUI(connected) {
+  const dot  = el('gdrive-dot');
+  const txt  = el('gdrive-status-text');
+  const bCon = el('gdrive-btn-conectar');
+  const bDes = el('gdrive-btn-desconectar');
+  if (dot)  dot.className   = 'status-dot ' + (connected ? 'connected' : '');
+  if (txt)  txt.textContent = connected
+    ? 'Conectado · carpeta COTIZACIONES lista'
+    : 'Sin conexión';
+  if (bCon) bCon.style.display = connected ? 'none' : '';
+  if (bDes) bDes.style.display = connected ? '' : 'none';
+}
+
+/** Solicita autorización OAuth de Google Drive. */
+async function conectarGDrive() {
+  const cid = (el('cfg_gdrive_client_id')?.value?.trim()) || localStorage.getItem('gdrive_client_id');
+  if (!cid) { toast('Ingrese el Client ID de Google Cloud', 'error'); return; }
+  if (typeof google === 'undefined' || !google.accounts?.oauth2) {
+    toast('Google Identity Services no disponible. Verifique su conexión.', 'error');
+    return;
+  }
+  localStorage.setItem('gdrive_client_id', cid);
+  if (el('cfg_gdrive_client_id')) el('cfg_gdrive_client_id').value = cid;
+  google.accounts.oauth2.initTokenClient({
+    client_id: cid,
+    scope: 'https://www.googleapis.com/auth/drive.file',
+    callback: async (resp) => {
+      if (resp.error) { toast('Error al conectar Drive: ' + resp.error, 'error'); return; }
+      _gDriveToken = resp.access_token;
+      await _gDriveEnsureFolder();
+    }
+  }).requestAccessToken({ prompt: '' });
+}
+
+/** Revoca el token y limpia el estado. */
+function desconectarGDrive() {
+  if (_gDriveToken && typeof google !== 'undefined') {
+    try { google.accounts.oauth2.revoke(_gDriveToken, () => {}); } catch(e) {}
+  }
+  _gDriveToken = null; _gDriveFolderId = null;
+  _gDriveActualizarUI(false);
+  toast('Google Drive desconectado', 'info');
+}
+
+/** Busca o crea la carpeta COTIZACIONES en Drive. */
+async function _gDriveEnsureFolder() {
+  if (!_gDriveToken) return;
+  try {
+    const q = encodeURIComponent(
+      `name='COTIZACIONES' and mimeType='application/vnd.google-apps.folder' and trashed=false`
+    );
+    const r = await fetch(
+      `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)&pageSize=1`,
+      { headers: { Authorization: `Bearer ${_gDriveToken}` } }
+    );
+    const data = await r.json();
+    if (data.files?.length) {
+      _gDriveFolderId = data.files[0].id;
+      toast('Google Drive conectado · carpeta COTIZACIONES lista ✓', 'success');
+    } else {
+      const cr = await fetch('https://www.googleapis.com/drive/v3/files', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${_gDriveToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: 'COTIZACIONES', mimeType: 'application/vnd.google-apps.folder' })
+      });
+      const f = await cr.json();
+      if (!f.id) throw new Error('No se pudo crear la carpeta');
+      _gDriveFolderId = f.id;
+      toast('Google Drive conectado · carpeta COTIZACIONES creada ✓', 'success');
+    }
+    _gDriveActualizarUI(true);
+  } catch(e) {
+    console.error('Drive folder error:', e);
+    toast('Error al configurar carpeta en Drive: ' + e.message, 'error');
+    _gDriveToken = null;
+    _gDriveActualizarUI(false);
+  }
+}
+
+/** Sube un archivo HTML a la carpeta COTIZACIONES. */
+async function _gDriveSubirHTML(nombre, htmlStr) {
+  if (!_gDriveToken || !_gDriveFolderId) return;
+  try {
+    const meta = { name: nombre, mimeType: 'text/html', parents: [_gDriveFolderId] };
+    const form = new FormData();
+    form.append('metadata', new Blob([JSON.stringify(meta)], { type: 'application/json' }));
+    form.append('file',     new Blob([htmlStr],              { type: 'text/html;charset=utf-8' }));
+    const r = await fetch(
+      'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
+      { method: 'POST', headers: { Authorization: `Bearer ${_gDriveToken}` }, body: form }
+    );
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      if (err.error?.code === 401) {        // Token expirado
+        _gDriveToken = null;
+        _gDriveActualizarUI(false);
+        toast('Sesión de Drive expirada. Reconecte en Configuración → Integraciones.', 'error', 6000);
+        return;
+      }
+      throw new Error(err.error?.message || r.status);
+    }
+    toast(`📁 Guardado en Drive → COTIZACIONES/${nombre}`, 'success', 5000);
+  } catch(e) {
+    console.error('Drive upload error:', e);
+    toast('No se pudo guardar en Drive: ' + e.message, 'error');
+  }
 }
 
 /* ----------------------------------------------------------
@@ -1468,6 +1590,9 @@ document.addEventListener('DOMContentLoaded', () => {
   calcCfg();
   calcular();
   initClienteAutocomplete();
+  // Restaurar Client ID de Drive si estaba guardado
+  const savedCid = localStorage.getItem('gdrive_client_id');
+  if (savedCid && el('cfg_gdrive_client_id')) el('cfg_gdrive_client_id').value = savedCid;
   // Cerrar modal con Escape
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') cerrarModalEdicion();

@@ -1376,3 +1376,58 @@ tbody td{padding:10px 14px;color:var(--text);vertical-align:middle}
   color: var(--danger);
 }
 
+/* =========================================================
+   INTEGRACIÓN GOOGLE DRIVE
+========================================================= */
+.drive-info {
+  font-size: .875rem;
+  color: var(--text2);
+  line-height: 1.65;
+  margin-bottom: 4px;
+}
+.drive-info strong { color: var(--text); }
+.drive-info a { color: var(--accent); text-decoration: none; }
+.drive-info a:hover { text-decoration: underline; }
+
+.drive-steps {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.drive-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: .8125rem;
+  color: var(--text2);
+  line-height: 1.5;
+}
+.drive-step strong { color: var(--text); }
+.step-n {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .72rem;
+  font-weight: 700;
+  margin-top: 1px;
+}
+
+.drive-status-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 10px 14px;
+  background: var(--surface2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  width: fit-content;
+  min-width: 260px;
+}
