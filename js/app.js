@@ -1372,8 +1372,6 @@ body{min-height:100vh;padding:40px 20px 80px;display:flex;justify-content:center
         <tr>
           <td>
             <div class="item-name">${escHtml(t.pieza || '—')}</div>
-            ${t.material ? `<div class="item-sub">${escHtml(t.material)}</div>` : ''}
-            ${(t.gramos||t.horas_imp) ? `<div class="item-sub">${Number(t.gramos||0).toFixed(1)} g &middot; ${Number(t.horas_imp||0).toFixed(1)} h &middot; ${placas} placa${placas!==1?'s':''}</div>` : ''}
             ${t.notas ? `<div class="item-sub" style="font-style:italic">${escHtml(t.notas)}</div>` : ''}
           </td>
           <td>${cantidad}</td>
