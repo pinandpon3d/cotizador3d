@@ -1590,9 +1590,13 @@ document.addEventListener('DOMContentLoaded', () => {
   calcCfg();
   calcular();
   initClienteAutocomplete();
-  // Restaurar Client ID de Drive si estaba guardado
-  const savedCid = localStorage.getItem('gdrive_client_id');
-  if (savedCid && el('cfg_gdrive_client_id')) el('cfg_gdrive_client_id').value = savedCid;
+  // Restaurar Client ID de Drive (predeterminado + localStorage)
+  const DEFAULT_GDRIVE_CID = '1087662880090-o7ammg0cc2sofe5r3hoq4ur5dcf11j6j.apps.googleusercontent.com';
+  const savedCid = localStorage.getItem('gdrive_client_id') || DEFAULT_GDRIVE_CID;
+  if (savedCid) {
+    localStorage.setItem('gdrive_client_id', savedCid);
+    if (el('cfg_gdrive_client_id')) el('cfg_gdrive_client_id').value = savedCid;
+  }
   // Cerrar modal con Escape
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') cerrarModalEdicion();
