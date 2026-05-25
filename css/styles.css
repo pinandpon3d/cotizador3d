@@ -1280,8 +1280,21 @@ tbody td{padding:10px 14px;color:var(--text);vertical-align:middle}
   display: flex;
   flex-direction: column;
   gap: 7px;
-  cursor: default;
-  transition: box-shadow .15s, border-color .15s;
+  cursor: grab;
+  transition: box-shadow .15s, border-color .15s, opacity .15s, transform .15s;
+  user-select: none;
+}
+.kanban-card:active { cursor: grabbing; }
+.kanban-card.kc-dragging {
+  opacity: .35;
+  transform: scale(.97);
+  box-shadow: none;
+}
+.kanban-col-body.kc-drop-over {
+  background: color-mix(in srgb, var(--brand-blue, #2563eb) 8%, transparent);
+  border-radius: var(--radius-xs);
+  outline: 2px dashed var(--brand-blue, #2563eb);
+  outline-offset: -2px;
 }
 .kanban-card:hover {
   box-shadow: var(--shadow-md);

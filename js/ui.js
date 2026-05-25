@@ -614,6 +614,56 @@ function renderVentaDetalle(lotes) {
 }
 
 /* ----------------------------------------------------------
+   Kanban — Drag & Drop
+---------------------------------------------------------- */
+
+let _kcDragId = null;
+
+function kcDragStart(e, id) {
+  _kcDragId = id;
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', id);
+  // pequeño delay para que se vea el ghost antes de reducir opacidad
+  setTimeout(() => {
+    const card = document.querySelector(`.kanban-card[data-id="${id}"]`);
+    if (card) card.classList.add('kc-dragging');
+  }, 0);
+}
+
+function kcDragEnd(e) {
+  document.querySelectorAll('.kanban-card.kc-dragging').forEach(c => c.classList.remove('kc-dragging'));
+  document.querySelectorAll('.kanban-col-body.kc-drop-over').forEach(c => c.classList.remove('kc-drop-over'));
+}
+
+function kcDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  e.currentTarget.classList.add('kc-drop-over');
+}
+
+function kcDragLeave(e) {
+  // solo quitar si salimos del body (no de un hijo)
+  if (!e.currentTarget.contains(e.relatedTarget)) {
+    e.currentTarget.classList.remove('kc-drop-over');
+  }
+}
+
+async function kcDrop(e) {
+  e.preventDefault();
+  const body = e.currentTarget;
+  body.classList.remove('kc-drop-over');
+  const id = _kcDragId || e.dataTransfer.getData('text/plain');
+  _kcDragId = null;
+  if (!id) return;
+  const col = body.closest('.kanban-col');
+  const nuevoEstado = col?.dataset.estado;
+  if (!nuevoEstado) return;
+  const t = trabajos.find(x => x.id === id);
+  if (!t || t.estado === nuevoEstado) return;
+  await cambiarEstado(id, nuevoEstado);
+}
+
+/* ----------------------------------------------------------
    Vista Kanban de Trabajos
 ---------------------------------------------------------- */
 
@@ -653,7 +703,8 @@ function renderKanbanCard(t) {
   const entrega   = t.fechaEntrega
     ? `<span class="kc-entrega${entregaAlerta ? ' '+entregaAlerta : ''}">${entregaLabel} ${t.fechaEntrega}</span>` : '';
   const cardClass = entregaAlerta ? ` kc-urgente-${entregaAlerta}` : '';
-  return `<div class="kanban-card${cardClass}">
+  return `<div class="kanban-card${cardClass}" draggable="true" data-id="${t.id}"
+    ondragstart="kcDragStart(event,'${t.id}')" ondragend="kcDragEnd(event)">
     <div class="kc-top">
       <div class="kc-pieza">${escHtml(t.pieza || '—')}</div>
       <div class="kc-cliente">${escHtml(t.cliente || '')}</div>
