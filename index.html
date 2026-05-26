@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <!-- Capa de estilos -->
-<link rel="stylesheet" href="css/styles.css?v=20260526">
+<link rel="stylesheet" href="css/styles.css?v=20260527">
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
@@ -511,51 +511,62 @@
       </div>
       <div class="card">
         <div class="filter-bar">
-          <input type="text" id="tr-search" placeholder="Buscar cliente, pieza…" oninput="renderTrabajos()">
-          <select id="tr-estado" onchange="renderTrabajos()">
-            <option value="">Todos los estados</option>
-            <option value="Cotizado">Cotizado</option>
-            <option value="Aprobado">Aprobado</option>
-            <option value="En impresión">En impresión</option>
-            <option value="Post-proceso">Post-proceso</option>
-            <option value="Listo">Listo</option>
-            <option value="Entregado">Entregado</option>
-            <option value="Cancelado">Cancelado</option>
-            <option value="Venta">Venta</option>
-          </select>
-          <select id="tr-pago" onchange="renderTrabajos()">
-            <option value="">Todos los pagos</option>
-            <option value="Pendiente">Pendiente</option>
-            <option value="Abono">Abono</option>
-            <option value="Pagado">Pagado</option>
-          </select>
-          <select id="tr-categoria" onchange="renderTrabajos()">
-            <option value="">Todas las categorías</option>
-            <option value="Funcional">Funcional</option><option value="Decorativa">Decorativa</option>
-            <option value="Prototipo">Prototipo</option><option value="Educativo">Educativo</option>
-            <option value="Repuesto">Repuesto</option><option value="Personalizado">Personalizado</option>
-            <option value="Venta al Detalle">Venta al Detalle</option>
-            <option value="Venta">Venta</option>
-            <option value="Otro">Otro</option>
-          </select>
-          <button id="btn-mostrar-entregados" class="btn btn-secondary btn-sm" onclick="toggleMostrarEntregados()">
-            📦 Mostrar entregados
-          </button>
-          <button class="btn btn-secondary btn-sm" onclick="cargarTrabajos()">
-            <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-            Recargar
-          </button>
-          <button class="btn btn-secondary btn-sm" onclick="exportarCSV()" title="Exportar trabajos filtrados como CSV">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            CSV
-          </button>
-          <!-- Toggle tabla / kanban -->
-          <div class="vista-toggle">
-            <button class="vista-btn active" data-vista="tabla" onclick="toggleTrabajosVista('tabla')" title="Vista tabla">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+          <!-- Fila de búsqueda (siempre visible) -->
+          <div class="filter-search-row">
+            <input type="text" id="tr-search" placeholder="Buscar cliente, pieza…" oninput="renderTrabajos()">
+            <!-- Botón toggle filtros (solo visible en móvil) -->
+            <button id="btn-toggle-filters" class="btn btn-secondary btn-sm" onclick="toggleFiltrosMobile()" title="Filtros">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+              <span>Filtros</span>
             </button>
-            <button class="vista-btn" data-vista="kanban" onclick="toggleTrabajosVista('kanban')" title="Vista kanban">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="5" height="18" rx="1"/><rect x="10" y="3" width="5" height="12" rx="1"/><rect x="17" y="3" width="5" height="15" rx="1"/></svg>
+            <!-- Toggle tabla / kanban -->
+            <div class="vista-toggle">
+              <button class="vista-btn active" data-vista="tabla" onclick="toggleTrabajosVista('tabla')" title="Vista tabla">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+              </button>
+              <button class="vista-btn" data-vista="kanban" onclick="toggleTrabajosVista('kanban')" title="Vista kanban">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="5" height="18" rx="1"/><rect x="10" y="3" width="5" height="12" rx="1"/><rect x="17" y="3" width="5" height="15" rx="1"/></svg>
+              </button>
+            </div>
+          </div>
+          <!-- Filtros extra (colapsables en móvil, siempre visibles en desktop) -->
+          <div class="filter-extras" id="filter-extras">
+            <select id="tr-estado" onchange="renderTrabajos()">
+              <option value="">Todos los estados</option>
+              <option value="Cotizado">Cotizado</option>
+              <option value="Aprobado">Aprobado</option>
+              <option value="En impresión">En impresión</option>
+              <option value="Post-proceso">Post-proceso</option>
+              <option value="Listo">Listo</option>
+              <option value="Entregado">Entregado</option>
+              <option value="Cancelado">Cancelado</option>
+              <option value="Venta">Venta</option>
+            </select>
+            <select id="tr-pago" onchange="renderTrabajos()">
+              <option value="">Todos los pagos</option>
+              <option value="Pendiente">Pendiente</option>
+              <option value="Abono">Abono</option>
+              <option value="Pagado">Pagado</option>
+            </select>
+            <select id="tr-categoria" onchange="renderTrabajos()">
+              <option value="">Todas las categorías</option>
+              <option value="Funcional">Funcional</option><option value="Decorativa">Decorativa</option>
+              <option value="Prototipo">Prototipo</option><option value="Educativo">Educativo</option>
+              <option value="Repuesto">Repuesto</option><option value="Personalizado">Personalizado</option>
+              <option value="Venta al Detalle">Venta al Detalle</option>
+              <option value="Venta">Venta</option>
+              <option value="Otro">Otro</option>
+            </select>
+            <button id="btn-mostrar-entregados" class="btn btn-secondary btn-sm" onclick="toggleMostrarEntregados()">
+              📦 <span>Mostrar entregados</span>
+            </button>
+            <button class="btn btn-secondary btn-sm" onclick="cargarTrabajos()">
+              <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+              <span>Recargar</span>
+            </button>
+            <button class="btn btn-secondary btn-sm" onclick="exportarCSV()" title="Exportar trabajos filtrados como CSV">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              <span>CSV</span>
             </button>
           </div>
         </div>
@@ -1345,7 +1356,7 @@
 <script src="js/db.js?v=20260526"></script>
 <script src="js/logic.js?v=20260526"></script>
 <script src="js/ui.js?v=20260526"></script>
-<script src="js/app.js?v=20260526"></script>
+<script src="js/app.js?v=20260527"></script>
 <script src="js/auth.js?v=20260526"></script>
 
 </body>

@@ -520,7 +520,7 @@ tbody td{padding:10px 14px;color:var(--text);vertical-align:middle}
 ::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:3px}
 
 /* =========================================================
-   RESPONSIVE
+   RESPONSIVE — base
 ========================================================= */
 @media (max-width:768px){
   .sidebar{
@@ -530,8 +530,8 @@ tbody td{padding:10px 14px;color:var(--text);vertical-align:middle}
   }
   .sidebar.open{transform:translateX(0)}
   .hamburger{display:flex}
-  main.main{padding:16px}
-  .topbar{padding:0 16px}
+  main.main{padding:14px}
+  .topbar{padding:0 14px}
   .form-grid{grid-template-columns:1fr 1fr}
   .form-grid-2,.form-grid-3{grid-template-columns:1fr}
   .stats-grid{grid-template-columns:1fr 1fr}
@@ -542,6 +542,217 @@ tbody td{padding:10px 14px;color:var(--text);vertical-align:middle}
 @media (max-width:480px){
   .form-grid{grid-template-columns:1fr}
   .stats-grid{grid-template-columns:1fr 1fr}
+}
+
+/* =========================================================
+   RESPONSIVE MEJORADO — optimización mobile v2
+========================================================= */
+
+/* ── Fila de búsqueda del filtro bar ────────────────────── */
+.filter-search-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+}
+.filter-search-row > input { flex: 1; min-width: 0 }
+.filter-extras {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+}
+/* Botón toggle filtros: solo visible en móvil (CSS lo activa) */
+#btn-toggle-filters { display: none }
+
+/* ── ≤768px (tablet / phone landscape) ──────────────────── */
+@media (max-width: 768px) {
+
+  /* Sidebar y topbar ya definidos arriba */
+
+  /* Card padding reducido */
+  .card { padding: 16px 14px }
+
+  /* ── Filter bar ── */
+  .filter-bar { flex-direction: column; align-items: stretch; gap: 8px }
+  .filter-search-row { order: 0 }
+  /* Extras: por defecto colapsados en móvil; toggle los abre */
+  .filter-extras { order: 1; flex-direction: column; display: none }
+  .filter-extras.fe-open { display: flex }
+  .filter-extras select,
+  .filter-extras input { width: 100%; flex: none }
+  #btn-toggle-filters { display: inline-flex }
+
+  /* ── Tablas: ocultar columnas no esenciales ── */
+
+  /* TRABAJOS — dejar: ✅check, Fecha, Cliente, Pieza, Precio, Estado, Pago, Acciones */
+  #trabajos-table thead th:nth-child(5),  /* Categoría */
+  #trabajos-table thead th:nth-child(6),  /* Gramos/Horas */
+  #trabajos-table thead th:nth-child(7),  /* Costo total */
+  #trabajos-table thead th:nth-child(9),  /* Gan./Objeto */
+  #trabajos-table tbody td:nth-child(5),
+  #trabajos-table tbody td:nth-child(6),
+  #trabajos-table tbody td:nth-child(7),
+  #trabajos-table tbody td:nth-child(9)   { display: none }
+
+  /* CLIENTES — dejar: Nombre, Teléfono, Pedidos, Total comprado, Acciones */
+  #clientes-table thead th:nth-child(3),  /* Correo */
+  #clientes-table thead th:nth-child(4),  /* Instagram */
+  #clientes-table thead th:nth-child(7),  /* Notas */
+  #clientes-table tbody td:nth-child(3),
+  #clientes-table tbody td:nth-child(4),
+  #clientes-table tbody td:nth-child(7)   { display: none }
+
+  /* INVENTARIO — dejar: Tipo, Color, Disponible, Acciones */
+  #inv-table thead th:nth-child(3),  /* Marca */
+  #inv-table thead th:nth-child(4),  /* Precio/Rollo */
+  #inv-table thead th:nth-child(5),  /* Peso */
+  #inv-table thead th:nth-child(6),  /* Costo/g */
+  #inv-table thead th:nth-child(8),  /* Valor restante */
+  #inv-table thead th:nth-child(9),  /* Proveedor */
+  #inv-table thead th:nth-child(10), /* Fecha compra */
+  #inv-table tbody td:nth-child(3),
+  #inv-table tbody td:nth-child(4),
+  #inv-table tbody td:nth-child(5),
+  #inv-table tbody td:nth-child(6),
+  #inv-table tbody td:nth-child(8),
+  #inv-table tbody td:nth-child(9),
+  #inv-table tbody td:nth-child(10)  { display: none }
+
+  /* GASTOS — dejar: Fecha, Descripción, Categoría, Monto, Acción */
+  #gastos-table thead th:nth-child(5),  /* Notas */
+  #gastos-table tbody td:nth-child(5)   { display: none }
+
+  /* USUARIOS — dejar: Usuario, Rol, Acciones */
+  #users-table thead th:nth-child(2),  /* Email */
+  #users-table thead th:nth-child(4),  /* Registro */
+  #users-table tbody td:nth-child(2),
+  #users-table tbody td:nth-child(4)   { display: none }
+
+  /* ── Grid de costos: 4→2 columnas ── */
+  .costos-form { grid-template-columns: 1fr 1fr }
+
+  /* El span se resetea solo en 480px (cuando la grid pasa a 1 columna) */
+
+  /* ── Config tabs ── */
+  .cfg-tabs { flex-wrap: wrap }
+  .cfg-tab-btn { flex: 1 1 auto; min-width: 0; font-size: .75rem; padding: 8px 10px; gap: 5px }
+  .cfg-tab-btn svg { width: 13px; height: 13px }
+
+  /* ── Modal: bottom sheet en móvil ── */
+  .modal-overlay { align-items: flex-end; padding: 0 }
+  .modal {
+    border-radius: var(--radius) var(--radius) 0 0;
+    max-height: 94vh;
+    max-width: 100%;
+    width: 100%;
+  }
+  .modal-header { padding: 16px }
+  .modal-body   { padding: 14px 16px }
+  .modal-footer { padding: 12px 16px }
+
+  /* ── Barra de selección múltiple ── */
+  .barra-seleccion {
+    left: 10px; right: 10px; width: auto;
+    transform: none;
+    flex-direction: column;
+    gap: 10px;
+    border-radius: var(--radius-sm);
+    text-align: center;
+  }
+  .barra-seleccion.barra-visible { bottom: 14px }
+  .barra-sel-actions { width: 100%; justify-content: center }
+
+  /* ── Toast ── */
+  #toast-container { right: 10px; left: 10px; bottom: 14px }
+  .toast { max-width: 100% }
+
+  /* ── Post-save banner ── */
+  .post-save-banner { flex-direction: column; align-items: flex-start; gap: 10px }
+  .psb-actions { width: 100%; flex-wrap: wrap }
+
+  /* ── Dashboard ── */
+  .dash-grid { grid-template-columns: 1fr }
+
+  /* ── Kanban: columnas algo más pequeñas ── */
+  .kanban-col { flex: 0 0 200px; min-width: 200px }
+  .kanban-col-sm { flex: 0 0 160px; min-width: 160px }
+  .kanban-col-body { max-height: 55vh }
+
+  /* ── Card title: evitar overflow con búsqueda interna ── */
+  #cl-search { width: 100% !important; min-width: 0 }
+  .card-title { flex-wrap: wrap }
+
+  /* ── Targets táctiles más grandes ── */
+  .btn { min-height: 40px }
+  .nav-item { padding: 11px 12px }
+  .form-group input,
+  .form-group select,
+  .form-group textarea { min-height: 42px }
+
+  /* ── Tipografía ── */
+  .section-title { font-size: 1rem }
+  .section-sub   { font-size: .8rem; margin-bottom: 14px }
+  .stat-value    { font-size: 1.25rem }
+  .stat-card     { padding: 12px 14px }
+
+  /* ── Acción inline en card de clientes/usuarios ── */
+  #page-clientes .card-title .btn-group-inline,
+  #page-usuarios .card-title .btn-group-inline { flex-direction: column; align-items: stretch }
+}
+
+/* ── ≤480px (phones portrait) ─────────────────────────── */
+@media (max-width: 480px) {
+
+  main.main { padding: 10px }
+
+  /* TRABAJOS: también ocultar Fecha(2) — queda: ✅ Cliente, Pieza, Precio, Estado, Pago, ⚡ */
+  #trabajos-table thead th:nth-child(2),
+  #trabajos-table tbody td:nth-child(2)  { display: none }
+
+  /* CLIENTES: también ocultar Total comprado(6) */
+  #clientes-table thead th:nth-child(6),
+  #clientes-table tbody td:nth-child(6)  { display: none }
+
+  /* ── Costos form: 2→1 columna ── */
+  .costos-form { grid-template-columns: 1fr }
+  .costos-form > *[style*="grid-column"] { grid-column: 1 !important }
+
+  /* ── Form-grids que pasan a 1 col: resetear spans inline ── */
+  .form-grid > *[style*="grid-column"],
+  .form-grid-2 > *[style*="grid-column"] { grid-column: 1 !important }
+
+  /* ── Config tabs: stack vertical ── */
+  .cfg-tabs { flex-direction: column }
+  .cfg-tab-btn { justify-content: flex-start; width: 100%; border-radius: calc(var(--radius-sm) - 2px) }
+
+  /* ── Stats: 2 col en portrait ── */
+  .stats-grid { grid-template-columns: 1fr 1fr }
+
+  /* ── Breakdown más compacto ── */
+  .breakdown { font-size: .78rem }
+  .breakdown-row.total { font-size: .95rem }
+
+  /* ── Breadcrumb: ocultar el nombre de empresa (más espacio) ── */
+  .breadcrumb > span:first-child,
+  .breadcrumb > .sep:first-of-type { display: none }
+
+  /* ── Botones: restaurar texto en grupos de acción ── */
+  .btn-group .btn span { display: inline }  /* restaurar texto en botones principales */
+  .btn { min-height: 42px }
+
+  /* ── Modal casi pantalla completa ── */
+  .modal { max-height: 96vh }
+
+  /* ── Kanban: sugerencia de tabla (toggle oculto) — solo en lista ── */
+  .kanban-col { flex: 0 0 88vw; min-width: 88vw }
+
+  /* ── Vista al detalle: 1 col ── */
+  .detalle-grid { grid-template-columns: 1fr }
+
+  /* ── Modal venta: padding reducido ── */
+  .mv-info { flex-direction: column; gap: 6px }
 }
 
 /* =========================================================

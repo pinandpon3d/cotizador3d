@@ -1986,6 +1986,22 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 /* ----------------------------------------------------------
+   Toggle filtros en móvil
+---------------------------------------------------------- */
+function toggleFiltrosMobile() {
+  const extras = document.getElementById('filter-extras');
+  const btn    = document.getElementById('btn-toggle-filters');
+  if (!extras) return;
+  const isOpen = extras.classList.toggle('fe-open');
+  if (btn) {
+    const sp = btn.querySelector('span');
+    if (sp) sp.textContent = isOpen ? 'Cerrar' : 'Filtros';
+    btn.classList.toggle('btn-primary', isOpen);
+    btn.classList.toggle('btn-secondary', !isOpen);
+  }
+}
+
+/* ----------------------------------------------------------
    Callback post-autenticación (llamado desde auth.js)
 ---------------------------------------------------------- */
 function onAuthSuccess() {
