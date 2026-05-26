@@ -163,6 +163,7 @@ function guardarCotizacion() {
     editingId = null; el('edit-banner').style.display = 'none';
   }
   mostrarPostGuardado(pieza, wasEditing);
+  nuevaCotizacion();
 }
 
 /* ----------------------------------------------------------
