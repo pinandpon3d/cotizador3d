@@ -324,9 +324,10 @@ function generarPDFMultiple(items, clienteNombre) {
 :root{--navy:#16395A;--navy-deep:#0F2A45;--navy-2:#235A8C;--sky:#4A8FCB;--pale:#E8F0F8;--yellow:#F2C61F;--ink:#1A2433;--ink-soft:#5B6A7E;--line:#DEE5EE;--line-soft:#EEF2F7;--paper:#FFFFFF;--paper-tint:#FBFCFE;--accent:#F2C61F;--radius:10px}
 *{box-sizing:border-box}
 html,body{margin:0;padding:0;font-family:"Plus Jakarta Sans",system-ui,sans-serif;color:var(--ink);background:#EEF1F5;-webkit-font-smoothing:antialiased}
-body{min-height:100vh;padding:40px 20px 80px;display:flex;justify-content:center;align-items:flex-start}
+body{min-height:100vh;padding:20px 0 80px;display:flex;justify-content:center;align-items:flex-start}
 button{font-family:inherit;cursor:pointer}
-.page{width:794px;min-height:1123px;background:var(--paper);position:relative;overflow:hidden;box-shadow:0 20px 60px -20px rgba(15,42,69,.25),0 4px 16px -4px rgba(15,42,69,.12);border-radius:4px;display:flex;flex-direction:column}
+.page{width:min(794px,100vw);min-height:1123px;background:var(--paper);position:relative;overflow:hidden;box-shadow:0 20px 60px -20px rgba(15,42,69,.25),0 4px 16px -4px rgba(15,42,69,.12);border-radius:4px;display:flex;flex-direction:column}
+@media screen and (max-width:820px){body{padding:0 0 70px;background:#fff}.page{width:100vw;border-radius:0;box-shadow:none}}
 .watermark{position:absolute;right:-60px;bottom:180px;width:360px;opacity:.025;pointer-events:none;z-index:0}
 .doc-header{position:relative;color:white;overflow:hidden}
 .solid-band{position:absolute;inset:0;background:linear-gradient(95deg,var(--navy-deep) 0%,var(--navy) 50%,var(--navy-2) 100%)}
@@ -397,8 +398,10 @@ button{font-family:inherit;cursor:pointer}
 .thanks-logo{height:26px;width:auto;display:inline-block;vertical-align:middle}
 .footer-accent{width:60px;height:4px;background:linear-gradient(90deg,var(--navy),var(--sky),var(--accent));border-radius:2px}
 .print-btn{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);padding:10px 24px;background:var(--navy);color:white;border:none;border-radius:999px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 10px 30px -6px rgba(15,42,69,.3);font-family:inherit;display:inline-flex;align-items:center;gap:8px;z-index:100}
-@page{size:A4;margin:0}
-@media print{body{background:white;padding:0;display:block}.page{width:210mm;min-height:297mm;box-shadow:none;border-radius:0}.print-btn{display:none}}
+@page{size:letter;margin:0}
+*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}
+@media print{html,body{background:#fff!important;padding:0!important;margin:0!important;display:block!important}
+.page{width:215.9mm!important;min-height:279.4mm!important;box-shadow:none!important;border-radius:0!important}.print-btn{display:none!important}}
 </style>
 </head>
 <body>
@@ -1208,10 +1211,18 @@ function generarPDFData(t) {
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{font-family:"Plus Jakarta Sans",system-ui,sans-serif;background:#EEF1F5;-webkit-font-smoothing:antialiased}
-body{min-height:100vh;padding:40px 20px 80px;display:flex;justify-content:center;align-items:flex-start}
-.page{width:794px;min-height:1123px;background:#fff;border-radius:6px;overflow:hidden;
+body{min-height:100vh;padding:20px 0 80px;display:flex;justify-content:center;align-items:flex-start}
+.page{width:min(794px,100vw);min-height:1123px;background:#fff;overflow:hidden;
       box-shadow:0 20px 60px -16px rgba(15,42,69,.22),0 4px 16px rgba(15,42,69,.1);
       display:flex;flex-direction:column}
+@media screen and (max-width:820px){
+  body{padding:0 0 70px;background:#fff}
+  .page{width:100vw;min-height:100dvh;border-radius:0;box-shadow:none}
+  .header{padding:24px 20px}
+  .client-bar{padding:12px 20px;grid-template-columns:1fr 1fr}
+  .body{padding:20px 20px 8px}
+  .doc-footer{padding:14px 20px}
+}
 /* ── HEADER ── */
 .header{background:linear-gradient(130deg,#0F2A45 0%,#16395A 45%,#235A8C 100%);
         position:relative;overflow:hidden;padding:32px 48px;
@@ -1311,11 +1322,17 @@ body{min-height:100vh;padding:40px 20px 80px;display:flex;justify-content:center
             padding:10px 24px;font-size:13px;font-weight:600;cursor:pointer;
             box-shadow:0 10px 30px rgba(15,42,69,.3);font-family:inherit;
             display:inline-flex;align-items:center;gap:8px;z-index:100}
-@page{size:A4;margin:0}
+@page{size:letter;margin:0}
 *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}
-@media print{body{background:#fff;padding:0;display:block}
-  .page{width:210mm;min-height:297mm;box-shadow:none;border-radius:0}
-  .print-btn{display:none}}
+@media print{
+  html,body{background:#fff!important;padding:0!important;margin:0!important;display:block!important}
+  .page{width:215.9mm!important;min-height:279.4mm!important;box-shadow:none!important;border-radius:0!important;
+        border:none!important;overflow:visible!important}
+  .header{padding:32px 48px!important}
+  .client-bar{padding:16px 48px!important;grid-template-columns:2fr 1fr 1fr 1fr!important}
+  .body{padding:28px 48px 8px!important}
+  .doc-footer{padding:16px 48px!important}
+  .print-btn{display:none!important}}
 </style>
 </head>
 <body>
