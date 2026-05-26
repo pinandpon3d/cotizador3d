@@ -1316,12 +1316,17 @@ body{min-height:100vh;padding:20px 0 80px;display:flex;justify-content:center;al
 .thanks-logo{height:24px;width:auto}
 .footer-rule{width:48px;height:3px;
               background:linear-gradient(90deg,#16395A,#4A8FCB,#F2C61F);border-radius:2px}
-/* ── PRINT BUTTON ── */
-.print-btn{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
-            background:#16395A;color:#fff;border:none;border-radius:99px;
-            padding:10px 24px;font-size:13px;font-weight:600;cursor:pointer;
-            box-shadow:0 10px 30px rgba(15,42,69,.3);font-family:inherit;
-            display:inline-flex;align-items:center;gap:8px;z-index:100}
+/* ── OVERLAY DESCARGA ── */
+#dl-overlay{position:fixed;inset:0;background:rgba(238,241,245,.95);
+  display:flex;align-items:center;justify-content:center;z-index:999;font-family:inherit}
+#dl-box{background:#fff;border-radius:14px;padding:36px 44px;text-align:center;
+  box-shadow:0 20px 60px rgba(15,42,69,.18);min-width:260px}
+#dl-icon{font-size:36px;margin-bottom:12px}
+#dl-title{font-size:15px;font-weight:700;color:#133658;margin-bottom:5px}
+#dl-sub{font-size:12px;color:#8CAFD2}
+#dl-track{margin-top:18px;height:5px;background:#E8F0F8;border-radius:99px;overflow:hidden}
+#dl-bar{height:100%;width:0%;background:linear-gradient(90deg,#16395A,#4A8FCB);
+  border-radius:99px;transition:width .4s ease}
 @page{size:letter;margin:0}
 *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}
 @media print{
@@ -1336,7 +1341,14 @@ body{min-height:100vh;padding:20px 0 80px;display:flex;justify-content:center;al
 </style>
 </head>
 <body>
-<button class="print-btn" onclick="window.print()">🖨&nbsp; Imprimir / PDF</button>
+<div id="dl-overlay">
+  <div id="dl-box">
+    <div id="dl-icon">📄</div>
+    <div id="dl-title">Generando PDF…</div>
+    <div id="dl-sub">Esto tomará unos segundos</div>
+    <div id="dl-track"><div id="dl-bar"></div></div>
+  </div>
+</div>
 <div class="page">
 
   <!-- HEADER -->
@@ -1460,15 +1472,83 @@ body{min-height:100vh;padding:20px 0 80px;display:flex;justify-content:center;al
   </div>
 
 </div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script>
+(async function(){
+  const bar   = document.getElementById('dl-bar');
+  const title = document.getElementById('dl-title');
+  const sub   = document.getElementById('dl-sub');
+  const icon  = document.getElementById('dl-icon');
+  const setBar = p => { if(bar) bar.style.width = p+'%'; };
+  try {
+    await document.fonts.ready;
+    setBar(15);
+    await new Promise(r => setTimeout(r, 900));
+    setBar(35);
+
+    const { jsPDF } = window.jspdf;
+    const pageEl = document.querySelector('.page');
+    // Forzar ancho fijo para render correcto
+    pageEl.style.cssText += ';width:794px!important;min-width:794px!important';
+
+    const canvas = await html2canvas(pageEl, {
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: '#ffffff',
+      logging: false,
+      imageTimeout: 8000
+    });
+    setBar(75);
+
+    const pdf = new jsPDF({ orientation:'portrait', unit:'mm', format:'letter' });
+    const W = pdf.internal.pageSize.getWidth();
+    const H = pdf.internal.pageSize.getHeight();
+    const imgH = W * canvas.height / canvas.width;
+
+    if(imgH <= H){
+      pdf.addImage(canvas.toDataURL('image/jpeg',0.97),'JPEG',0,0,W,imgH);
+    } else {
+      // Partir en páginas si el contenido es más largo
+      const rowPx = Math.floor(canvas.width * H / W);
+      let y = 0;
+      while(y < canvas.height){
+        const slH = Math.min(rowPx, canvas.height - y);
+        const sl  = document.createElement('canvas');
+        sl.width  = canvas.width; sl.height = rowPx;
+        sl.getContext('2d').drawImage(canvas, 0, -y);
+        if(y > 0) pdf.addPage('letter');
+        pdf.addImage(sl.toDataURL('image/jpeg',0.97),'JPEG',0,0,W,H);
+        y += slH;
+      }
+    }
+    setBar(95);
+    if(title) title.textContent = '¡Listo! Descargando…';
+    if(sub)   sub.textContent   = '';
+    if(icon)  icon.textContent  = '✅';
+    pdf.save('${(nombreArchivo).replace(/[<>:"/\\\\|?*]/g,"_")}.pdf');
+    setBar(100);
+    setTimeout(()=>{ window.close(); }, 1500);
+  } catch(err){
+    console.error('PDF error:',err);
+    if(title) title.textContent = 'Error al generar PDF';
+    if(sub)   sub.innerHTML = 'Abrí el menú del navegador<br>y seleccioná <strong>Imprimir → Guardar como PDF</strong>';
+    if(icon)  icon.textContent = '⚠️';
+    if(bar)   bar.style.background = '#dc2626';
+    setBar(100);
+  }
+})();
+</script>
 </body>
 </html>`;
 
   const win = window.open('','_blank');
-  if (!win) { toast('Permita ventanas emergentes','error'); return; }
+  if (!win) { toast('Permita ventanas emergentes en este sitio','error'); return; }
   win.document.write(htmlContent);
   win.document.close();
-  setTimeout(() => { try { win.print(); } catch(e){} }, 900);
-  toast('PDF generado ✓', 'success');
+  toast('Generando PDF… ✓', 'success');
 
   // Subir a Google Drive si está conectado
   if (typeof _gDriveToken !== 'undefined' && _gDriveToken && _gDriveFolderId) {
