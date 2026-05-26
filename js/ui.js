@@ -420,6 +420,8 @@ function renderDashboard(filtro = 'mes-actual') {
   if (dashCharts) dashCharts.style.display = sinDatos ? 'none'  : 'block';
 
   if (!sinDatos) _renderCharts(lista, countByEstado, anio, mes);
+
+  if (typeof actualizarDashboardInversion === 'function') actualizarDashboardInversion();
 }
 
 function _renderCharts(lista, countByEstado, anio, mes) {
@@ -733,4 +735,100 @@ function renderKanbanCard(t) {
       </button>
     </div>
   </div>`;
+}
+
+/* ----------------------------------------------------------
+   Gestión de Costos — render
+---------------------------------------------------------- */
+
+const GASTO_COLOR = {
+  'Filamento':   'badge-accent',
+  'Electricidad':'badge-pago-pendiente',
+  'Herramienta': 'badge-gray',
+  'Servicio':    'badge-gray',
+  'Impresora':   'badge-cotizado',
+  'Otro':        'badge-gray'
+};
+
+function renderCostos() {
+  const tbody = el('gastos-tbody');
+  if (!tbody) return;
+  const empty = el('gastos-empty');
+  const totalEl = el('gastos-total');
+  if (!gastos.length) {
+    if (empty) empty.style.display = 'block';
+    tbody.innerHTML = '';
+    if (totalEl) totalEl.textContent = '₡0';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+  const total = gastos.reduce((s, g) => s + (g.monto || 0), 0);
+  if (totalEl) totalEl.textContent = fmt(total);
+  tbody.innerHTML = gastos.map(g => `
+    <tr>
+      <td class="td-mono">${g.fecha || '—'}</td>
+      <td>${escHtml(g.descripcion || '')}</td>
+      <td><span class="badge ${GASTO_COLOR[g.categoria] || 'badge-gray'}">${escHtml(g.categoria || '')}</span></td>
+      <td class="td-mono"><strong>${fmt(g.monto || 0)}</strong></td>
+      <td>${escHtml(g.notas || '')}</td>
+      <td>
+        <button class="btn btn-danger btn-icon btn-sm" title="Eliminar" onclick='eliminarGasto("${g.id}")'>
+          <svg width="13" height="13" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+        </button>
+      </td>
+    </tr>`).join('');
+}
+
+function renderInversion() {
+  const wrap = el('inversion-wrap');
+  if (!wrap) return;
+
+  const totalInv   = (inversion.items || []).reduce((s, i) => s + (i.monto || 0), 0);
+  const recuperado = (typeof trabajos !== 'undefined' ? trabajos : [])
+    .filter(t => t.estado !== 'Cancelado')
+    .reduce((s, t) => s + (t.precio_final || 0), 0);
+  const pct  = totalInv > 0 ? Math.min(100, (recuperado / totalInv) * 100) : 0;
+  const rest = Math.max(0, totalInv - recuperado);
+
+  // Toggle button state
+  const btn = el('inv-toggle-btn');
+  if (btn) {
+    btn.textContent = inversion.activa ? '👁 Visible en dashboard (clic para ocultar)' : '🙈 Oculto del dashboard (clic para mostrar)';
+    btn.className   = 'btn btn-sm ' + (inversion.activa ? 'btn-primary' : 'btn-secondary');
+  }
+
+  // Items list
+  const list = el('inversion-list');
+  if (list) {
+    list.innerHTML = !(inversion.items?.length)
+      ? '<div class="empty-inline">Sin items de inversión</div>'
+      : (inversion.items || []).map(i => `
+        <div class="inv-item">
+          <div class="inv-item-info">
+            <span class="inv-item-desc">${escHtml(i.descripcion)}</span>
+            <span class="badge badge-gray" style="font-size:.66rem">${escHtml(i.categoria)}</span>
+          </div>
+          <div class="inv-item-right">
+            <span class="inv-item-monto">${fmt(i.monto)}</span>
+            <button class="btn btn-danger btn-icon btn-sm" onclick='eliminarItemInversion("${i.id}")'>
+              <svg width="12" height="12" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+            </button>
+          </div>
+        </div>`).join('');
+  }
+
+  // Totals and progress
+  set('inv-total',      fmt(totalInv));
+  set('inv-recuperado', fmt(recuperado));
+  set('inv-faltante',   fmt(rest));
+  set('inv-pct',        pct.toFixed(1) + '%');
+  const bar = el('inv-progress-bar');
+  if (bar) {
+    bar.style.width = pct + '%';
+    bar.style.background = pct >= 100 ? 'var(--success)' : pct >= 60 ? 'var(--accent)' : '#F2C61F';
+  }
+
+  // Show/hide progress section
+  const progSec = el('inversion-progress-section');
+  if (progSec) progSec.style.display = totalInv > 0 ? '' : 'none';
 }

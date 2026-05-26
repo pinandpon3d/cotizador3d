@@ -16,6 +16,8 @@ let trabajos   = [];
 let filamentos = [];
 let clientes   = [];
 let editingId  = null;
+let gastos    = [];
+let inversion = { activa: false, items: [] };
 let _dashFiltro    = 'mes-actual';
 let seleccionados  = new Set();   // IDs seleccionados para cotización combinada
 let _trabajosVista = 'tabla';     // 'tabla' | 'kanban'
@@ -31,7 +33,8 @@ const PAGE_LABELS = {
   usuarios:     'Usuarios',
   dashboard:    'Dashboard',
   clientes:     'Clientes',
-  detalle:      'Al Detalle'
+  detalle:      'Al Detalle',
+  costos:       'Costos'
 };
 
 /* ─── TABS DE CONFIGURACIÓN ─── */
@@ -73,6 +76,7 @@ function navTo(page) {
   if (page === 'dashboard')     cargarDashboard();
   if (page === 'clientes')      cargarClientes();
   if (page === 'detalle')       cargarVentaDetalle();
+  if (page === 'costos')        cargarCostos();
   closeSidebar();
 }
 
@@ -1606,6 +1610,129 @@ async function _gDriveSubirHTML(nombre, htmlStr) {
   } catch(e) {
     console.error('Drive upload error:', e);
     toast('No se pudo guardar en Drive: ' + e.message, 'error');
+  }
+}
+
+/* ----------------------------------------------------------
+   Gestión de Costos
+---------------------------------------------------------- */
+
+async function cargarCostos() {
+  try {
+    [gastos, inversion] = await Promise.all([fbCargarGastos(), fbCargarInversion()]);
+    renderCostos();
+    renderInversion();
+    actualizarDashboardInversion();
+  } catch(e) {
+    console.error('Error cargando costos:', e);
+  }
+}
+
+function resetFormGasto() {
+  const hoy = new Date().toISOString().split('T')[0];
+  el('g_descripcion') && (el('g_descripcion').value = '');
+  el('g_monto')       && (el('g_monto').value = '');
+  el('g_fecha')       && (el('g_fecha').value = hoy);
+}
+
+async function guardarGasto() {
+  const descripcion = (el('g_descripcion')?.value || '').trim();
+  const categoria   = el('g_categoria')?.value || 'Otro';
+  const monto       = parseFloat(el('g_monto')?.value || 0);
+  const fecha       = el('g_fecha')?.value || new Date().toISOString().split('T')[0];
+  const notas       = (el('g_notas')?.value || '').trim();
+  if (!descripcion || !monto) { toast('Completa descripción y monto', 'error'); return; }
+  const data = { id: Date.now().toString(), descripcion, categoria, monto, fecha, notas };
+  try {
+    await fbGuardarGasto(data);
+    gastos.unshift(data);
+    resetFormGasto();
+    renderCostos();
+    toast('Gasto registrado ✓', 'success');
+  } catch(e) {
+    toast('Error guardando gasto', 'error');
+  }
+}
+
+async function eliminarGasto(id) {
+  if (!confirm('¿Eliminar este gasto?')) return;
+  try {
+    await fbEliminarGasto(id);
+    gastos = gastos.filter(g => g.id !== id);
+    renderCostos();
+    toast('Gasto eliminado', 'success');
+  } catch(e) {
+    toast('Error eliminando gasto', 'error');
+  }
+}
+
+async function toggleInversionActiva() {
+  inversion.activa = !inversion.activa;
+  try {
+    await fbGuardarInversion(inversion);
+    renderInversion();
+    actualizarDashboardInversion();
+    toast(inversion.activa ? 'Inversión visible en dashboard ✓' : 'Inversión oculta del dashboard', 'success');
+  } catch(e) {
+    toast('Error guardando configuración', 'error');
+  }
+}
+
+async function guardarItemInversion() {
+  const descripcion = (el('inv_descripcion')?.value || '').trim();
+  const categoria   = el('inv_categoria')?.value || 'Otro';
+  const monto       = parseFloat(el('inv_monto')?.value || 0);
+  if (!descripcion || !monto) { toast('Completa descripción y monto', 'error'); return; }
+  const item = { id: Date.now().toString(), descripcion, categoria, monto };
+  if (!inversion.items) inversion.items = [];
+  inversion.items.push(item);
+  try {
+    await fbGuardarInversion(inversion);
+    el('inv_descripcion').value = '';
+    el('inv_monto').value = '';
+    renderInversion();
+    actualizarDashboardInversion();
+    toast('Item de inversión agregado ✓', 'success');
+  } catch(e) {
+    toast('Error guardando inversión', 'error');
+  }
+}
+
+async function eliminarItemInversion(id) {
+  if (!confirm('¿Eliminar este item de inversión?')) return;
+  inversion.items = (inversion.items || []).filter(i => i.id !== id);
+  try {
+    await fbGuardarInversion(inversion);
+    renderInversion();
+    actualizarDashboardInversion();
+    toast('Item eliminado', 'success');
+  } catch(e) {
+    toast('Error eliminando item', 'error');
+  }
+}
+
+function actualizarDashboardInversion() {
+  const card = el('dash-inversion-card');
+  if (!card) return;
+  if (!inversion.activa || !inversion.items?.length) {
+    card.style.display = 'none';
+    return;
+  }
+  const totalInv   = (inversion.items || []).reduce((s, i) => s + (i.monto || 0), 0);
+  const recuperado = trabajos
+    .filter(t => t.estado !== 'Cancelado')
+    .reduce((s, t) => s + (t.precio_final || 0), 0);
+  const pct    = totalInv > 0 ? Math.min(100, (recuperado / totalInv) * 100) : 0;
+  const rest   = Math.max(0, totalInv - recuperado);
+  card.style.display = '';
+  set('dash-inv-total',     fmt(totalInv));
+  set('dash-inv-recuperado', fmt(recuperado));
+  set('dash-inv-faltante',  fmt(rest));
+  set('dash-inv-pct',       pct.toFixed(1) + '%');
+  const bar = el('dash-inv-bar');
+  if (bar) {
+    bar.style.width = pct + '%';
+    bar.style.background = pct >= 100 ? 'var(--success)' : pct >= 60 ? 'var(--accent)' : 'var(--brand-gold, #F2C61F)';
   }
 }
 

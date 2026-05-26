@@ -198,3 +198,30 @@ async function fbRegistrarVenta(id, cantVendida, nota) {
     historialVentas:  firebase.firestore.FieldValue.arrayUnion(entrada)
   });
 }
+
+/* ----------------------------------------------------------
+   Gastos Operativos
+---------------------------------------------------------- */
+async function fbCargarGastos() {
+  const snap = await db.collection('gastos').get();
+  const arr = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+  arr.sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
+  return arr;
+}
+async function fbGuardarGasto(data) {
+  await db.collection('gastos').doc(String(data.id)).set(data);
+}
+async function fbEliminarGasto(id) {
+  await db.collection('gastos').doc(String(id)).delete();
+}
+
+/* ----------------------------------------------------------
+   Inversión Inicial
+---------------------------------------------------------- */
+async function fbCargarInversion() {
+  const snap = await db.collection('settings').doc('inversion').get();
+  return snap.exists ? snap.data() : { activa: false, items: [] };
+}
+async function fbGuardarInversion(data) {
+  await db.collection('settings').doc('inversion').set(data);
+}
