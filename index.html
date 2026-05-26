@@ -676,6 +676,38 @@
         </div>
       </div>
 
+      <!-- Tarjeta de inversión inicial (solo cuando está activa) -->
+      <div id="dash-inversion-card" style="display:none;margin-bottom:20px">
+        <div class="card inv-dash-card">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+            <div>
+              <div style="font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--text3)">🎯 Recuperación de Inversión Inicial</div>
+              <div style="font-size:.75rem;color:var(--text2);margin-top:2px">Todos los ingresos acumulados vs inversión de arranque</div>
+            </div>
+            <span id="dash-inv-pct" style="font-size:1.5rem;font-weight:800;color:var(--accent)">0%</span>
+          </div>
+          <div class="inv-progress-wrap" style="margin-bottom:14px">
+            <div class="inv-progress-track">
+              <div class="inv-progress-bar" id="dash-inv-bar" style="width:0%"></div>
+            </div>
+          </div>
+          <div class="inv-stats-row">
+            <div class="inv-stat">
+              <span>Inversión total</span>
+              <strong id="dash-inv-total">₡0</strong>
+            </div>
+            <div class="inv-stat">
+              <span>Recuperado</span>
+              <strong id="dash-inv-recuperado" style="color:var(--success)">₡0</strong>
+            </div>
+            <div class="inv-stat">
+              <span>Por recuperar</span>
+              <strong id="dash-inv-faltante" style="color:var(--danger)">₡0</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Estados -->
       <div class="dash-grid" style="margin-bottom:20px">
         <div class="card">
@@ -884,6 +916,134 @@
         <div id="inv-empty" class="empty-state" style="display:none">
           <svg viewBox="0 0 24 24"><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
           <p>No hay filamentos en el inventario</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- PÁGINA: COSTOS -->
+    <div class="page" id="page-costos">
+      <div class="section-title">Gestión de Costos</div>
+      <div class="section-sub">Registro de gastos operativos e inversión inicial</div>
+
+      <!-- ── GASTOS OPERATIVOS ─────────────────────────────── -->
+      <div class="card" style="margin-bottom:24px">
+        <div class="card-title">📋 Gastos Operativos</div>
+        <div class="card-sub" style="margin-bottom:16px">Filamentos, electricidad, herramientas y otros gastos del negocio</div>
+
+        <!-- Formulario agregar gasto -->
+        <div class="costos-form">
+          <div class="form-group">
+            <label>Descripción</label>
+            <input type="text" id="g_descripcion" placeholder="Ej: Rollo PLA Negro 1kg">
+          </div>
+          <div class="form-group">
+            <label>Categoría</label>
+            <select id="g_categoria">
+              <option value="Filamento">Filamento</option>
+              <option value="Electricidad">Electricidad</option>
+              <option value="Herramienta">Herramienta</option>
+              <option value="Servicio">Servicio</option>
+              <option value="Impresora">Impresora</option>
+              <option value="Otro">Otro</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Monto (₡)</label>
+            <input type="number" id="g_monto" placeholder="0" min="0" step="50">
+          </div>
+          <div class="form-group">
+            <label>Fecha</label>
+            <input type="date" id="g_fecha">
+          </div>
+          <div class="form-group" style="grid-column:span 2">
+            <label>Notas (opcional)</label>
+            <input type="text" id="g_notas" placeholder="Marca, proveedor, etc.">
+          </div>
+          <div class="form-group" style="align-self:end">
+            <button class="btn btn-primary" onclick="guardarGasto()">+ Agregar gasto</button>
+          </div>
+        </div>
+
+        <!-- Tabla de gastos -->
+        <div class="table-wrap" style="margin-top:16px">
+          <table class="table" id="gastos-table">
+            <thead>
+              <tr>
+                <th>Fecha</th><th>Descripción</th><th>Categoría</th>
+                <th>Monto</th><th>Notas</th><th>Acción</th>
+              </tr>
+            </thead>
+            <tbody id="gastos-tbody"></tbody>
+          </table>
+          <div id="gastos-empty" class="empty-state" style="display:none">
+            <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>
+            <p>Sin gastos registrados</p>
+          </div>
+        </div>
+        <div style="text-align:right;margin-top:10px;font-size:.85rem;color:var(--text2)">
+          Total gastos: <strong id="gastos-total" style="color:var(--danger)">₡0</strong>
+        </div>
+      </div>
+
+      <!-- ── INVERSIÓN INICIAL ──────────────────────────────── -->
+      <div class="card" id="inversion-wrap">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <div>
+            <div class="card-title">🎯 Inversión Inicial</div>
+            <div class="card-sub">Equipos, muebles y costos de arranque del negocio</div>
+          </div>
+          <button id="inv-toggle-btn" class="btn btn-secondary btn-sm" onclick="toggleInversionActiva()">
+            🙈 Oculto del dashboard
+          </button>
+        </div>
+
+        <!-- Formulario agregar item -->
+        <div class="costos-form" style="margin-top:16px">
+          <div class="form-group" style="grid-column:span 2">
+            <label>Descripción del item</label>
+            <input type="text" id="inv_descripcion" placeholder="Ej: Impresora Bambu A1 Mini">
+          </div>
+          <div class="form-group">
+            <label>Categoría</label>
+            <select id="inv_categoria">
+              <option value="Impresora">Impresora</option>
+              <option value="Filamento inicial">Filamento inicial</option>
+              <option value="Mobiliario">Mobiliario</option>
+              <option value="Herramienta">Herramienta</option>
+              <option value="Software">Software</option>
+              <option value="Otro">Otro</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Monto (₡)</label>
+            <input type="number" id="inv_monto" placeholder="0" min="0" step="1000">
+          </div>
+          <div class="form-group" style="align-self:end">
+            <button class="btn btn-primary" onclick="guardarItemInversion()">+ Agregar</button>
+          </div>
+        </div>
+
+        <!-- Lista de items -->
+        <div id="inversion-list" style="margin-top:16px;display:flex;flex-direction:column;gap:8px"></div>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+          <span style="font-size:.85rem;color:var(--text2)">Total inversión:</span>
+          <strong id="inv-total" style="font-size:1rem;color:var(--text)">₡0</strong>
+        </div>
+
+        <!-- Progreso de recuperación -->
+        <div id="inversion-progress-section" style="margin-top:20px;display:none">
+          <div style="font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--text3);margin-bottom:12px">Recuperación de inversión</div>
+          <div class="inv-progress-wrap">
+            <div class="inv-progress-track">
+              <div class="inv-progress-bar" id="inv-progress-bar" style="width:0%"></div>
+            </div>
+            <span class="inv-pct" id="inv-pct">0%</span>
+          </div>
+          <div class="inv-stats-row">
+            <div class="inv-stat"><span>Ingresos acumulados</span><strong id="inv-recuperado" style="color:var(--success)">₡0</strong></div>
+            <div class="inv-stat"><span>Por recuperar</span><strong id="inv-faltante" style="color:var(--danger)">₡0</strong></div>
+          </div>
         </div>
       </div>
     </div>

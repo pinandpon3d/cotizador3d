@@ -1444,3 +1444,117 @@ tbody td{padding:10px 14px;color:var(--text);vertical-align:middle}
   width: fit-content;
   min-width: 260px;
 }
+
+/* =====================================================
+   GESTIÓN DE COSTOS
+===================================================== */
+
+.costos-form {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: 12px;
+  align-items: start;
+  background: var(--surface2);
+  border-radius: var(--radius-xs);
+  padding: 16px;
+}
+
+/* Items de inversión */
+.inv-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--surface2);
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--border);
+}
+.inv-item-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.inv-item-desc {
+  font-size: .85rem;
+  font-weight: 600;
+  color: var(--text);
+}
+.inv-item-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.inv-item-monto {
+  font-size: .9rem;
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Barra de progreso */
+.inv-progress-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.inv-progress-track {
+  flex: 1;
+  height: 12px;
+  background: var(--surface2);
+  border-radius: 99px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.inv-progress-bar {
+  height: 100%;
+  border-radius: 99px;
+  background: var(--accent);
+  transition: width .6s ease, background .4s;
+}
+.inv-pct {
+  font-size: .9rem;
+  font-weight: 700;
+  color: var(--text);
+  min-width: 42px;
+  text-align: right;
+}
+
+/* Stats row */
+.inv-stats-row {
+  display: flex;
+  gap: 20px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+.inv-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.inv-stat span {
+  font-size: .72rem;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  color: var(--text3);
+}
+.inv-stat strong {
+  font-size: .9rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Dashboard card */
+.inv-dash-card {
+  border: 1px solid var(--border-strong);
+  background: linear-gradient(135deg, var(--surface) 0%, color-mix(in srgb, var(--accent) 4%, var(--surface)) 100%);
+}
+
+.empty-inline {
+  text-align: center;
+  color: var(--text3);
+  font-size: .82rem;
+  padding: 16px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-xs);
+}
