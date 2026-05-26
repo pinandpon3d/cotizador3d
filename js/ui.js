@@ -91,20 +91,37 @@ const PAGO_COLOR = {
    Tabla de trabajos
 ---------------------------------------------------------- */
 
+let _mostrarEntregados = false;
+
+function toggleMostrarEntregados() {
+  _mostrarEntregados = !_mostrarEntregados;
+  const btn = el('btn-mostrar-entregados');
+  if (btn) {
+    btn.textContent = _mostrarEntregados ? '👁 Ocultar entregados' : '📦 Mostrar entregados';
+    btn.classList.toggle('active', _mostrarEntregados);
+  }
+  renderTrabajos();
+}
+
 function renderTrabajos() {
   const search  = el('tr-search')?.value.toLowerCase()  || '';
   const estadoF = el('tr-estado')?.value                || '';
   const catF    = el('tr-categoria')?.value             || '';
   const pagoF   = el('tr-pago')?.value                  || '';
 
-  const list = trabajos.filter(t => {
-    const matchSearch = !search  || (t.pieza||'').toLowerCase().includes(search)
-                                 || (t.cliente||'').toLowerCase().includes(search);
-    const matchEstado = !estadoF || t.estado     === estadoF;
-    const matchCat    = !catF    || t.categoria  === catF;
-    const matchPago   = !pagoF   || (t.estadoPago||'Pendiente') === pagoF;
-    return matchSearch && matchEstado && matchCat && matchPago;
-  });
+  const list = trabajos
+    .filter(t => {
+      const matchSearch = !search  || (t.pieza||'').toLowerCase().includes(search)
+                                   || (t.cliente||'').toLowerCase().includes(search);
+      const matchEstado = !estadoF || t.estado    === estadoF;
+      const matchCat    = !catF    || t.categoria === catF;
+      const matchPago   = !pagoF   || (t.estadoPago||'Pendiente') === pagoF;
+      // Ocultar entregados por defecto (salvo que el filtro los pida explícitamente)
+      const mostrarEste = _mostrarEntregados || estadoF === 'Entregado' || t.estado !== 'Entregado';
+      return matchSearch && matchEstado && matchCat && matchPago && mostrarEste;
+    })
+    // Ordenar por ID descendente (más reciente primero — IDs son timestamps)
+    .sort((a, b) => String(b.id).localeCompare(String(a.id)));
 
   const hoy = new Date().toISOString().split('T')[0];
 
