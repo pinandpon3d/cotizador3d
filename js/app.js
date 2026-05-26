@@ -1193,7 +1193,7 @@ function generarPDFData(t) {
   const nombreUrl  = base + 'img/Nombre-PNG.png';
 
   // Nombre de archivo y fecha de vigencia
-  const nombreArchivo = `Cotizacion - ${t.cliente||'Cliente'} - ${t.pieza||'Producto'}`;
+  const nombreArchivo = `COTIZACION - ${t.cliente||'Cliente'} - ${t.pieza||'Producto'}`;
   const vigenciaDate  = t.fecha ? new Date(t.fecha + 'T12:00:00') : new Date();
   vigenciaDate.setDate(vigenciaDate.getDate() + 7);
   const vigencia = vigenciaDate.toLocaleDateString('es-CR', { day:'numeric', month:'short', year:'numeric' });
