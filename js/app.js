@@ -1193,7 +1193,7 @@ function generarPDFData(t) {
   const nombreUrl  = base + 'img/Nombre-PNG.png';
 
   // Nombre de archivo y fecha de vigencia
-  const nombreArchivo = `Cotizacion - ${t.cliente||'Cliente'}`;
+  const nombreArchivo = `Cotizacion - ${t.cliente||'Cliente'} - ${t.pieza||'Producto'}`;
   const vigenciaDate  = t.fecha ? new Date(t.fecha + 'T12:00:00') : new Date();
   vigenciaDate.setDate(vigenciaDate.getDate() + 7);
   const vigencia = vigenciaDate.toLocaleDateString('es-CR', { day:'numeric', month:'short', year:'numeric' });
@@ -1212,7 +1212,7 @@ function generarPDFData(t) {
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{font-family:"Plus Jakarta Sans",system-ui,sans-serif;background:#EEF1F5;-webkit-font-smoothing:antialiased}
 body{min-height:100vh;padding:20px 0 80px;display:flex;justify-content:center;align-items:flex-start}
-.page{width:min(794px,100vw);min-height:1123px;background:#fff;overflow:hidden;
+.page{width:min(794px,100vw);min-height:1027px;background:#fff;overflow:hidden;
       box-shadow:0 20px 60px -16px rgba(15,42,69,.22),0 4px 16px rgba(15,42,69,.1);
       display:flex;flex-direction:column}
 @media screen and (max-width:820px){
@@ -1227,12 +1227,8 @@ body{min-height:100vh;padding:20px 0 80px;display:flex;justify-content:center;al
 .header{background:linear-gradient(130deg,#0F2A45 0%,#16395A 45%,#235A8C 100%);
         position:relative;overflow:hidden;padding:32px 48px;
         display:flex;justify-content:space-between;align-items:center}
-.header::before{content:"";position:absolute;right:140px;top:-50px;
-  width:220px;height:220px;background:rgba(255,255,255,.04);
-  clip-path:polygon(50% 0%,100% 100%,0% 100%)}
-.header::after{content:"";position:absolute;right:40px;top:-20px;
-  width:180px;height:180px;background:rgba(255,255,255,.055);
-  clip-path:polygon(0 0,100% 0,100% 100%)}
+/* Triángulos decorativos como SVG inline (html2canvas compatible) */
+.header-deco{position:absolute;inset:0;pointer-events:none;z-index:0}
 .brand{display:flex;align-items:center;gap:14px;z-index:1}
 .brand-mascot{width:54px;height:auto;filter:drop-shadow(0 4px 12px rgba(0,0,0,.25))}
 .brand-text{display:flex;flex-direction:column;gap:4px}
@@ -1353,6 +1349,11 @@ body{min-height:100vh;padding:20px 0 80px;display:flex;justify-content:center;al
 
   <!-- HEADER -->
   <div class="header">
+    <!-- Triángulos decorativos como SVG (compatible con html2canvas) -->
+    <svg class="header-deco" viewBox="0 0 794 130" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+      <polygon points="594,0 814,0 814,130" fill="rgba(255,255,255,0.05)"/>
+      <polygon points="654,-50 874,-50 654,180" fill="rgba(255,255,255,0.04)"/>
+    </svg>
     <div class="brand">
       <img class="brand-mascot" src="${mascotaUrl}" alt="Pin&amp;Pon 3D">
       <div class="brand-text">
@@ -1491,7 +1492,8 @@ body{min-height:100vh;padding:20px 0 80px;display:flex;justify-content:center;al
     const { jsPDF } = window.jspdf;
     const pageEl = document.querySelector('.page');
     // Forzar ancho fijo para render correcto
-    pageEl.style.cssText += ';width:794px!important;min-width:794px!important';
+    pageEl.style.width    = '794px';
+    pageEl.style.minWidth = '794px';
 
     const canvas = await html2canvas(pageEl, {
       scale: 2,
@@ -1499,30 +1501,25 @@ body{min-height:100vh;padding:20px 0 80px;display:flex;justify-content:center;al
       allowTaint: true,
       backgroundColor: '#ffffff',
       logging: false,
-      imageTimeout: 8000
+      imageTimeout: 10000,
+      width:  794,
+      height: pageEl.scrollHeight
     });
     setBar(75);
 
     const pdf = new jsPDF({ orientation:'portrait', unit:'mm', format:'letter' });
-    const W = pdf.internal.pageSize.getWidth();
-    const H = pdf.internal.pageSize.getHeight();
+    const W   = pdf.internal.pageSize.getWidth();   // 215.9mm
+    const H   = pdf.internal.pageSize.getHeight();  // 279.4mm
     const imgH = W * canvas.height / canvas.width;
 
     if(imgH <= H){
-      pdf.addImage(canvas.toDataURL('image/jpeg',0.97),'JPEG',0,0,W,imgH);
+      // Cabe en una página — alinear arriba
+      pdf.addImage(canvas.toDataURL('image/jpeg',0.98),'JPEG',0,0,W,imgH);
     } else {
-      // Partir en páginas si el contenido es más largo
-      const rowPx = Math.floor(canvas.width * H / W);
-      let y = 0;
-      while(y < canvas.height){
-        const slH = Math.min(rowPx, canvas.height - y);
-        const sl  = document.createElement('canvas');
-        sl.width  = canvas.width; sl.height = rowPx;
-        sl.getContext('2d').drawImage(canvas, 0, -y);
-        if(y > 0) pdf.addPage('letter');
-        pdf.addImage(sl.toDataURL('image/jpeg',0.97),'JPEG',0,0,W,H);
-        y += slH;
-      }
+      // Contenido más alto que la página — escalar para que quepa todo en una hoja
+      const scale  = H / imgH;
+      const newW   = W * scale;
+      pdf.addImage(canvas.toDataURL('image/jpeg',0.98),'JPEG',(W-newW)/2,0,newW,H);
     }
     setBar(95);
     if(title) title.textContent = '¡Listo! Descargando…';
