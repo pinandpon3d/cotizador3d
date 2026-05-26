@@ -1556,6 +1556,261 @@ body{min-height:100vh;padding:20px 0 80px;display:flex;justify-content:center;al
 }
 
 /* ----------------------------------------------------------
+   Venta al Detalle — Generar Lista de Precios (PDF)
+---------------------------------------------------------- */
+function generarListaPrecios() {
+  // Filtrar lotes activos (misma lógica que renderVentaDetalle)
+  const lotes = trabajos.filter(l =>
+    l.categoria === 'Venta al Detalle' &&
+    l.estado !== 'Cancelado' &&
+    (l.unidadesVendidas || 0) < Math.max(l.cantidad || 1, 1)
+  );
+
+  if (!lotes.length) {
+    toast('No hay productos disponibles en Venta al Detalle para exportar', 'error');
+    return;
+  }
+
+  toast('Generando lista de precios…', 'info');
+
+  const emp       = getEmpresa();
+  const base      = new URL('.', window.location.href).href;
+  const mascotaUrl = base + 'img/Mascota-PNG.png';
+
+  const fechaHoy = new Date().toLocaleDateString('es-CR', {
+    day: 'numeric', month: 'long', year: 'numeric'
+  });
+
+  // Contacto en el pie
+  const contactParts = [];
+  if (emp.empTel)   contactParts.push('📞 ' + emp.empTel);
+  if (emp.empEmail) contactParts.push('✉ ' + emp.empEmail);
+  if (emp.empWeb)   contactParts.push('🌐 ' + emp.empWeb);
+  const contactLine = contactParts.join('  ·  ');
+
+  // Filas de la tabla
+  const rowsHtml = lotes.map((l, i) => {
+    const total      = Math.max(l.cantidad || 1, 1);
+    const vendidas   = Math.min(l.unidadesVendidas || 0, total);
+    const disponibles = total - vendidas;
+    const precio     = l.precio_unitario || 0;
+    const rowBg      = i % 2 === 0 ? '#ffffff' : '#f4f8ff';
+    return `
+    <tr style="background:${rowBg};border-bottom:1px solid #e8f0f8">
+      <td style="padding:14px 12px;font-size:11px;font-weight:700;color:#8cafd2;text-align:center;width:40px">${i+1}</td>
+      <td style="padding:14px 14px">
+        <div style="font-size:14px;font-weight:700;color:#0f1f33;margin-bottom:3px">${escHtml(l.pieza||'—')}</div>
+        ${l.material ? `<div style="font-size:11px;color:#8cafd2">${escHtml(l.material)}</div>` : ''}
+      </td>
+      <td style="padding:14px 12px;white-space:nowrap">
+        <span style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;background:#eef5fc;color:#1a60a6;border:1px solid #dde6f0">${escHtml(l.categoria||'General')}</span>
+      </td>
+      <td style="padding:14px 12px;text-align:center">
+        <span style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;background:rgba(5,150,105,0.1);color:#047857">${disponibles} disp.</span>
+      </td>
+      <td style="padding:14px 18px;text-align:right;white-space:nowrap">
+        <div style="font-size:22px;font-weight:800;color:#1a60a6;font-variant-numeric:tabular-nums;line-height:1">₡${precio.toLocaleString('es-CR')}</div>
+        <div style="font-size:9px;color:#8cafd2;font-weight:500;margin-top:2px;text-transform:uppercase;letter-spacing:.04em">por unidad</div>
+      </td>
+    </tr>`;
+  }).join('');
+
+  const nombreArchivo = 'LISTA DE PRECIOS - Pin&Pon 3D';
+
+  const htmlContent = `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<title>${nombreArchivo}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{font-family:"Plus Jakarta Sans",system-ui,sans-serif;background:#EEF1F5;-webkit-font-smoothing:antialiased}
+body{min-height:100vh;padding:20px 0 80px;display:flex;justify-content:center;align-items:flex-start}
+.page{
+  width:min(794px,100vw);
+  min-height:1027px;
+  background:#fff;
+  overflow:hidden;
+  box-shadow:0 20px 60px -16px rgba(15,42,69,.22),0 4px 16px rgba(15,42,69,.1);
+  display:flex;flex-direction:column;
+}
+@media screen and (max-width:820px){
+  body{padding:0}
+  .page{box-shadow:none;border-radius:0;min-height:100vh;width:100%}
+}
+@media print{
+  html,body{padding:0;margin:0;background:#fff}
+  .page{box-shadow:none;width:100%;min-height:0}
+  @page{size:letter;margin:0!important}
+}
+#loading-overlay{
+  position:fixed;inset:0;background:rgba(10,31,61,.88);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:18px;z-index:999;color:#fff;font-family:inherit
+}
+.spinner{width:42px;height:42px;border:3px solid rgba(255,255,255,.25);
+  border-top-color:#f4c70f;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<div id="loading-overlay">
+  <div class="spinner"></div>
+  <div style="font-size:15px;font-weight:600;letter-spacing:.02em">Generando lista de precios…</div>
+  <div style="font-size:12px;opacity:.6">Preparando PDF</div>
+</div>
+
+<div class="page" id="the-page">
+
+  <!-- ══ ENCABEZADO ══════════════════════════════════════════ -->
+  <div style="background:linear-gradient(135deg,#0a1f3d 0%,#1a3a6b 60%,#133658 100%);padding:32px 40px 26px;position:relative;overflow:hidden">
+
+    <!-- Círculos decorativos (SVG inline) -->
+    <svg style="position:absolute;right:-20px;top:-20px;width:180px;height:180px;opacity:.07"
+         viewBox="0 0 180 180" fill="none">
+      <circle cx="90" cy="90" r="80" stroke="white" stroke-width="2"/>
+      <circle cx="90" cy="90" r="55" stroke="white" stroke-width="2"/>
+      <circle cx="90" cy="90" r="30" fill="white"/>
+    </svg>
+    <svg style="position:absolute;left:40%;bottom:-30px;width:120px;height:120px;opacity:.04"
+         viewBox="0 0 120 120" fill="white">
+      <polygon points="60,10 110,90 10,90"/>
+    </svg>
+
+    <!-- Contenido del header -->
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:20px;position:relative">
+
+      <!-- Izquierda: logo + títulos -->
+      <div style="display:flex;align-items:center;gap:18px">
+        <div style="width:64px;height:64px;background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.18);border-radius:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden">
+          <img src="${mascotaUrl}" alt="Pin&Pon 3D" width="52" height="52" style="object-fit:contain" crossorigin="anonymous"/>
+        </div>
+        <div>
+          <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.5);letter-spacing:.15em;text-transform:uppercase;margin-bottom:4px">Pin&amp;Pon 3D — Impresión 3D Personalizada</div>
+          <div style="font-size:30px;font-weight:800;color:#ffffff;letter-spacing:-.02em;line-height:1">LISTA DE PRECIOS</div>
+          <div style="font-size:12px;color:rgba(255,255,255,.45);margin-top:5px;font-weight:400">Precios unitarios al público · Venta al detalle</div>
+        </div>
+      </div>
+
+      <!-- Derecha: fecha -->
+      <div style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:12px;padding:14px 20px;text-align:center;flex-shrink:0">
+        <div style="font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.45);font-weight:600;margin-bottom:5px">Vigente al</div>
+        <div style="font-size:15px;font-weight:800;color:#f4c70f;white-space:nowrap">${fechaHoy}</div>
+      </div>
+    </div>
+
+    <!-- Línea dorada inferior -->
+    <div style="position:absolute;bottom:0;left:0;right:0;height:4px;background:linear-gradient(90deg,#f4c70f 0%,#d2ac09 55%,rgba(210,172,9,.1) 100%)"></div>
+  </div>
+
+  <!-- ══ CUERPO ════════════════════════════════════════════== -->
+  <div style="padding:28px 40px 36px;flex:1">
+
+    <!-- Label sección -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px">
+      <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:#8cafd2;white-space:nowrap">Catálogo de productos disponibles</div>
+      <div style="flex:1;height:1px;background:#dde6f0"></div>
+      <div style="font-size:9px;color:#8cafd2">${lotes.length} producto${lotes.length !== 1 ? 's' : ''}</div>
+    </div>
+
+    <!-- Tabla -->
+    <table style="width:100%;border-collapse:collapse;border-radius:10px;overflow:hidden;border:1px solid #e8f0f8">
+      <thead>
+        <tr style="background:linear-gradient(90deg,#1a60a6 0%,#133658 100%)">
+          <th style="padding:11px 12px;font-size:9px;font-weight:700;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.08em;text-align:center;width:40px">#</th>
+          <th style="padding:11px 14px;font-size:9px;font-weight:700;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.08em;text-align:left">Producto</th>
+          <th style="padding:11px 12px;font-size:9px;font-weight:700;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.08em;text-align:left">Categoría</th>
+          <th style="padding:11px 12px;font-size:9px;font-weight:700;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.08em;text-align:center">Disponible</th>
+          <th style="padding:11px 18px;font-size:9px;font-weight:700;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.08em;text-align:right">Precio unitario</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rowsHtml}
+      </tbody>
+    </table>
+
+    <!-- ══ PIE DE PÁGINA ═══════════════════════════════════ -->
+    <div style="margin-top:28px;padding-top:16px;border-top:2px solid #dde6f0;display:flex;justify-content:space-between;align-items:flex-end;gap:16px">
+      <div style="display:flex;flex-direction:column;gap:3px">
+        <div style="font-size:12px;font-weight:800;color:#133658;letter-spacing:.02em">Pin<span style="color:#f4c70f">&amp;</span>Pon 3D — Impresión 3D Personalizada</div>
+        ${contactLine ? `<div style="font-size:10px;color:#4e6882">${contactLine}</div>` : ''}
+        <div style="font-size:9px;color:#8cafd2;font-style:italic;margin-top:2px">* Precios en colones costarricenses (₡) · Incluye IVA cuando aplica · Sujetos a cambio sin previo aviso</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-size:10px;color:#8cafd2">Generado el ${fechaHoy}</div>
+      </div>
+    </div>
+  </div>
+</div><!-- /.page -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script>
+(async function(){
+  const ov    = document.getElementById('loading-overlay');
+  const setMsg = (txt,sub) => {
+    ov.innerHTML = \`<div class="spinner"></div>
+      <div style="font-size:15px;font-weight:600">\${txt}</div>
+      <div style="font-size:12px;opacity:.6">\${sub||''}</div>\`;
+  };
+  try {
+    await document.fonts.ready;
+    setMsg('Renderizando…','Procesando diseño');
+    await new Promise(r => setTimeout(r, 700));
+
+    const { jsPDF } = window.jspdf;
+    const pageEl = document.getElementById('the-page');
+    pageEl.style.width    = '794px';
+    pageEl.style.minWidth = '794px';
+
+    const canvas = await html2canvas(pageEl, {
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: '#ffffff',
+      logging: false,
+      imageTimeout: 10000,
+      width: 794,
+      height: pageEl.scrollHeight
+    });
+
+    setMsg('Generando PDF…','');
+    const pdf = new jsPDF({ orientation:'portrait', unit:'mm', format:'letter' });
+    const W   = pdf.internal.pageSize.getWidth();
+    const H   = pdf.internal.pageSize.getHeight();
+    const imgH = W * canvas.height / canvas.width;
+
+    if (imgH <= H) {
+      pdf.addImage(canvas.toDataURL('image/jpeg', 0.97), 'JPEG', 0, 0, W, imgH);
+    } else {
+      const scale = H / imgH;
+      const sw = W * scale;
+      pdf.addImage(canvas.toDataURL('image/jpeg', 0.97), 'JPEG', (W-sw)/2, 0, sw, H);
+    }
+
+    pdf.save('LISTA DE PRECIOS - Pin&Pon 3D.pdf');
+    ov.innerHTML = '<div style="font-size:36px">✅</div><div style="font-size:15px;font-weight:700;margin-top:8px">¡PDF descargado!</div>';
+    setTimeout(() => window.close(), 1800);
+  } catch(err) {
+    console.error('Error generando PDF:', err);
+    ov.innerHTML = '<div style="font-size:36px">⚠️</div><div style="font-size:14px;margin-top:8px">Error generando PDF<br><span style="font-size:12px;opacity:.7">Intentá imprimir con Ctrl+P</span></div>';
+  }
+})();
+</script>
+</body>
+</html>`;
+
+  const win = window.open('', '_blank');
+  if (!win) { toast('Permite ventanas emergentes para descargar el PDF', 'error'); return; }
+  win.document.write(htmlContent);
+  win.document.close();
+}
+
+/* ----------------------------------------------------------
    Google Drive — guardar cotizaciones en carpeta COTIZACIONES
 ---------------------------------------------------------- */
 let _gDriveToken    = null;
