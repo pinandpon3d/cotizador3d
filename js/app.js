@@ -18,6 +18,7 @@ let clientes   = [];
 let editingId  = null;
 let gastos    = [];
 let inversion = { activa: false, items: [] };
+let categoriasPago = ['Pendiente', 'Abono', 'Pagado'];
 let _dashFiltro    = 'mes-actual';
 let seleccionados  = new Set();   // IDs seleccionados para cotización combinada
 let _trabajosVista = 'tabla';     // 'tabla' | 'kanban'
@@ -1833,6 +1834,97 @@ function actualizarDashboardInversion() {
 /* ----------------------------------------------------------
    Inicialización básica (antes de autenticar)
 ---------------------------------------------------------- */
+/* ----------------------------------------------------------
+   Categorías de Pago — gestión
+---------------------------------------------------------- */
+async function cargarCategoriasPago() {
+  try {
+    const stored = await fbCargarCategoriasPago();
+    if (stored && stored.length) categoriasPago = stored;
+  } catch(e) { console.warn('categoriasPago: usando defaults'); }
+  actualizarFiltrosPago();
+}
+
+function actualizarFiltrosPago() {
+  // Reconstruir el filtro #tr-pago
+  const sel = el('tr-pago');
+  if (sel) {
+    sel.innerHTML = `<option value="">Todos los pagos</option>` +
+      categoriasPago.map(c => `<option value="${c}">${c}</option>`).join('');
+  }
+  renderCategoriasPagoConfig();
+}
+
+function renderCategoriasPagoConfig() {
+  const list = el('cfg-pago-list');
+  if (!list) return;
+  list.innerHTML = categoriasPago.map((c, i) => `
+    <div class="inv-item">
+      <div class="inv-item-info">
+        <span class="inv-item-desc">${escHtml(c)}</span>
+        ${i === 0 ? '<span class="badge badge-pago-pendiente" style="font-size:.65rem">Pendiente base</span>'
+          : i === categoriasPago.length-1 ? '<span class="badge badge-pago-pagado" style="font-size:.65rem">Pagado base</span>'
+          : '<span class="badge badge-pago-abono" style="font-size:.65rem">Intermedio</span>'}
+      </div>
+      <div class="inv-item-right">
+        ${i === 0 || i === categoriasPago.length-1
+          ? '<span style="font-size:.72rem;color:var(--text3)">Requerido</span>'
+          : `<button class="btn btn-danger btn-icon btn-sm" onclick="eliminarCategoriaPago(${i})">
+               <svg width="12" height="12" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+             </button>`
+        }
+      </div>
+    </div>`).join('');
+}
+
+async function agregarCategoriaPago() {
+  const input = el('cfg-pago-nueva');
+  const nombre = (input?.value || '').trim();
+  if (!nombre) { toast('Escribe un nombre', 'error'); return; }
+  if (categoriasPago.includes(nombre)) { toast('Ya existe esa categoría', 'error'); return; }
+  // Insertar antes del último (antes de "Pagado")
+  categoriasPago.splice(categoriasPago.length - 1, 0, nombre);
+  if (input) input.value = '';
+  try {
+    await fbGuardarCategoriasPago(categoriasPago);
+    actualizarFiltrosPago();
+    toast(`Categoría "${nombre}" agregada ✓`, 'success');
+  } catch(e) { toast('Error guardando', 'error'); }
+}
+
+async function eliminarCategoriaPago(idx) {
+  if (idx === 0 || idx === categoriasPago.length - 1) return; // no eliminar primera/última
+  const nombre = categoriasPago[idx];
+  if (!confirm(`¿Eliminar la categoría "${nombre}"?`)) return;
+  categoriasPago.splice(idx, 1);
+  try {
+    await fbGuardarCategoriasPago(categoriasPago);
+    actualizarFiltrosPago();
+    toast(`Categoría eliminada ✓`, 'success');
+  } catch(e) { toast('Error eliminando', 'error'); }
+}
+
+function getPagoClass(estado) {
+  const cats = categoriasPago.length ? categoriasPago : ['Pendiente','Abono','Pagado'];
+  const i = cats.indexOf(estado);
+  if (i < 0 || i === 0) return 'badge-pago-pendiente';
+  if (i === cats.length - 1) return 'badge-pago-pagado';
+  return 'badge-pago-abono';
+}
+
+async function cambiarPago(id, pago, selectEl) {
+  const t = trabajos.find(x => x.id === id);
+  if (t) t.estadoPago = pago;
+  const cls = getPagoClass(pago);
+  if (selectEl) selectEl.className = `badge ${cls} pago-select`;
+  try {
+    await fbActualizarPago(id, { estadoPago: pago });
+    toast('Pago actualizado ✓', 'success');
+  } catch(e) {
+    toast('Error actualizando pago', 'error');
+  }
+}
+
 /* ─── AUTOCOMPLETADO DE CLIENTES ─── */
 function initClienteAutocomplete() {
   const input = el('c_cliente');
@@ -1879,6 +1971,7 @@ document.addEventListener('DOMContentLoaded', () => {
   calcCfg();
   calcular();
   initClienteAutocomplete();
+  cargarCategoriasPago();
   // Restaurar Client ID de Drive (predeterminado + localStorage)
   const DEFAULT_GDRIVE_CID = '1087662880090-o7ammg0cc2sofe5r3hoq4ur5dcf11j6j.apps.googleusercontent.com';
   const savedCid = localStorage.getItem('gdrive_client_id') || DEFAULT_GDRIVE_CID;

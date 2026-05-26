@@ -521,6 +521,7 @@
             <option value="Listo">Listo</option>
             <option value="Entregado">Entregado</option>
             <option value="Cancelado">Cancelado</option>
+            <option value="Venta">Venta</option>
           </select>
           <select id="tr-pago" onchange="renderTrabajos()">
             <option value="">Todos los pagos</option>
@@ -1120,6 +1121,17 @@
             <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
             <span>Recargar desde Firebase</span>
           </button>
+        </div>
+
+        <!-- ── CATEGORÍAS DE PAGO ── -->
+        <div class="card" style="margin-top:20px">
+          <div class="card-title">💳 Categorías de Pago</div>
+          <div class="card-sub" style="margin-bottom:16px">Define los estados de pago disponibles. La primera es "pendiente" y la última es "pagado completamente".</div>
+          <div id="cfg-pago-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px"></div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input type="text" id="cfg-pago-nueva" placeholder="Nueva categoría (ej: En disputa)" style="flex:1">
+            <button class="btn btn-primary" onclick="agregarCategoriaPago()">+ Agregar</button>
+          </div>
         </div>
       </div>
 

@@ -225,3 +225,14 @@ async function fbCargarInversion() {
 async function fbGuardarInversion(data) {
   await db.collection('settings').doc('inversion').set(data);
 }
+
+/* ----------------------------------------------------------
+   Categorías de pago personalizadas
+---------------------------------------------------------- */
+async function fbCargarCategoriasPago() {
+  const snap = await db.collection('settings').doc('pagos').get();
+  return snap.exists ? snap.data().categorias : null;
+}
+async function fbGuardarCategoriasPago(categorias) {
+  await db.collection('settings').doc('pagos').set({ categorias });
+}

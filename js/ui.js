@@ -69,7 +69,7 @@ function escHtml(str) {
    Mapas de colores — estados y pagos
 ---------------------------------------------------------- */
 
-/** Colores para los 7 estados de pedido */
+/** Colores para los estados de pedido */
 const ESTADO_COLOR = {
   'Cotizado':     'badge-gray',
   'Aprobado':     'badge-blue',
@@ -77,15 +77,22 @@ const ESTADO_COLOR = {
   'Post-proceso': 'badge-warn',
   'Listo':        'badge-success',
   'Entregado':    'badge-darkgreen',
-  'Cancelado':    'badge-danger'
+  'Cancelado':    'badge-danger',
+  'Venta':        'badge-blue'
 };
 
-/** Colores para los estados de pago */
+// getPagoClass() is defined in app.js (uses dynamic categoriasPago)
+// Fallback map for when app.js isn't loaded yet
 const PAGO_COLOR = {
   'Pendiente': 'badge-pago-pendiente',
   'Abono':     'badge-pago-abono',
   'Pagado':    'badge-pago-pagado'
 };
+function pagoClass(estado) {
+  return (typeof getPagoClass === 'function')
+    ? getPagoClass(estado)
+    : (PAGO_COLOR[estado] || 'badge-pago-pendiente');
+}
 
 /* ----------------------------------------------------------
    Tabla de trabajos
@@ -160,7 +167,7 @@ function renderTrabajos() {
 
   tbody.innerHTML = list.map(t => {
     const ec        = ESTADO_COLOR[t.estado] || 'badge-gray';
-    const pagoClass = PAGO_COLOR[t.estadoPago||'Pendiente'] || 'badge-pago-pendiente';
+    const pcls      = pagoClass(t.estadoPago||'Pendiente');
     const ganObj    = t.ganancia_por_objeto != null
                     ? t.ganancia_por_objeto
                     : ((t.precio_final||0) - (t.costo_total||0)) / Math.max(t.cantidad||1, 1);
@@ -194,12 +201,17 @@ function renderTrabajos() {
       <td class="td-mono"><strong style="${ganClass}">${fmt(ganObj)}</strong></td>
       <td>
         <select class="badge ${ec} estado-select" onchange="cambiarEstado('${t.id}',this.value,this)">
-          ${['Cotizado','Aprobado','En impresión','Post-proceso','Listo','Entregado','Cancelado']
+          ${['Cotizado','Aprobado','En impresión','Post-proceso','Listo','Entregado','Cancelado','Venta']
             .map(s=>`<option value="${s}"${t.estado===s?' selected':''}>${s}</option>`).join('')}
         </select>
         <div style="font-size:.6rem;color:var(--text3);margin-top:2px">${fechaAct}</div>
       </td>
-      <td><span class="badge ${pagoClass}">${t.estadoPago||'Pendiente'}</span></td>
+      <td>
+        <select class="badge ${pcls} pago-select" onchange="cambiarPago('${t.id}',this.value,this)">
+          ${(typeof categoriasPago!=='undefined'?categoriasPago:['Pendiente','Abono','Pagado'])
+            .map(c=>`<option value="${c}"${(t.estadoPago||categoriasPago[0]||'Pendiente')===c?' selected':''}>${c}</option>`).join('')}
+        </select>
+      </td>
       <td><div class="td-actions">
         ${t.categoria === 'Venta' ? '' : `
         <button class="btn btn-ghost btn-icon btn-sm" title="Copiar WhatsApp"
@@ -711,7 +723,7 @@ function renderKanban(list) {
 }
 
 function renderKanbanCard(t) {
-  const pagoClass    = PAGO_COLOR[t.estadoPago || 'Pendiente'] || 'badge-pago-pendiente';
+  const kcPagoClass  = pagoClass(t.estadoPago || 'Pendiente');
   const hoyKc        = new Date().toISOString().split('T')[0];
   const entregaAlerta = t.fechaEntrega && t.estado !== 'Entregado' && t.estado !== 'Cancelado'
     ? (t.fechaEntrega < hoyKc ? 'overdue' : t.fechaEntrega === hoyKc ? 'today' : '')
@@ -730,7 +742,7 @@ function renderKanbanCard(t) {
       ${t.material ? `<div class="kc-material">${escHtml(t.material)}</div>` : ''}
     </div>
     <div class="kc-mid">
-      <span class="badge ${pagoClass}" style="font-size:.66rem;padding:2px 7px">${t.estadoPago || 'Pendiente'}</span>
+      <span class="badge ${kcPagoClass}" style="font-size:.66rem;padding:2px 7px">${t.estadoPago || 'Pendiente'}</span>
       <span class="kc-precio">${fmt(t.precio_final || 0)}</span>
     </div>
     <div class="kc-bot">
