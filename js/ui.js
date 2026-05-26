@@ -213,7 +213,6 @@ function renderTrabajos() {
         </select>
       </td>
       <td><div class="td-actions">
-        ${t.estado !== 'Venta' ? `
         <button class="btn btn-ghost btn-icon btn-sm" title="Copiar WhatsApp"
           onclick='copiarMensajeWA("${t.id}")'>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -239,7 +238,6 @@ function renderTrabajos() {
             <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/>
           </svg>
         </button>
-        ` : ''}
         <button class="btn btn-danger btn-icon btn-sm" title="Eliminar"
           onclick='eliminarTrabajo("${t.id}")'>
           <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
