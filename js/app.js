@@ -317,7 +317,7 @@ function generarPDFMultiple(items, clienteNombre) {
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta name="viewport" content="width=860"/>
 <title>${escHtml(nombreArchivo)}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
@@ -532,6 +532,7 @@ body{min-height:100vh;padding:20px 0 80px;display:flex;justify-content:center;al
     const pageEl=document.querySelector('.page');
     pageEl.style.width='794px';
     pageEl.style.minWidth='794px';
+    pageEl.style.minHeight='1027px';
     const canvas=await html2canvas(pageEl,{scale:2,useCORS:true,allowTaint:true,backgroundColor:'#ffffff',logging:false,imageTimeout:10000,width:794,height:pageEl.scrollHeight});
     setBar(75);
     const pdf=new jsPDF({orientation:'portrait',unit:'mm',format:'letter'});
@@ -1254,7 +1255,7 @@ function generarPDFData(t) {
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta name="viewport" content="width=860"/>
 <title>${escHtml(nombreArchivo)}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
@@ -1542,9 +1543,10 @@ body{min-height:100vh;padding:20px 0 80px;display:flex;justify-content:center;al
 
     const { jsPDF } = window.jspdf;
     const pageEl = document.querySelector('.page');
-    // Forzar ancho fijo para render correcto
-    pageEl.style.width    = '794px';
-    pageEl.style.minWidth = '794px';
+    // Forzar dimensiones fijas para render correcto
+    pageEl.style.width     = '794px';
+    pageEl.style.minWidth  = '794px';
+    pageEl.style.minHeight = '1027px';
 
     const canvas = await html2canvas(pageEl, {
       scale: 2,
