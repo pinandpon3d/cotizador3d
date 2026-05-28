@@ -413,7 +413,7 @@
       <div class="card">
         <div class="card-title">
           <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
-          Materiales del Inventario
+          Otros materiales del inventario
           <span style="font-size:.75rem;color:var(--text3);font-weight:400;margin-left:8px">opcional</span>
         </div>
         <div id="mat-lista-cotizacion" style="margin-bottom:8px"></div>
@@ -927,19 +927,18 @@
           <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Agregar Material
         </div>
-        <!-- Categoría -->
+        <!-- Tipo de material -->
         <div class="form-grid" style="margin-bottom:0">
           <div class="form-group" style="grid-column:span 2">
-            <label>Categoría</label>
-            <select id="inv_categoria" onchange="toggleInventarioTipo()">
-              <option value="Filamento">Filamento</option>
-              <option value="Resina">Resina</option>
-              <option value="Adhesivo">Adhesivo</option>
-              <option value="Pintura">Pintura / Acabado</option>
-              <option value="Ferretería">Ferretería / Tornillería</option>
-              <option value="Electrónica">Electrónica</option>
-              <option value="Otro">Otro</option>
-            </select>
+            <label>Tipo de material</label>
+            <div style="display:flex;gap:8px;margin-top:4px">
+              <button type="button" id="inv-btn-filamento" class="btn btn-primary btn-sm" onclick="setTipoMaterial('Filamento')" style="flex:1">🧵 Filamento</button>
+              <button type="button" id="inv-btn-otro"      class="btn btn-secondary btn-sm" onclick="setTipoMaterial('otro')" style="flex:1">📦 Otro material</button>
+            </div>
+          </div>
+          <div class="form-group" id="inv-categoria-custom-row" style="display:none;grid-column:span 2">
+            <label>Categoría / tipo <span style="color:var(--text3);font-weight:400">(ej: Resina, Adhesivo, Tornillos…)</span></label>
+            <input type="text" id="inv_categoria_custom" placeholder="Ej: Resina, Adhesivo, Ferretería…">
           </div>
         </div>
         <!-- Campos específicos de filamento -->
@@ -1430,7 +1429,7 @@
 <script src="js/db.js?v=20260526"></script>
 <script src="js/logic.js?v=20260526"></script>
 <script src="js/ui.js?v=20260601"></script>
-<script src="js/app.js?v=20260601"></script>
+<script src="js/app.js?v=20260602"></script>
 <script src="js/auth.js?v=20260526"></script>
 
 </body>

@@ -897,22 +897,33 @@ function getMaterialStock(m) {
 }
 
 // ─── Inventory form toggle ────────────────────────────────
-function toggleInventarioTipo() {
-  const esFilamento = (el('inv_categoria')?.value || 'Filamento') === 'Filamento';
+let _invTipoActual = 'Filamento';
+
+function setTipoMaterial(tipo) {
+  _invTipoActual = tipo;
+  const esFilamento = tipo === 'Filamento';
   if (el('inv-fields-filamento')) el('inv-fields-filamento').style.display = esFilamento ? '' : 'none';
   if (el('inv-fields-general'))   el('inv-fields-general').style.display   = esFilamento ? 'none' : '';
+  if (el('inv-categoria-custom-row')) el('inv-categoria-custom-row').style.display = esFilamento ? 'none' : '';
+  // Botón activo / inactivo
+  el('inv-btn-filamento')?.classList.toggle('btn-primary',   esFilamento);
+  el('inv-btn-filamento')?.classList.toggle('btn-secondary', !esFilamento);
+  el('inv-btn-otro')?.classList.toggle('btn-primary',   !esFilamento);
+  el('inv-btn-otro')?.classList.toggle('btn-secondary',  esFilamento);
 }
 
-// ─── Save material (replaces agregarFilamento) ────────────
+function toggleInventarioTipo() { setTipoMaterial(_invTipoActual); } // alias legacy
+
+// ─── Save material ────────────────────────────────────────
 async function guardarMaterial() {
-  const categoria = el('inv_categoria')?.value || 'Filamento';
-  const esFilamento = categoria === 'Filamento';
+  const esFilamento = _invTipoActual === 'Filamento';
+  const categoria   = esFilamento ? 'Filamento' : (el('inv_categoria_custom')?.value.trim() || 'Otro');
   const editId = el('inv-edit-id')?.textContent?.trim() || '';
-  const id = editId || genId();
+  const id     = editId || genId();
   let data = { id, categoria };
-  data.marca       = el('inv_marca')?.value.trim()  || '';
-  data.proveedor   = el('inv_prov')?.value.trim()   || '';
-  data.notas       = el('inv_notas')?.value.trim()  || '';
+  data.marca        = el('inv_marca')?.value.trim() || '';
+  data.proveedor    = el('inv_prov')?.value.trim()  || '';
+  data.notas        = el('inv_notas')?.value.trim() || '';
   data.fecha_compra = el('inv_fecha')?.value        || today();
   if (esFilamento) {
     const tipo  = el('inv_tipo')?.value || 'PLA';
@@ -922,17 +933,17 @@ async function guardarMaterial() {
     const peso_rollo   = Math.max(fv('inv_peso') || 1000, 1);
     const disponibles  = fv('inv_disp') || 1;
     Object.assign(data, { tipo, color, precio_rollo, peso_rollo, disponibles });
-    data.nombre         = `${tipo} ${color}${data.marca ? ' '+data.marca : ''}`;
-    data.unidad         = 'g';
+    data.nombre          = `${tipo} ${color}${data.marca ? ' '+data.marca : ''}`;
+    data.unidad          = 'g';
     data.precio_unitario = precio_rollo / peso_rollo;
-    data.stock          = disponibles * peso_rollo;
+    data.stock           = disponibles * peso_rollo;
   } else {
     const nombre = el('inv_nombre')?.value.trim();
     if (!nombre) { toast('Ingrese el nombre del material', 'error'); return; }
     data.nombre          = nombre;
-    data.unidad          = el('inv_unidad')?.value || 'unidades';
-    data.precio_unitario = fv('inv_precio_unit') || 0;
-    data.stock           = fv('inv_stock')       || 0;
+    data.unidad          = el('inv_unidad')?.value    || 'unidades';
+    data.precio_unitario = fv('inv_precio_unit')      || 0;
+    data.stock           = fv('inv_stock')            || 0;
   }
   const idx = filamentos.findIndex(f => f.id === id);
   if (idx >= 0) filamentos[idx] = data; else filamentos.push(data);
@@ -948,13 +959,14 @@ async function guardarMaterial() {
 }
 
 function limpiarFormMaterial() {
-  ['inv_color','inv_marca','inv_nombre','inv_prov','inv_notas'].forEach(id => { if(el(id)) el(id).value=''; });
-  if(el('inv_precio'))    el('inv_precio').value=0;
-  if(el('inv_peso'))      el('inv_peso').value=1000;
-  if(el('inv_disp'))      el('inv_disp').value=1;
-  if(el('inv_precio_unit')) el('inv_precio_unit').value=0;
-  if(el('inv_stock'))     el('inv_stock').value=0;
-  if(el('inv_fecha'))     el('inv_fecha').value=today();
+  ['inv_color','inv_marca','inv_nombre','inv_prov','inv_notas','inv_categoria_custom'].forEach(id => { if(el(id)) el(id).value=''; });
+  if(el('inv_precio'))     el('inv_precio').value=0;
+  if(el('inv_peso'))       el('inv_peso').value=1000;
+  if(el('inv_disp'))       el('inv_disp').value=1;
+  if(el('inv_precio_unit'))el('inv_precio_unit').value=0;
+  if(el('inv_stock'))      el('inv_stock').value=0;
+  if(el('inv_fecha'))      el('inv_fecha').value=today();
+  setTipoMaterial('Filamento');
 }
 
 function cancelarEditMaterial() {
@@ -966,26 +978,26 @@ function editarMaterial(id) {
   const m = filamentos.find(f => f.id===id); if(!m) return;
   if(el('inv-edit-id')) { el('inv-edit-id').textContent=id; el('inv-edit-id').style.display='none'; }
   if(el('inv-cancel-edit')) el('inv-cancel-edit').style.display='inline-flex';
-  const categoria = m.categoria || 'Filamento';
-  if(el('inv_categoria')) el('inv_categoria').value = categoria;
-  toggleInventarioTipo();
-  if (categoria === 'Filamento') {
+  const esFilamento = (m.categoria || 'Filamento') === 'Filamento';
+  setTipoMaterial(esFilamento ? 'Filamento' : 'otro');
+  if (!esFilamento && el('inv_categoria_custom')) el('inv_categoria_custom').value = m.categoria || '';
+  if (esFilamento) {
     if(el('inv_tipo'))   el('inv_tipo').value   = m.tipo  || 'PLA';
     if(el('inv_color'))  el('inv_color').value  = m.color || '';
     if(el('inv_marca'))  el('inv_marca').value  = m.marca || '';
     if(el('inv_precio')) el('inv_precio').value = m.precio_rollo || 0;
     if(el('inv_peso'))   el('inv_peso').value   = m.peso_rollo   || 1000;
-    if(el('inv_disp'))   el('inv_disp').value   = m.disponibles  !== undefined ? m.disponibles : Math.round((m.stock||0)/(m.peso_rollo||1000)*10)/10;
+    if(el('inv_disp'))   el('inv_disp').value   = m.disponibles !== undefined ? m.disponibles : Math.round((m.stock||0)/(m.peso_rollo||1000)*10)/10;
   } else {
-    if(el('inv_nombre'))     el('inv_nombre').value     = m.nombre         || '';
-    if(el('inv_unidad'))     el('inv_unidad').value     = m.unidad         || 'unidades';
-    if(el('inv_precio_unit'))el('inv_precio_unit').value= m.precio_unitario|| 0;
-    if(el('inv_stock'))      el('inv_stock').value      = m.stock          || 0;
-    if(el('inv_marca'))      el('inv_marca').value      = m.marca          || '';
+    if(el('inv_nombre'))      el('inv_nombre').value      = m.nombre          || '';
+    if(el('inv_unidad'))      el('inv_unidad').value      = m.unidad          || 'unidades';
+    if(el('inv_precio_unit')) el('inv_precio_unit').value = m.precio_unitario || 0;
+    if(el('inv_stock'))       el('inv_stock').value       = m.stock           || 0;
+    if(el('inv_marca'))       el('inv_marca').value       = m.marca           || '';
   }
-  if(el('inv_prov'))  el('inv_prov').value  = m.proveedor   || '';
-  if(el('inv_notas')) el('inv_notas').value = m.notas       || '';
-  if(el('inv_fecha')) el('inv_fecha').value = m.fecha_compra|| '';
+  if(el('inv_prov'))  el('inv_prov').value  = m.proveedor    || '';
+  if(el('inv_notas')) el('inv_notas').value = m.notas        || '';
+  if(el('inv_fecha')) el('inv_fecha').value = m.fecha_compra || '';
   document.getElementById('page-inventario')?.querySelector('.card')?.scrollIntoView({behavior:'smooth'});
 }
 
@@ -997,13 +1009,14 @@ function poblarSelectMateriales() {
   const cur = sel.value;
   sel.innerHTML = '<option value="">— Seleccionar —</option>';
   [...filamentos]
-    .filter(m => getMaterialPrecioUnitario(m) > 0)
+    .filter(m => (m.categoria || 'Filamento') !== 'Filamento' && getMaterialPrecioUnitario(m) > 0)
     .sort((a,b) => getMaterialNombre(a).localeCompare(getMaterialNombre(b)))
     .forEach(m => {
       const opt = document.createElement('option');
       opt.value = m.id;
       const pu = getMaterialPrecioUnitario(m);
-      opt.textContent = `${getMaterialNombre(m)} (₡${pu.toFixed(2)}/${getMaterialUnidad(m)})`;
+      const cat = m.categoria || '';
+      opt.textContent = `${cat ? '['+cat+'] ' : ''}${getMaterialNombre(m)} — ₡${pu.toFixed(2)}/${getMaterialUnidad(m)}`;
       if(m.id===cur) opt.selected=true;
       sel.appendChild(opt);
     });
