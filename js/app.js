@@ -16,6 +16,9 @@ let trabajos   = [];
 let filamentos = [];
 let clientes   = [];
 let editingId  = null;
+let gastos    = [];
+let inversion = { activa: false, items: [] };
+let categoriasPago = ['Pendiente', 'Abono', 'Pagado'];
 let _dashFiltro    = 'mes-actual';
 let seleccionados  = new Set();   // IDs seleccionados para cotización combinada
 let _trabajosVista = 'tabla';     // 'tabla' | 'kanban'
@@ -31,7 +34,8 @@ const PAGE_LABELS = {
   usuarios:     'Usuarios',
   dashboard:    'Dashboard',
   clientes:     'Clientes',
-  detalle:      'Al Detalle'
+  detalle:      'Al Detalle',
+  costos:       'Costos'
 };
 
 /* ─── TABS DE CONFIGURACIÓN ─── */
@@ -68,11 +72,13 @@ function navTo(page) {
   if (page !== 'trabajos')      limpiarSeleccion();
   if (page === 'trabajos')      cargarTrabajos();
   if (page === 'inventario')    cargarInventario();
+  if (page === 'cotizador')     cargarFilamentosYPoblar();
   if (page === 'configuracion') { calcCfg(); actualizarUIUsuario && actualizarUIUsuario(); }
   if (page === 'usuarios')      { if (typeof cargarUsuarios === 'function') cargarUsuarios(); }
   if (page === 'dashboard')     cargarDashboard();
   if (page === 'clientes')      cargarClientes();
   if (page === 'detalle')       cargarVentaDetalle();
+  if (page === 'costos')        cargarCostos();
   closeSidebar();
 }
 
@@ -99,7 +105,11 @@ function guardarCotizacion() {
   if (!pieza)   { toast('Ingrese el nombre de la pieza',  'error'); return; }
   if (!cliente) { toast('Ingrese el nombre del cliente',  'error'); return; }
 
+  // El preview de material no comprometido no debe entrar al precio guardado
+  const savedPreview = _matPreviewCosto;
+  _matPreviewCosto = 0;
   const desglose     = calcular();
+  _matPreviewCosto = savedPreview;
   const id           = editingId || genId();
   const precioFinal  = desglose.precioTotal;
   const montoAbonado = fv('c_monto_abonado') || 0;
@@ -133,6 +143,7 @@ function guardarCotizacion() {
     montoAbonado,
     montoPendiente: Math.max(0, precioFinal - montoAbonado),
     fechaPago:     '',
+    materialesAdicionales: materialesAdicionalesCotizacion.map(m => ({...m})),
     _desglose: desglose
   };
 
@@ -158,12 +169,20 @@ function guardarCotizacion() {
     editingId = null; el('edit-banner').style.display = 'none';
   }
   mostrarPostGuardado(pieza, wasEditing);
+  nuevaCotizacion();
 }
 
 /* ----------------------------------------------------------
    Cotizaciones — Cargar
 ---------------------------------------------------------- */
 async function cargarTrabajos() {
+  const tbody = el('trabajos-tbody');
+  if (tbody) {
+    const skRow = '<td></td>'.repeat(12);
+    tbody.innerHTML = Array(5).fill(`<tr class="skeleton-row">${skRow}</tr>`).join('');
+    if (el('trabajos-table')) el('trabajos-table').style.display = 'table';
+    if (el('trabajos-empty')) el('trabajos-empty').style.display = 'none';
+  }
   try {
     trabajos = await fbCargarTrabajos();
     try { localStorage.setItem('trabajos3d', JSON.stringify(trabajos)); } catch(e){}
@@ -279,235 +298,288 @@ function generarPDFMultiple(items, clienteNombre) {
   const mascotaUrl = base + 'img/Mascota-PNG.png';
   const nombreUrl  = base + 'img/Nombre-PNG.png';
 
-  const fechaHoy       = today();
-  const ref            = 'COMB-' + Date.now().toString(36).toUpperCase().slice(-6);
-  const totalGeneral   = items.reduce((s, t) => s + (t.precio_final || 0), 0);
-  const nombreArchivo  = `Cotizacion - ${clienteNombre}`;
-  const multiCliente   = [...new Set(items.map(t => t.cliente || ''))].length > 1;
+  const ref           = 'COMB-' + Date.now().toString(36).toUpperCase().slice(-6);
+  const totalGeneral  = items.reduce((s, t) => s + (t.precio_final || 0), 0);
+  const nombreArchivo = `Cotizacion - ${clienteNombre}`;
+  const multiCliente  = [...new Set(items.map(t => t.cliente || ''))].length > 1;
+  const hoyStr        = new Date().toISOString().split('T')[0];
+  const vigenciaDate  = new Date();
+  vigenciaDate.setDate(vigenciaDate.getDate() + 7);
+  const vigencia = vigenciaDate.toLocaleDateString('es-CR', {day:'numeric',month:'short',year:'numeric'});
 
   const win = window.open('','_blank');
   if (!win) { toast('Permita ventanas emergentes','error'); return; }
 
   const rowsHtml = items.map(t => {
-    const cant      = Math.max(t.cantidad || 1, 1);
-    const pUnit     = t.precio_unitario || ((t.precio_final || 0) / cant);
-    const total     = t.precio_final || 0;
-    return `<div class="trow">
-      <div class="col-name">
-        <strong>${escHtml(t.pieza || '—')}</strong>
-        ${t.material ? `<span style="color:var(--ink-soft);font-size:11px"> · ${escHtml(t.material)}</span>` : ''}
-        <br><span class="item-badge">${escHtml(t.categoria || 'General')}</span>
-        ${multiCliente ? `<span class="item-badge" style="background:#f0fdf4;color:#16a34a;margin-left:4px">${escHtml(t.cliente || '')}</span>` : ''}
-        ${(t.gramos || t.horas_imp) ? `<div class="item-note">${Number(t.gramos||0).toFixed(1)} g · ${Number(t.horas_imp||0).toFixed(1)} h</div>` : ''}
-        ${t.notas ? `<div class="item-note">${escHtml(t.notas)}</div>` : ''}
-      </div>
-      <div class="col-qty">${cant}</div>
-      <div class="col-price">₡&thinsp;${pUnit.toLocaleString('es-CR',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
-      <div class="col-total">₡&thinsp;${total.toLocaleString('es-CR',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
-    </div>`;
+    const cant  = Math.max(t.cantidad || 1, 1);
+    const pUnit = t.precio_unitario || ((t.precio_final || 0) / cant);
+    const total = t.precio_final || 0;
+    return `<tr>
+      <td>
+        <div class="item-name">${escHtml(t.pieza || '—')}</div>
+        <div class="item-sub">${escHtml(t.categoria || 'General')}${t.material ? ' · ' + escHtml(t.material) : ''}${multiCliente ? ' · ' + escHtml(t.cliente || '') : ''}</div>
+        ${t.notas ? `<div class="item-sub" style="font-style:italic">${escHtml(t.notas)}</div>` : ''}
+      </td>
+      <td>${cant}</td>
+      <td>&#8353;&thinsp;${pUnit.toLocaleString('es-CR',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
+      <td><strong>&#8353;&thinsp;${total.toLocaleString('es-CR',{minimumFractionDigits:2,maximumFractionDigits:2})}</strong></td>
+    </tr>`;
   }).join('');
 
   win.document.write(`<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta name="viewport" content="width=860"/>
 <title>${escHtml(nombreArchivo)}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,700&display=swap" rel="stylesheet"/>
 <style>
-:root{--navy:#16395A;--navy-deep:#0F2A45;--navy-2:#235A8C;--sky:#4A8FCB;--pale:#E8F0F8;--yellow:#F2C61F;--ink:#1A2433;--ink-soft:#5B6A7E;--line:#DEE5EE;--line-soft:#EEF2F7;--paper:#FFFFFF;--paper-tint:#FBFCFE;--accent:#F2C61F;--radius:10px}
-*{box-sizing:border-box}
-html,body{margin:0;padding:0;font-family:"Plus Jakarta Sans",system-ui,sans-serif;color:var(--ink);background:#EEF1F5;-webkit-font-smoothing:antialiased}
-body{min-height:100vh;padding:40px 20px 80px;display:flex;justify-content:center;align-items:flex-start}
-button{font-family:inherit;cursor:pointer}
-.page{width:794px;min-height:1123px;background:var(--paper);position:relative;overflow:hidden;box-shadow:0 20px 60px -20px rgba(15,42,69,.25),0 4px 16px -4px rgba(15,42,69,.12);border-radius:4px;display:flex;flex-direction:column}
-.watermark{position:absolute;right:-60px;bottom:180px;width:360px;opacity:.025;pointer-events:none;z-index:0}
-.doc-header{position:relative;color:white;overflow:hidden}
-.solid-band{position:absolute;inset:0;background:linear-gradient(95deg,var(--navy-deep) 0%,var(--navy) 50%,var(--navy-2) 100%)}
-.header-inner{position:relative;z-index:1;display:grid;grid-template-columns:1fr auto;gap:32px;padding:38px 48px 34px;align-items:center}
-.brand{display:flex;align-items:center;gap:16px}
-.brand-mascot{width:64px;height:auto;display:block;filter:drop-shadow(0 8px 18px rgba(0,0,0,.25))}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{font-family:"Plus Jakarta Sans",system-ui,sans-serif;background:#EEF1F5;-webkit-font-smoothing:antialiased}
+body{min-height:100vh;padding:20px 0 80px;display:flex;justify-content:center;align-items:flex-start}
+.page{width:min(794px,100vw);background:#fff;overflow:hidden;box-shadow:0 20px 60px -16px rgba(15,42,69,.22),0 4px 16px rgba(15,42,69,.1);display:flex;flex-direction:column}
+@media screen and (max-width:820px){
+  body{padding:0 0 70px;background:#fff}
+  .page{width:100vw;min-height:100dvh;border-radius:0;box-shadow:none}
+  .header{padding:24px 20px}
+  .client-bar{padding:12px 20px;grid-template-columns:1fr 1fr}
+  .cb-field+.cb-field{border-left:none;padding-left:0}
+  .cb-field:nth-child(2n){border-left:1px solid #DEE9F3;padding-left:16px}
+  .body{padding:20px 20px 8px}
+  .tbl thead th,.tbl tbody td{padding:8px}
+  .col-unit{display:none}
+  .footer-grid{grid-template-columns:1fr}
+  .doc-footer{padding:14px 20px}
+}
+.header{background:linear-gradient(130deg,#0F2A45 0%,#16395A 45%,#235A8C 100%);position:relative;overflow:hidden;padding:32px 48px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px}
+.header-deco{position:absolute;inset:0;pointer-events:none;z-index:0}
+.brand{display:flex;align-items:center;gap:14px;z-index:1}
+.brand-mascot{width:54px;height:auto;filter:drop-shadow(0 4px 12px rgba(0,0,0,.25))}
 .brand-text{display:flex;flex-direction:column;gap:4px}
-.wordmark{font-weight:800;font-size:28px;letter-spacing:-.02em;color:white;line-height:1;display:inline-flex;align-items:center;gap:2px}
-.amp{color:var(--accent);margin:0 2px;font-style:italic;font-weight:700}
-.badge-3d{font-size:11px;font-weight:700;letter-spacing:.04em;background:var(--sky);color:white;padding:3px 7px;border-radius:5px;margin-left:6px;align-self:flex-start;margin-top:-4px;box-shadow:0 2px 6px rgba(74,143,203,.4)}
-.tagline{font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.65);font-weight:600}
-.title-block{display:flex;flex-direction:column;gap:6px;text-align:right;align-items:flex-end}
-.eyebrow{font-size:10px;font-weight:700;letter-spacing:.24em;text-transform:uppercase;color:var(--accent);opacity:.95}
-.title{font-size:26px;font-weight:700;margin:0;line-height:1;letter-spacing:-.01em;color:white;display:inline-flex;align-items:baseline;gap:6px}
-.title-num{font-weight:800;font-variant-numeric:tabular-nums;padding:0 4px;border-bottom:1px dashed rgba(255,255,255,.3)}
-.meta-row{display:inline-flex;align-items:baseline;gap:10px;font-size:12.5px;margin-top:4px}
-.meta-label{text-transform:uppercase;font-size:9.5px;letter-spacing:.16em;opacity:.7;font-weight:700}
-.meta-value{font-weight:600;border-bottom:1px dashed rgba(255,255,255,.3);padding:0 2px 1px;min-width:120px;text-align:left}
-.title-rule{width:48px;height:2px;background:var(--accent);margin-top:6px;border-radius:1px}
-.doc-strip{position:relative;z-index:1;margin:28px 48px 8px;padding:18px 22px 18px 26px;background:var(--paper-tint);border:1px solid var(--line);border-radius:var(--radius);display:grid;grid-template-columns:2fr 1fr 1fr 1.1fr;gap:22px;align-items:center}
-.doc-strip::before{content:"";position:absolute;left:0;top:14px;bottom:14px;width:3px;background:var(--accent);border-radius:0 2px 2px 0}
-.strip-field{display:flex;flex-direction:column;gap:4px;min-width:0}
-.strip-field+.strip-field{border-left:1px solid var(--line);padding-left:22px}
-.strip-label{font-size:9.5px;text-transform:uppercase;letter-spacing:.18em;color:var(--ink-soft);font-weight:700}
-.strip-value{font-size:13.5px;font-weight:600;color:var(--ink);line-height:1.25;display:inline-flex;align-items:baseline;gap:4px;flex-wrap:wrap}
-.strip-value .hash{color:var(--ink-soft);font-weight:500;font-size:10.5px;letter-spacing:.05em}
-.strip-name{color:var(--navy);font-weight:700;font-size:16px}
-.strip-vigencia{color:var(--navy)}
-.strip-vigencia::after{content:"7 días";display:inline-block;margin-left:6px;font-size:8.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;background:var(--accent);color:var(--navy-deep);padding:2px 5px;border-radius:3px;vertical-align:middle}
-.section-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px;padding:0 48px}
-.section-head h2{font-size:14px;font-weight:700;color:var(--navy);letter-spacing:.14em;text-transform:uppercase;margin:0;display:flex;align-items:center;gap:10px}
-.section-head h2::before{content:"";width:22px;height:2px;background:var(--accent);display:inline-block}
-.detail{position:relative;z-index:1;padding:28px 0 8px}
-.table{margin:0 48px}
-.thead,.trow{display:grid;grid-template-columns:1fr 70px 130px 130px;align-items:center;gap:8px}
-.thead{color:var(--navy);padding:10px 16px 8px;border-top:1.5px solid var(--navy);border-bottom:1px solid var(--line);font-size:10px;font-weight:700;letter-spacing:.18em;text-transform:uppercase}
-.thead .col-qty,.thead .col-price,.thead .col-total{text-align:right}
-.trow{padding:11px 16px;border-bottom:1px solid var(--line-soft);font-size:13px}
-.trow .col-name{color:var(--ink)}
-.trow .col-qty,.trow .col-price,.trow .col-total{text-align:right;font-variant-numeric:tabular-nums}
-.trow .col-total{font-weight:700;color:var(--navy)}
-.item-badge{display:inline-flex;padding:2px 8px;background:var(--pale);color:var(--navy);border-radius:20px;font-size:10px;font-weight:700;margin-top:4px}
-.item-note{font-size:11px;color:var(--ink-soft);font-style:italic;margin-top:3px;line-height:1.4}
-.summary{position:relative;z-index:1;padding:22px 48px 4px;display:flex;justify-content:flex-end}
-.summary-card{width:280px}
-.srow{display:flex;justify-content:space-between;align-items:baseline;padding:7px 0;font-size:12px;border-bottom:1px solid var(--line-soft)}
-.srow:last-child{border-bottom:none}
-.slabel{color:var(--ink-soft);font-weight:500;display:inline-flex;align-items:baseline;gap:6px;letter-spacing:.02em}
-.sval{font-weight:500;color:var(--ink);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
-.total-row{padding:14px 18px;margin-top:8px;background:var(--navy);color:white;border-radius:8px;border-bottom:none!important;display:flex;justify-content:space-between;align-items:center;position:relative;overflow:hidden;box-shadow:0 6px 16px -8px rgba(15,42,69,.5)}
-.total-row::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--accent)}
-.total-row .slabel{color:rgba(255,255,255,.85);font-weight:700;text-transform:uppercase;letter-spacing:.22em;font-size:10.5px;padding-left:6px}
-.total-row .sval{color:white;font-size:24px;font-weight:800;letter-spacing:-.02em}
-.notes-pay{position:relative;z-index:1;display:grid;grid-template-columns:1.5fr 1fr;gap:24px;padding:28px 48px 24px;margin-top:auto;align-items:stretch}
-.notes h3,.payment h3{font-size:10px;text-transform:uppercase;letter-spacing:.18em;margin:0 0 12px;color:var(--navy);font-weight:700;display:flex;align-items:center;gap:8px}
-.notes h3::before,.payment h3::before{content:"";width:14px;height:1.5px;background:var(--accent)}
-.notes ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:5px;font-size:11.5px;color:var(--ink-soft);line-height:1.5}
-.notes li{position:relative;padding-left:14px}
-.notes li::before{content:"";position:absolute;left:0;top:7px;width:5px;height:5px;background:var(--accent);transform:rotate(45deg)}
-.notes strong{color:var(--ink);font-weight:700}
-.note-extra{margin-top:10px;padding:9px 11px;background:var(--paper-tint);border:1px dashed var(--line);border-radius:6px;font-size:11.5px;color:var(--ink);min-height:32px;line-height:1.5}
-.payment{background:var(--paper-tint);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px}
-.pay-line{display:flex;flex-direction:column;gap:10px;font-size:12.5px;color:var(--ink);font-weight:600}
-.pay-item{display:inline-flex;align-items:center;gap:9px;color:var(--navy)}
-.pay-item svg{color:var(--sky);flex-shrink:0;width:15px;height:15px}
-.doc-footer{position:relative;z-index:1;padding:18px 48px;border-top:1px solid var(--line-soft);display:flex;justify-content:space-between;align-items:center}
-.thanks{font-size:14px;color:var(--navy);font-weight:600;letter-spacing:-.005em;display:inline-flex;align-items:center;gap:8px}
-.thanks-logo{height:26px;width:auto;display:inline-block;vertical-align:middle}
-.footer-accent{width:60px;height:4px;background:linear-gradient(90deg,var(--navy),var(--sky),var(--accent));border-radius:2px}
-.print-btn{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);padding:10px 24px;background:var(--navy);color:white;border:none;border-radius:999px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 10px 30px -6px rgba(15,42,69,.3);font-family:inherit;display:inline-flex;align-items:center;gap:8px;z-index:100}
-@page{size:A4;margin:0}
-@media print{body{background:white;padding:0;display:block}.page{width:210mm;min-height:297mm;box-shadow:none;border-radius:0}.print-btn{display:none}}
+.brand-name{font-size:26px;font-weight:800;color:#fff;line-height:1;letter-spacing:-.02em}
+.brand-name .amp{color:#F2C61F;font-style:italic}
+.badge-3d{display:inline-block;background:#4A8FCB;color:#fff;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;margin-left:5px;letter-spacing:.05em;vertical-align:middle}
+.brand-sub{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.55);font-weight:600}
+.title-block{text-align:right;z-index:1}
+.title-eyebrow{font-size:10px;font-weight:700;letter-spacing:.24em;text-transform:uppercase;color:#F2C61F}
+.title-main{font-size:24px;font-weight:800;color:#fff;line-height:1.1;margin-top:4px;letter-spacing:-.01em}
+.title-rule{width:40px;height:2px;background:#F2C61F;margin:8px 0 0 auto;border-radius:1px}
+.client-bar{background:#F8FAFB;border-bottom:1px solid #E0EAF4;padding:16px 48px;display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:0}
+.cb-field{display:flex;flex-direction:column;gap:3px;padding-right:20px}
+.cb-field+.cb-field{border-left:1px solid #DEE9F3;padding-left:20px;padding-right:0}
+.cb-label{font-size:8.5px;text-transform:uppercase;letter-spacing:.2em;color:#8CAFD2;font-weight:700}
+.cb-value{font-size:14px;font-weight:700;color:#133658;line-height:1.2}
+.cb-tag{display:inline-block;background:#F2C61F;color:#133658;font-size:8.5px;font-weight:700;padding:2px 7px;border-radius:4px;letter-spacing:.06em;margin-top:3px;width:fit-content}
+.body{padding:28px 48px 8px;flex:1;display:flex;flex-direction:column}
+.sec-label{font-size:10.5px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#133658;display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.sec-label::before{content:"";width:18px;height:2px;background:#F2C61F;border-radius:1px;flex-shrink:0}
+.tbl{width:100%;border-collapse:collapse}
+.tbl thead tr{border-top:2px solid #16395A;border-bottom:1.5px solid #16395A}
+.tbl thead th{font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#16395A;padding:10px 12px;text-align:left}
+.tbl thead th:not(:first-child){text-align:right}
+.tbl tbody tr{border-bottom:1px solid #F0F5FB}
+.tbl tbody td{padding:12px 12px;font-size:13px;color:#1A2433;vertical-align:top}
+.tbl tbody td:not(:first-child){text-align:right;font-variant-numeric:tabular-nums}
+.item-name{font-weight:600;color:#133658}
+.item-sub{font-size:11px;color:#8CAFD2;margin-top:2px}
+.summary{display:flex;justify-content:flex-end;padding:12px 0 16px}
+.sum-card{width:280px}
+.sum-row{display:flex;justify-content:space-between;align-items:baseline;padding:7px 0;font-size:12.5px;border-bottom:1px solid #F0F5FB}
+.sum-label{color:#5B6A7E}
+.sum-val{font-weight:600;font-variant-numeric:tabular-nums}
+.sum-total{background:#16395A;color:#fff;padding:14px 18px;border-radius:8px;display:flex;justify-content:space-between;align-items:center;margin-top:8px;position:relative;overflow:hidden;box-shadow:0 6px 16px -8px rgba(15,42,69,.5)}
+.sum-total::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:#F2C61F}
+.sum-total-label{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.2em;color:rgba(255,255,255,.8);padding-left:6px}
+.sum-total-val{font-size:24px;font-weight:800;letter-spacing:-.02em}
+.footer-grid{display:grid;grid-template-columns:1.5fr 1fr;gap:24px;padding:16px 0 0;margin-top:auto}
+.fnotes ul{list-style:none;display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.fnotes li{font-size:11.5px;color:#5B6A7E;padding-left:14px;position:relative;line-height:1.5}
+.fnotes li::before{content:"";position:absolute;left:0;top:6px;width:5px;height:5px;background:#F2C61F;border-radius:50%}
+.fnotes li strong{color:#1A2433}
+.note-box{background:#F8FAFB;border:1px dashed #DDE6F0;border-radius:6px;padding:9px 12px;font-size:11px;color:#1A2433;margin-top:10px;line-height:1.5}
+.pay-card{background:#F8FAFB;border:1px solid #E0EAF4;border-radius:10px;padding:14px 16px}
+.pay-item{display:flex;align-items:center;gap:10px;font-size:12.5px;color:#133658;font-weight:500;padding:6px 0}
+.pay-item+.pay-item{border-top:1px solid #EEF3F8}
+.pay-icon{width:28px;height:28px;border-radius:6px;background:#E8F0F8;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.pay-icon svg{width:14px;height:14px;stroke:#16395A}
+.doc-footer{padding:16px 48px;border-top:1px solid #EEF3F8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+.thanks-logo{height:24px;width:auto}
+.footer-rule{width:48px;height:3px;background:linear-gradient(90deg,#16395A,#4A8FCB,#F2C61F);border-radius:2px}
+#dl-overlay{position:fixed;inset:0;background:rgba(238,241,245,.95);display:flex;align-items:center;justify-content:center;z-index:999;font-family:inherit}
+#dl-box{background:#fff;border-radius:14px;padding:36px 44px;text-align:center;box-shadow:0 20px 60px rgba(15,42,69,.18);min-width:260px}
+#dl-icon{font-size:36px;margin-bottom:12px}
+#dl-title{font-size:15px;font-weight:700;color:#133658;margin-bottom:5px}
+#dl-sub{font-size:12px;color:#8CAFD2}
+#dl-track{margin-top:18px;height:5px;background:#E8F0F8;border-radius:99px;overflow:hidden}
+#dl-bar{height:100%;width:0%;background:linear-gradient(90deg,#16395A,#4A8FCB);border-radius:99px;transition:width .4s ease}
+@page{size:letter;margin:0}
+*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}
+@media print{html,body{background:#fff!important;padding:0!important;margin:0!important;display:block!important}.page{width:215.9mm!important;min-height:279.4mm!important;box-shadow:none!important;border-radius:0!important;overflow:visible!important}.header{padding:32px 48px!important}.client-bar{padding:16px 48px!important;grid-template-columns:2fr 1fr 1fr 1fr!important}.body{padding:28px 48px 8px!important}.doc-footer{padding:16px 48px!important}}
 </style>
 </head>
 <body>
-<button class="print-btn" onclick="window.print()">🖨&nbsp; Guardar PDF</button>
+<div id="dl-overlay">
+  <div id="dl-box">
+    <div id="dl-icon">📄</div>
+    <div id="dl-title">Generando PDF…</div>
+    <div id="dl-sub">Esto tomará unos segundos</div>
+    <div id="dl-track"><div id="dl-bar"></div></div>
+  </div>
+</div>
 <div class="page">
 
-  <img class="watermark" src="${mascotaUrl}" alt="">
-
   <!-- HEADER -->
-  <div class="doc-header">
-    <div class="solid-band"></div>
-    <div class="header-inner">
-      <div class="brand">
-        <img class="brand-mascot" src="${mascotaUrl}" alt="Pin&amp;Pon 3D">
-        <div class="brand-text">
-          <div class="wordmark">Pin<span class="amp">&amp;</span>Pon<span class="badge-3d">3D</span></div>
-          <div class="tagline">Impresión 3D · Innovación · Calidad</div>
+  <div class="header">
+    <svg class="header-deco" viewBox="0 0 794 130" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+      <polygon points="594,0 814,0 814,130" fill="rgba(255,255,255,0.05)"/>
+      <polygon points="654,-50 874,-50 654,180" fill="rgba(255,255,255,0.04)"/>
+    </svg>
+    <div class="brand">
+      <img class="brand-mascot" src="${mascotaUrl}" alt="Pin&amp;Pon 3D">
+      <div class="brand-text">
+        <div class="brand-name">Pin<span class="amp">&amp;</span>Pon<span class="badge-3d">3D</span></div>
+        <div class="brand-sub">Impresión 3D · Costa Rica</div>
+      </div>
+    </div>
+    <div class="title-block">
+      <div class="title-eyebrow">Cotización oficial</div>
+      <div class="title-main">Cotización combinada</div>
+      <div class="title-rule"></div>
+    </div>
+  </div>
+
+  <!-- CLIENT BAR -->
+  <div class="client-bar">
+    <div class="cb-field">
+      <div class="cb-label">Cliente</div>
+      <div class="cb-value">${escHtml(clienteNombre || '—')}</div>
+    </div>
+    <div class="cb-field">
+      <div class="cb-label">Cotización</div>
+      <div class="cb-value">N.° ${ref}</div>
+    </div>
+    <div class="cb-field">
+      <div class="cb-label">Fecha</div>
+      <div class="cb-value">${hoyStr}</div>
+    </div>
+    <div class="cb-field">
+      <div class="cb-label">Vigencia</div>
+      <div class="cb-value">${vigencia}</div>
+      <span class="cb-tag">7 DÍAS</span>
+    </div>
+  </div>
+
+  <!-- BODY -->
+  <div class="body">
+    <div class="sec-label">Detalle — ${items.length} pieza${items.length !== 1 ? 's' : ''}</div>
+    <table class="tbl">
+      <thead>
+        <tr>
+          <th>Pieza / Producto</th>
+          <th>Cant.</th>
+          <th class="col-unit">P. unitario</th>
+          <th>Total</th>
+        </tr>
+      </thead>
+      <tbody>${rowsHtml}</tbody>
+    </table>
+
+    <div class="summary">
+      <div class="sum-card">
+        <div class="sum-total">
+          <span class="sum-total-label">Total general</span>
+          <span class="sum-total-val">&#8353;&thinsp;${totalGeneral.toLocaleString('es-CR',{minimumFractionDigits:0})}</span>
         </div>
       </div>
-      <div class="title-block">
-        <div class="eyebrow">Cotización oficial</div>
-        <h1 class="title">Cotización&nbsp;<span class="title-num">${ref}</span></h1>
-        <div class="meta-row">
-          <span class="meta-label">Fecha</span>
-          <span class="meta-value">${fechaHoy}</span>
+    </div>
+
+    <div class="footer-grid">
+      <div class="fnotes">
+        <div class="sec-label">Notas</div>
+        <ul>
+          <li>La cotización tiene validez de <strong>7 días</strong> a partir de la fecha de emisión.</li>
+          <li>El precio puede variar si cambian las características del modelo 3D.</li>
+          <li>Para iniciar el trabajo se puede solicitar un <strong>abono del 50%</strong>.</li>
+          <li>El tiempo de entrega se confirma al aprobar la cotización.</li>
+          <li>Los colores y acabados pueden variar según el material disponible.</li>
+        </ul>
+        ${emp.nota ? `<div class="note-box">${escHtml(emp.nota)}</div>` : ''}
+      </div>
+      <div>
+        <div class="sec-label">Método de pago</div>
+        <div class="pay-card">
+          <div class="pay-item"><div class="pay-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg></div>SINPEMóvil</div>
+          <div class="pay-item"><div class="pay-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></div>Efectivo</div>
+          <div class="pay-item"><div class="pay-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></div>Transferencia</div>
         </div>
-        <div class="title-rule"></div>
+        ${emp.tel ? `<div style="font-size:11px;color:#8CAFD2;margin-top:10px;display:flex;align-items:center;gap:6px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 3.07 8.81A19.79 19.79 0 0 1 2 2.12h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L6.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>${escHtml(emp.tel)}</div>` : ''}
       </div>
     </div>
   </div>
 
-  <!-- DOC STRIP -->
-  <div class="doc-strip">
-    <div class="strip-field">
-      <div class="strip-label">Cliente</div>
-      <div class="strip-value strip-name">${escHtml(clienteNombre || '—')}</div>
-    </div>
-    <div class="strip-field">
-      <div class="strip-label">Referencia</div>
-      <div class="strip-value"><span class="hash">#</span>${ref}</div>
-    </div>
-    <div class="strip-field">
-      <div class="strip-label">Total de ítems</div>
-      <div class="strip-value">${items.length} pieza${items.length !== 1 ? 's' : ''}</div>
-    </div>
-    <div class="strip-field">
-      <div class="strip-label">Vigencia</div>
-      <div class="strip-value strip-vigencia">${fechaHoy}&nbsp;</div>
-    </div>
-  </div>
-
-  <!-- DETAIL TABLE -->
-  <div class="detail">
-    <div class="section-head"><h2>Detalle de la cotización</h2></div>
-    <div class="table">
-      <div class="thead">
-        <div>Descripción</div>
-        <div class="col-qty">Cant.</div>
-        <div class="col-price">P. unitario</div>
-        <div class="col-total">Total</div>
-      </div>
-      ${rowsHtml}
-    </div>
-  </div>
-
-  <!-- SUMMARY -->
-  <div class="summary">
-    <div class="summary-card">
-      <div class="srow total-row"><span class="slabel">TOTAL GENERAL</span><span class="sval">₡&thinsp;${totalGeneral.toLocaleString('es-CR',{minimumFractionDigits:2,maximumFractionDigits:2})}</span></div>
-    </div>
-  </div>
-
-  <!-- NOTES + PAYMENT -->
-  <div class="notes-pay">
-    <div class="notes">
-      <h3>Condiciones</h3>
-      <ul>
-        <li>Esta cotización tiene validez de <strong>7 días</strong> a partir de la fecha de emisión.</li>
-        <li>El precio puede variar si cambian las características del modelo 3D.</li>
-        <li>El tiempo de entrega depende de la carga de trabajo y complejidad de la pieza.</li>
-        <li>Se puede solicitar un <strong>abono</strong> para iniciar el trabajo.</li>
-        <li>Los colores y acabados pueden variar según el material disponible.</li>
-      </ul>
-      ${emp.nota?`<div class="note-extra">${escHtml(emp.nota)}</div>`:''}
-    </div>
-    <div class="payment">
-      <h3>Pago</h3>
-      <div class="pay-line">
-        <div class="pay-item">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
-          Total: <strong>₡&thinsp;${totalGeneral.toLocaleString('es-CR',{minimumFractionDigits:2,maximumFractionDigits:2})}</strong>
-        </div>
-        ${emp.tel?`<div class="pay-item" style="font-size:11.5px;color:var(--ink-soft);font-weight:500;margin-top:4px">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 8.81 19.79 19.79 0 012 2.12h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
-          ${escHtml(emp.tel)}</div>`:''}
-      </div>
-    </div>
-  </div>
-
-  <!-- FOOTER -->
+  <!-- DOC FOOTER -->
   <div class="doc-footer">
-    <div class="thanks">
-      ¡Gracias por confiar en&nbsp;<img class="thanks-logo" src="${nombreUrl}" alt="Pin&amp;Pon 3D">&nbsp;!
-    </div>
-    <div class="footer-accent"></div>
+    <img class="thanks-logo" src="${nombreUrl}" alt="Pin&amp;Pon 3D">
+    <div class="footer-rule"></div>
   </div>
 
 </div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script>
+(async function(){
+  const bar=document.getElementById('dl-bar');
+  const title=document.getElementById('dl-title');
+  const sub=document.getElementById('dl-sub');
+  const icon=document.getElementById('dl-icon');
+  const setBar=p=>{if(bar)bar.style.width=p+'%'};
+  try{
+    await document.fonts.ready;
+    setBar(15);
+    await new Promise(r=>setTimeout(r,900));
+    setBar(35);
+    const {jsPDF}=window.jspdf;
+    const pageEl=document.querySelector('.page');
+    pageEl.style.width='794px';
+    pageEl.style.minWidth='794px';
+    pageEl.style.minHeight='1027px';
+    const canvas=await html2canvas(pageEl,{scale:2,useCORS:true,allowTaint:true,backgroundColor:'#ffffff',logging:false,imageTimeout:10000,width:794,height:pageEl.scrollHeight});
+    setBar(75);
+    const pdf=new jsPDF({orientation:'portrait',unit:'mm',format:'letter'});
+    const W=pdf.internal.pageSize.getWidth();
+    const H=pdf.internal.pageSize.getHeight();
+    const imgH=W*canvas.height/canvas.width;
+    if(imgH<=H){
+      pdf.addImage(canvas.toDataURL('image/jpeg',0.98),'JPEG',0,0,W,imgH);
+    } else {
+      const scale=H/imgH;
+      const newW=W*scale;
+      pdf.addImage(canvas.toDataURL('image/jpeg',0.98),'JPEG',(W-newW)/2,0,newW,H);
+    }
+    setBar(95);
+    if(title)title.textContent='¡Listo! Descargando…';
+    if(sub)sub.textContent='';
+    if(icon)icon.textContent='✅';
+    pdf.save('${(nombreArchivo).replace(/[<>:"/\\\\|?*]/g,'_')}.pdf');
+    setBar(100);
+    setTimeout(()=>{window.close();},1500);
+  } catch(err){
+    console.error('PDF error:',err);
+    if(title)title.textContent='Error al generar PDF';
+    if(sub)sub.innerHTML='Abrí el menú del navegador<br>y seleccioná <strong>Imprimir → Guardar como PDF</strong>';
+    if(icon)icon.textContent='⚠️';
+    if(bar)bar.style.background='#dc2626';
+    setBar(100);
+  }
+})();
+</script>
 </body>
 </html>`);
   win.document.close();
-  setTimeout(() => { try { win.print(); } catch(e){} }, 900);
-  toast(`PDF combinado generado (${items.length} ítems) ✓`, 'success');
+  toast(`Cotización combinada (${items.length} ítems) ✓`, 'success');
 }
 
 /* ----------------------------------------------------------
@@ -516,6 +588,10 @@ button{font-family:inherit;cursor:pointer}
 function nuevaCotizacion() {
   editingId = null;
   el('edit-banner').style.display = 'none';
+  materialesAdicionalesCotizacion = [];
+  _matPreviewCosto = 0;
+  renderMaterialesListaCotizacion();
+  cargarFilamentosYPoblar();
   ['c_pieza','c_cliente','c_notas','c_material'].forEach(f => { if(el(f)) el(f).value = ''; });
   const nums = {
     c_cantidad:1, c_placas:1, c_gramos:0, c_horas_imp:0, c_horas_mo:0,
@@ -624,6 +700,10 @@ function editarEnCotizador(id) {
 
   el('edit-banner').style.display = 'flex';
   set('edit-banner-text', `Editando: ${t.pieza || 'cotización'} · ${t.cliente || ''}`);
+
+  materialesAdicionalesCotizacion = (t.materialesAdicionales || []).map(m=>({...m}));
+  _matPreviewCosto = 0;
+  renderMaterialesListaCotizacion();
 
   ocultarPostSave();
   calcular();
@@ -785,16 +865,29 @@ async function agregarFilamento() {
   renderInventario();
 }
 
-async function cargarInventario() {
+async function _fetchFilamentos() {
   try {
     filamentos = await fbCargarFilamentos();
-    try { localStorage.setItem('filamentos3d',JSON.stringify(filamentos)); } catch(e){}
+    try { localStorage.setItem('filamentos3d', JSON.stringify(filamentos)); } catch(e) {}
   } catch(e) {
-    try { const l=localStorage.getItem('filamentos3d'); filamentos=l?JSON.parse(l):[];
-      toast('Filamentos cargados desde caché','info');
-    } catch(e2) { filamentos=[]; }
+    try { const l = localStorage.getItem('filamentos3d'); filamentos = l ? JSON.parse(l) : [];
+      toast('Filamentos cargados desde caché', 'info');
+    } catch(e2) { filamentos = []; }
   }
+}
+
+async function cargarInventario() {
+  await _fetchFilamentos();
   renderInventario();
+  poblarSelectMateriales();
+}
+
+async function cargarFilamentosYPoblar() {
+  const sel = el('mat_select');
+  if (sel) { sel.disabled = true; sel.innerHTML = '<option>Cargando inventario…</option>'; }
+  await _fetchFilamentos();
+  if (sel) sel.disabled = false;
+  poblarSelectMateriales();
 }
 
 function editarFilamento(id) {
@@ -810,8 +903,218 @@ function editarFilamento(id) {
 }
 
 function cancelarEditFilamento() {
-  if(el('inv-edit-id'))     { el('inv-edit-id').textContent=''; el('inv-edit-id').style.display='none'; }
-  if(el('inv-cancel-edit'))   el('inv-cancel-edit').style.display='none';
+  cancelarEditMaterial();
+}
+
+// ─── Material helpers ────────────────────────────────────
+function getMaterialNombre(m) {
+  if (m.nombre) return m.nombre;
+  return [m.tipo, m.color, m.marca].filter(Boolean).join(' ');
+}
+function getMaterialPrecioUnitario(m) {
+  if (m.precio_unitario != null) return m.precio_unitario;
+  if (m.precio_rollo && m.peso_rollo) return m.precio_rollo / m.peso_rollo;
+  return 0;
+}
+function getMaterialUnidad(m) { return m.unidad || 'g'; }
+function getMaterialStock(m) {
+  if (m.stock != null) return m.stock;
+  return (m.disponibles || 0) * (m.peso_rollo || 1000);
+}
+
+// ─── Inventory form toggle ────────────────────────────────
+let _invTipoActual = 'Filamento';
+
+function setTipoMaterial(tipo) {
+  _invTipoActual = tipo;
+  const esFilamento = tipo === 'Filamento';
+  if (el('inv-fields-filamento')) el('inv-fields-filamento').style.display = esFilamento ? '' : 'none';
+  if (el('inv-fields-general'))   el('inv-fields-general').style.display   = esFilamento ? 'none' : '';
+  if (el('inv-categoria-custom-row')) el('inv-categoria-custom-row').style.display = esFilamento ? 'none' : '';
+  // Botón activo / inactivo
+  el('inv-btn-filamento')?.classList.toggle('btn-primary',   esFilamento);
+  el('inv-btn-filamento')?.classList.toggle('btn-secondary', !esFilamento);
+  el('inv-btn-otro')?.classList.toggle('btn-primary',   !esFilamento);
+  el('inv-btn-otro')?.classList.toggle('btn-secondary',  esFilamento);
+}
+
+function toggleInventarioTipo() { setTipoMaterial(_invTipoActual); } // alias legacy
+
+// ─── Save material ────────────────────────────────────────
+async function guardarMaterial() {
+  const esFilamento = _invTipoActual === 'Filamento';
+  const categoria   = esFilamento ? 'Filamento' : (el('inv_categoria_custom')?.value.trim() || 'Otro');
+  const editId = el('inv-edit-id')?.textContent?.trim() || '';
+  const id     = editId || genId();
+  let data = { id, categoria };
+  data.marca        = el('inv_marca')?.value.trim() || '';
+  data.proveedor    = el('inv_prov')?.value.trim()  || '';
+  data.notas        = el('inv_notas')?.value.trim() || '';
+  data.fecha_compra = el('inv_fecha')?.value        || today();
+  if (esFilamento) {
+    const tipo  = el('inv_tipo')?.value || 'PLA';
+    const color = el('inv_color')?.value.trim();
+    if (!color) { toast('Ingrese el color del filamento', 'error'); return; }
+    const precio_rollo = fv('inv_precio');
+    const peso_rollo   = Math.max(fv('inv_peso') || 1000, 1);
+    const disponibles  = fv('inv_disp') || 1;
+    Object.assign(data, { tipo, color, precio_rollo, peso_rollo, disponibles });
+    data.nombre          = `${tipo} ${color}${data.marca ? ' '+data.marca : ''}`;
+    data.unidad          = 'g';
+    data.precio_unitario = precio_rollo / peso_rollo;
+    data.stock           = disponibles * peso_rollo;
+  } else {
+    const nombre = el('inv_nombre')?.value.trim();
+    if (!nombre) { toast('Ingrese el nombre del material', 'error'); return; }
+    data.nombre          = nombre;
+    data.unidad          = el('inv_unidad')?.value    || 'unidades';
+    data.precio_unitario = fv('inv_precio_unit')      || 0;
+    data.stock           = fv('inv_stock')            || 0;
+  }
+  const idx = filamentos.findIndex(f => f.id === id);
+  if (idx >= 0) filamentos[idx] = data; else filamentos.push(data);
+  try { localStorage.setItem('filamentos3d', JSON.stringify(filamentos)); } catch(e){}
+  try {
+    await fbGuardarFilamento(data);
+    toast(editId ? 'Material actualizado ✓' : 'Material agregado ✓', 'success');
+  } catch(e) { console.error(e); toast('No se pudo guardar el material','error'); }
+  cancelarEditMaterial();
+  limpiarFormMaterial();
+  renderInventario();
+  poblarSelectMateriales();
+}
+
+function limpiarFormMaterial() {
+  ['inv_color','inv_marca','inv_nombre','inv_prov','inv_notas','inv_categoria_custom'].forEach(id => { if(el(id)) el(id).value=''; });
+  if(el('inv_precio'))     el('inv_precio').value=0;
+  if(el('inv_peso'))       el('inv_peso').value=1000;
+  if(el('inv_disp'))       el('inv_disp').value=1;
+  if(el('inv_precio_unit'))el('inv_precio_unit').value=0;
+  if(el('inv_stock'))      el('inv_stock').value=0;
+  if(el('inv_fecha'))      el('inv_fecha').value=today();
+  setTipoMaterial('Filamento');
+}
+
+function cancelarEditMaterial() {
+  if(el('inv-edit-id'))    { el('inv-edit-id').textContent=''; el('inv-edit-id').style.display='none'; }
+  if(el('inv-cancel-edit')) el('inv-cancel-edit').style.display='none';
+}
+
+function editarMaterial(id) {
+  const m = filamentos.find(f => f.id===id); if(!m) return;
+  if(el('inv-edit-id')) { el('inv-edit-id').textContent=id; el('inv-edit-id').style.display='none'; }
+  if(el('inv-cancel-edit')) el('inv-cancel-edit').style.display='inline-flex';
+  const esFilamento = (m.categoria || 'Filamento') === 'Filamento';
+  setTipoMaterial(esFilamento ? 'Filamento' : 'otro');
+  if (!esFilamento && el('inv_categoria_custom')) el('inv_categoria_custom').value = m.categoria || '';
+  if (esFilamento) {
+    if(el('inv_tipo'))   el('inv_tipo').value   = m.tipo  || 'PLA';
+    if(el('inv_color'))  el('inv_color').value  = m.color || '';
+    if(el('inv_marca'))  el('inv_marca').value  = m.marca || '';
+    if(el('inv_precio')) el('inv_precio').value = m.precio_rollo || 0;
+    if(el('inv_peso'))   el('inv_peso').value   = m.peso_rollo   || 1000;
+    if(el('inv_disp'))   el('inv_disp').value   = m.disponibles !== undefined ? m.disponibles : Math.round((m.stock||0)/(m.peso_rollo||1000)*10)/10;
+  } else {
+    if(el('inv_nombre'))      el('inv_nombre').value      = m.nombre          || '';
+    if(el('inv_unidad'))      el('inv_unidad').value      = m.unidad          || 'unidades';
+    if(el('inv_precio_unit')) el('inv_precio_unit').value = m.precio_unitario || 0;
+    if(el('inv_stock'))       el('inv_stock').value       = m.stock           || 0;
+    if(el('inv_marca'))       el('inv_marca').value       = m.marca           || '';
+  }
+  if(el('inv_prov'))  el('inv_prov').value  = m.proveedor    || '';
+  if(el('inv_notas')) el('inv_notas').value = m.notas        || '';
+  if(el('inv_fecha')) el('inv_fecha').value = m.fecha_compra || '';
+  document.getElementById('page-inventario')?.querySelector('.card')?.scrollIntoView({behavior:'smooth'});
+}
+
+// ─── Materiales en cotizador ──────────────────────────────
+let materialesAdicionalesCotizacion = [];
+let _matPreviewCosto = 0;
+
+function poblarSelectMateriales() {
+  const sel = el('mat_select'); if(!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">— Seleccionar —</option>';
+  [...filamentos]
+    .filter(m => (m.categoria || 'Filamento') !== 'Filamento' && getMaterialPrecioUnitario(m) > 0)
+    .sort((a,b) => getMaterialNombre(a).localeCompare(getMaterialNombre(b)))
+    .forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m.id;
+      const pu = getMaterialPrecioUnitario(m);
+      const cat = m.categoria || '';
+      opt.textContent = `${cat ? '['+cat+'] ' : ''}${getMaterialNombre(m)} — ₡${pu.toFixed(2)}/${getMaterialUnidad(m)}`;
+      if(m.id===cur) opt.selected=true;
+      sel.appendChild(opt);
+    });
+}
+
+function actualizarCostoMaterial() {
+  const sel = el('mat_select');
+  const qty = parseFloat(el('mat_cantidad')?.value||0);
+  const m = sel?.value ? filamentos.find(f=>f.id===sel.value) : null;
+  if(m) {
+    const pu = getMaterialPrecioUnitario(m);
+    if(el('mat_unidad_label')) el('mat_unidad_label').textContent = getMaterialUnidad(m);
+    _matPreviewCosto = pu * qty;
+    if(el('mat_costo_preview')) el('mat_costo_preview').textContent = fmt(_matPreviewCosto);
+  } else {
+    _matPreviewCosto = 0;
+    if(el('mat_unidad_label'))  el('mat_unidad_label').textContent  = 'und.';
+    if(el('mat_costo_preview')) el('mat_costo_preview').textContent = '₡0';
+  }
+  calcular();
+}
+
+function agregarMaterialCotizacion() {
+  const sel = el('mat_select');
+  const qty = parseFloat(el('mat_cantidad')?.value||0);
+  if(!sel?.value) { toast('Seleccioná un material', 'error'); return; }
+  if(qty<=0)      { toast('Ingresá una cantidad mayor a 0', 'error'); return; }
+  const m = filamentos.find(f=>f.id===sel.value);
+  if(!m) { toast('Material no encontrado en inventario', 'error'); return; }
+  const pu = getMaterialPrecioUnitario(m);
+  materialesAdicionalesCotizacion.push({
+    materialId: m.id, nombre: getMaterialNombre(m),
+    unidad: getMaterialUnidad(m), precio_unitario: pu, cantidad: qty, costo: pu*qty
+  });
+  _matPreviewCosto = 0;
+  sel.value='';
+  if(el('mat_cantidad')) el('mat_cantidad').value=0;
+  if(el('mat_unidad_label'))  el('mat_unidad_label').textContent='und.';
+  if(el('mat_costo_preview')) el('mat_costo_preview').textContent='₡0';
+  renderMaterialesListaCotizacion();
+  calcular();
+}
+
+function eliminarMaterialCotizacion(idx) {
+  materialesAdicionalesCotizacion.splice(idx,1);
+  renderMaterialesListaCotizacion();
+  calcular();
+}
+
+function renderMaterialesListaCotizacion() {
+  const cont = el('mat-lista-cotizacion'); if(!cont) return;
+  if(!materialesAdicionalesCotizacion.length) { cont.innerHTML=''; return; }
+  cont.innerHTML = materialesAdicionalesCotizacion.map((item,i) => `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:var(--surface2);border-radius:6px;margin-bottom:6px;font-size:.85rem;gap:8px">
+      <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+        <strong>${escHtml(item.nombre)}</strong> — ${item.cantidad} ${escHtml(item.unidad)}
+      </span>
+      <span style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+        <strong style="color:var(--primary)">${fmt(item.costo)}</strong>
+        <button class="btn btn-danger btn-icon btn-sm" onclick="eliminarMaterialCotizacion(${i})" title="Quitar">
+          <svg width="12" height="12" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2">
+            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
+            <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+          </svg>
+        </button>
+      </span>
+    </div>`).join('');
+}
+
+function calcularTotalMaterialesAdicionales() {
+  return materialesAdicionalesCotizacion.reduce((s,m)=>s+m.costo, 0) + (_matPreviewCosto || 0);
 }
 
 async function eliminarFilamento(id) {
@@ -965,21 +1268,34 @@ async function cargarVentaDetalle() {
   }
 }
 
-function abrirModalVenta(id) {
+function abrirModalVenta(id, tipo = 'venta') {
   const t = trabajos.find(t => t.id === id);
   if (!t) return;
-  const disponibles = Math.max((t.cantidad || 1) - (t.unidadesVendidas || 0), 0);
-  if (disponibles <= 0) { toast('No hay unidades disponibles', 'error'); return; }
+  const esDevolucion = tipo === 'devolucion';
+  const vendidas     = t.unidadesVendidas || 0;
+  const disponibles  = Math.max((t.cantidad || 1) - vendidas, 0);
+  const maxUnidades  = esDevolucion ? vendidas : disponibles;
+  if (maxUnidades <= 0) {
+    toast(esDevolucion ? 'No hay unidades vendidas que devolver' : 'No hay unidades disponibles', 'error');
+    return;
+  }
   const mv = el('modal-venta');
   if (!mv) return;
-  el('mv-id').value           = id;
+  el('mv-id').value              = id;
+  el('mv-tipo').value            = tipo;
   el('mv-pieza-lbl').textContent = t.pieza || '—';
-  el('mv-disp-num').textContent  = disponibles;
-  el('mv-cantidad').value     = 1;
-  el('mv-cantidad').max       = disponibles;
-  el('mv-nota').value         = '';
+  el('mv-ref-lbl').textContent   = esDevolucion ? 'Vendidas' : 'Disponibles';
+  el('mv-disp-num').textContent  = maxUnidades;
+  el('mv-cantidad').value        = 1;
+  el('mv-cantidad').max          = maxUnidades;
+  el('mv-nota').value            = '';
+  set('mv-cant-lbl', esDevolucion ? 'Cantidad a devolver *' : 'Cantidad a vender *');
+  set('mv-btn-lbl',  esDevolucion ? 'Registrar devolución'  : 'Registrar venta');
+  el('mv-btn-guardar').className = esDevolucion ? 'btn btn-danger' : 'btn btn-primary';
   mv.style.display = 'flex';
 }
+
+function abrirModalDevolucion(id) { abrirModalVenta(id, 'devolucion'); }
 
 function cerrarModalVenta() {
   const mv = el('modal-venta');
@@ -987,28 +1303,46 @@ function cerrarModalVenta() {
 }
 
 async function guardarVenta() {
-  const id       = el('mv-id')?.value;
-  const cantidad = parseInt(el('mv-cantidad')?.value) || 1;
-  const nota     = el('mv-nota')?.value?.trim() || '';
-  const t        = trabajos.find(t => t.id === id);
+  const id        = el('mv-id')?.value;
+  const tipo      = el('mv-tipo')?.value || 'venta';
+  const cantidad  = parseInt(el('mv-cantidad')?.value) || 1;
+  const nota      = el('mv-nota')?.value?.trim() || '';
+  const t         = trabajos.find(t => t.id === id);
   if (!t) return;
-  const disponibles = Math.max((t.cantidad || 1) - (t.unidadesVendidas || 0), 0);
-  if (cantidad < 1 || cantidad > disponibles) {
-    toast(`Cantidad inválida. Disponibles: ${disponibles}`, 'error'); return;
+
+  const esDevolucion = tipo === 'devolucion';
+  const vendidas     = t.unidadesVendidas || 0;
+  const disponibles  = Math.max((t.cantidad || 1) - vendidas, 0);
+
+  if (esDevolucion) {
+    if (cantidad < 1 || cantidad > vendidas) {
+      toast(`Cantidad inválida. Vendidas: ${vendidas}`, 'error'); return;
+    }
+  } else {
+    if (cantidad < 1 || cantidad > disponibles) {
+      toast(`Cantidad inválida. Disponibles: ${disponibles}`, 'error'); return;
+    }
   }
 
+  const delta   = esDevolucion ? -cantidad : cantidad;
+  const idx     = trabajos.findIndex(t => t.id === id);
+  const entrada = { fecha: new Date().toISOString(), cantidad: delta, nota: nota || (esDevolucion ? 'Devolución' : '') };
+
+  const prevEstado     = t.estado;
+  const prevEstadoPago = t.estadoPago;
+  const prevAbonado    = t.montoAbonado;
+  const prevPendiente  = t.montoPendiente;
+
   // Actualización optimista local
-  const idx    = trabajos.findIndex(t => t.id === id);
-  const entrada = { fecha: new Date().toISOString(), cantidad, nota };
   if (idx >= 0) {
-    trabajos[idx].unidadesVendidas = (trabajos[idx].unidadesVendidas || 0) + cantidad;
+    trabajos[idx].unidadesVendidas = Math.max(0, vendidas + delta);
     trabajos[idx].historialVentas  = [...(trabajos[idx].historialVentas || []), entrada];
   }
 
-  // ¿Se agotó el lote con esta venta?
-  const totalUnidades   = t.cantidad || 1;
-  const totalVendidas   = trabajos[idx]?.unidadesVendidas || 0;
-  const ahoraAgotado    = totalVendidas >= totalUnidades;
+  const totalUnidades = t.cantidad || 1;
+  const nuevasVendidas = trabajos[idx]?.unidadesVendidas || 0;
+  const ahoraAgotado  = !esDevolucion && nuevasVendidas >= totalUnidades;
+  const yaNoAgotado   = esDevolucion && prevEstado === 'Entregado' && nuevasVendidas < totalUnidades;
 
   if (ahoraAgotado && idx >= 0) {
     trabajos[idx].estado         = 'Entregado';
@@ -1017,40 +1351,51 @@ async function guardarVenta() {
     trabajos[idx].montoPendiente = 0;
     trabajos[idx].fechaActualizacionEstado = new Date().toISOString();
   }
+  if (yaNoAgotado && idx >= 0) {
+    trabajos[idx].estado         = 'Aprobado';
+    trabajos[idx].estadoPago     = 'Pendiente';
+    trabajos[idx].montoAbonado   = 0;
+    trabajos[idx].montoPendiente = trabajos[idx].precio_final || 0;
+    trabajos[idx].fechaActualizacionEstado = new Date().toISOString();
+  }
 
   cerrarModalVenta();
   renderVentaDetalle(trabajos.filter(t => t.ventaDetalle === true));
 
   try {
-    await fbRegistrarVenta(id, cantidad, nota);
+    await fbRegistrarVenta(id, delta, nota || (esDevolucion ? 'Devolución' : ''));
 
     if (ahoraAgotado) {
-      // Marcar Entregado + Pagado en Firestore
       await db.collection('cotizaciones').doc(String(id)).update({
-        estado:          'Entregado',
-        estadoPago:      'Pagado',
-        montoAbonado:    t.precio_final || 0,
-        montoPendiente:  0,
+        estado: 'Entregado', estadoPago: 'Pagado',
+        montoAbonado: t.precio_final || 0, montoPendiente: 0,
         fechaActualizacionEstado: new Date().toISOString()
       });
       toast('Lote agotado — Entregado y Pagado ✓', 'success');
+    } else if (yaNoAgotado) {
+      await db.collection('cotizaciones').doc(String(id)).update({
+        estado: 'Aprobado', estadoPago: 'Pendiente',
+        montoAbonado: 0, montoPendiente: t.precio_final || 0,
+        fechaActualizacionEstado: new Date().toISOString()
+      });
+      toast(`${cantidad} unidad${cantidad !== 1 ? 'es' : ''} devuelta${cantidad !== 1 ? 's' : ''} — lote reactivado ✓`, 'success');
+    } else if (esDevolucion) {
+      toast(`${cantidad} unidad${cantidad !== 1 ? 'es' : ''} devuelta${cantidad !== 1 ? 's' : ''} ✓`, 'success');
     } else {
       const u = cantidad === 1 ? '1 unidad vendida' : `${cantidad} unidades vendidas`;
       toast(`${u} ✓`, 'success');
     }
   } catch(e) {
     console.error(e);
-    toast('Error al registrar la venta', 'error');
+    toast('Error al registrar el movimiento', 'error');
     // Revertir local
     if (idx >= 0) {
-      trabajos[idx].unidadesVendidas -= cantidad;
+      trabajos[idx].unidadesVendidas = vendidas;
       trabajos[idx].historialVentas.pop();
-      if (ahoraAgotado) {
-        trabajos[idx].estado         = t.estado         || 'Cotizado';
-        trabajos[idx].estadoPago     = t.estadoPago     || 'Pendiente';
-        trabajos[idx].montoAbonado   = t.montoAbonado   || 0;
-        trabajos[idx].montoPendiente = t.montoPendiente || t.precio_final || 0;
-      }
+      trabajos[idx].estado         = prevEstado;
+      trabajos[idx].estadoPago     = prevEstadoPago;
+      trabajos[idx].montoAbonado   = prevAbonado;
+      trabajos[idx].montoPendiente = prevPendiente;
     }
     renderVentaDetalle(trabajos.filter(t => t.ventaDetalle === true));
   }
@@ -1186,7 +1531,7 @@ function generarPDFData(t) {
   const nombreUrl  = base + 'img/Nombre-PNG.png';
 
   // Nombre de archivo y fecha de vigencia
-  const nombreArchivo = `Cotizacion - ${t.cliente||'Cliente'}`;
+  const nombreArchivo = `COTIZACION - ${t.cliente||'Cliente'} - ${t.pieza||'Producto'}`;
   const vigenciaDate  = t.fecha ? new Date(t.fecha + 'T12:00:00') : new Date();
   vigenciaDate.setDate(vigenciaDate.getDate() + 7);
   const vigencia = vigenciaDate.toLocaleDateString('es-CR', { day:'numeric', month:'short', year:'numeric' });
@@ -1196,7 +1541,7 @@ function generarPDFData(t) {
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta name="viewport" content="width=860"/>
 <title>${escHtml(nombreArchivo)}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
@@ -1204,20 +1549,24 @@ function generarPDFData(t) {
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{font-family:"Plus Jakarta Sans",system-ui,sans-serif;background:#EEF1F5;-webkit-font-smoothing:antialiased}
-body{min-height:100vh;padding:40px 20px 80px;display:flex;justify-content:center;align-items:flex-start}
-.page{width:794px;min-height:1123px;background:#fff;border-radius:6px;overflow:hidden;
+body{min-height:100vh;padding:20px 0 80px;display:flex;justify-content:center;align-items:flex-start}
+.page{width:min(794px,100vw);min-height:1027px;background:#fff;overflow:hidden;
       box-shadow:0 20px 60px -16px rgba(15,42,69,.22),0 4px 16px rgba(15,42,69,.1);
       display:flex;flex-direction:column}
+@media screen and (max-width:820px){
+  body{padding:0 0 70px;background:#fff}
+  .page{width:100vw;min-height:100dvh;border-radius:0;box-shadow:none}
+  .header{padding:24px 20px}
+  .client-bar{padding:12px 20px;grid-template-columns:1fr 1fr}
+  .body{padding:20px 20px 8px}
+  .doc-footer{padding:14px 20px}
+}
 /* ── HEADER ── */
 .header{background:linear-gradient(130deg,#0F2A45 0%,#16395A 45%,#235A8C 100%);
         position:relative;overflow:hidden;padding:32px 48px;
         display:flex;justify-content:space-between;align-items:center}
-.header::before{content:"";position:absolute;right:140px;top:-50px;
-  width:220px;height:220px;background:rgba(255,255,255,.04);
-  clip-path:polygon(50% 0%,100% 100%,0% 100%)}
-.header::after{content:"";position:absolute;right:40px;top:-20px;
-  width:180px;height:180px;background:rgba(255,255,255,.055);
-  clip-path:polygon(0 0,100% 0,100% 100%)}
+/* Triángulos decorativos como SVG inline (html2canvas compatible) */
+.header-deco{position:absolute;inset:0;pointer-events:none;z-index:0}
 .brand{display:flex;align-items:center;gap:14px;z-index:1}
 .brand-mascot{width:54px;height:auto;filter:drop-shadow(0 4px 12px rgba(0,0,0,.25))}
 .brand-text{display:flex;flex-direction:column;gap:4px}
@@ -1301,25 +1650,48 @@ body{min-height:100vh;padding:40px 20px 80px;display:flex;justify-content:center
 .thanks-logo{height:24px;width:auto}
 .footer-rule{width:48px;height:3px;
               background:linear-gradient(90deg,#16395A,#4A8FCB,#F2C61F);border-radius:2px}
-/* ── PRINT BUTTON ── */
-.print-btn{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
-            background:#16395A;color:#fff;border:none;border-radius:99px;
-            padding:10px 24px;font-size:13px;font-weight:600;cursor:pointer;
-            box-shadow:0 10px 30px rgba(15,42,69,.3);font-family:inherit;
-            display:inline-flex;align-items:center;gap:8px;z-index:100}
-@page{size:A4;margin:0}
+/* ── OVERLAY DESCARGA ── */
+#dl-overlay{position:fixed;inset:0;background:rgba(238,241,245,.95);
+  display:flex;align-items:center;justify-content:center;z-index:999;font-family:inherit}
+#dl-box{background:#fff;border-radius:14px;padding:36px 44px;text-align:center;
+  box-shadow:0 20px 60px rgba(15,42,69,.18);min-width:260px}
+#dl-icon{font-size:36px;margin-bottom:12px}
+#dl-title{font-size:15px;font-weight:700;color:#133658;margin-bottom:5px}
+#dl-sub{font-size:12px;color:#8CAFD2}
+#dl-track{margin-top:18px;height:5px;background:#E8F0F8;border-radius:99px;overflow:hidden}
+#dl-bar{height:100%;width:0%;background:linear-gradient(90deg,#16395A,#4A8FCB);
+  border-radius:99px;transition:width .4s ease}
+@page{size:letter;margin:0}
 *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}
-@media print{body{background:#fff;padding:0;display:block}
-  .page{width:210mm;min-height:297mm;box-shadow:none;border-radius:0}
-  .print-btn{display:none}}
+@media print{
+  html,body{background:#fff!important;padding:0!important;margin:0!important;display:block!important}
+  .page{width:215.9mm!important;min-height:279.4mm!important;box-shadow:none!important;border-radius:0!important;
+        border:none!important;overflow:visible!important}
+  .header{padding:32px 48px!important}
+  .client-bar{padding:16px 48px!important;grid-template-columns:2fr 1fr 1fr 1fr!important}
+  .body{padding:28px 48px 8px!important}
+  .doc-footer{padding:16px 48px!important}
+  .print-btn{display:none!important}}
 </style>
 </head>
 <body>
-<button class="print-btn" onclick="window.print()">🖨&nbsp; Imprimir / PDF</button>
+<div id="dl-overlay">
+  <div id="dl-box">
+    <div id="dl-icon">📄</div>
+    <div id="dl-title">Generando PDF…</div>
+    <div id="dl-sub">Esto tomará unos segundos</div>
+    <div id="dl-track"><div id="dl-bar"></div></div>
+  </div>
+</div>
 <div class="page">
 
   <!-- HEADER -->
   <div class="header">
+    <!-- Triángulos decorativos como SVG (compatible con html2canvas) -->
+    <svg class="header-deco" viewBox="0 0 794 130" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+      <polygon points="594,0 814,0 814,130" fill="rgba(255,255,255,0.05)"/>
+      <polygon points="654,-50 874,-50 654,180" fill="rgba(255,255,255,0.04)"/>
+    </svg>
     <div class="brand">
       <img class="brand-mascot" src="${mascotaUrl}" alt="Pin&amp;Pon 3D">
       <div class="brand-text">
@@ -1439,21 +1811,341 @@ body{min-height:100vh;padding:40px 20px 80px;display:flex;justify-content:center
   </div>
 
 </div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script>
+(async function(){
+  const bar   = document.getElementById('dl-bar');
+  const title = document.getElementById('dl-title');
+  const sub   = document.getElementById('dl-sub');
+  const icon  = document.getElementById('dl-icon');
+  const setBar = p => { if(bar) bar.style.width = p+'%'; };
+  try {
+    await document.fonts.ready;
+    setBar(15);
+    await new Promise(r => setTimeout(r, 900));
+    setBar(35);
+
+    const { jsPDF } = window.jspdf;
+    const pageEl = document.querySelector('.page');
+    // Forzar dimensiones fijas para render correcto
+    pageEl.style.width     = '794px';
+    pageEl.style.minWidth  = '794px';
+    pageEl.style.minHeight = '1027px';
+
+    const canvas = await html2canvas(pageEl, {
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: '#ffffff',
+      logging: false,
+      imageTimeout: 10000,
+      width:  794,
+      height: pageEl.scrollHeight
+    });
+    setBar(75);
+
+    const pdf = new jsPDF({ orientation:'portrait', unit:'mm', format:'letter' });
+    const W   = pdf.internal.pageSize.getWidth();   // 215.9mm
+    const H   = pdf.internal.pageSize.getHeight();  // 279.4mm
+    const imgH = W * canvas.height / canvas.width;
+
+    if(imgH <= H){
+      // Cabe en una página — alinear arriba
+      pdf.addImage(canvas.toDataURL('image/jpeg',0.98),'JPEG',0,0,W,imgH);
+    } else {
+      // Contenido más alto que la página — escalar para que quepa todo en una hoja
+      const scale  = H / imgH;
+      const newW   = W * scale;
+      pdf.addImage(canvas.toDataURL('image/jpeg',0.98),'JPEG',(W-newW)/2,0,newW,H);
+    }
+    setBar(95);
+    if(title) title.textContent = '¡Listo! Descargando…';
+    if(sub)   sub.textContent   = '';
+    if(icon)  icon.textContent  = '✅';
+    pdf.save('${(nombreArchivo).replace(/[<>:"/\\\\|?*]/g,"_")}.pdf');
+    setBar(100);
+    setTimeout(()=>{ window.close(); }, 1500);
+  } catch(err){
+    console.error('PDF error:',err);
+    if(title) title.textContent = 'Error al generar PDF';
+    if(sub)   sub.innerHTML = 'Abrí el menú del navegador<br>y seleccioná <strong>Imprimir → Guardar como PDF</strong>';
+    if(icon)  icon.textContent = '⚠️';
+    if(bar)   bar.style.background = '#dc2626';
+    setBar(100);
+  }
+})();
+</script>
 </body>
 </html>`;
 
   const win = window.open('','_blank');
-  if (!win) { toast('Permita ventanas emergentes','error'); return; }
+  if (!win) { toast('Permita ventanas emergentes en este sitio','error'); return; }
   win.document.write(htmlContent);
   win.document.close();
-  setTimeout(() => { try { win.print(); } catch(e){} }, 900);
-  toast('PDF generado ✓', 'success');
+  toast('Generando PDF… ✓', 'success');
 
   // Subir a Google Drive si está conectado
   if (typeof _gDriveToken !== 'undefined' && _gDriveToken && _gDriveFolderId) {
     const fname = `Cotizacion - ${(t.cliente||'Cliente').replace(/[<>:"/\\|?*]/g,'_')}.html`;
     _gDriveSubirHTML(fname, htmlContent);
   }
+}
+
+/* ----------------------------------------------------------
+   Venta al Detalle — Generar Lista de Precios (PDF)
+---------------------------------------------------------- */
+function generarListaPrecios() {
+  // Filtrar lotes activos (misma lógica que renderVentaDetalle)
+  const lotes = trabajos.filter(l =>
+    l.categoria === 'Venta al Detalle' &&
+    l.estado !== 'Cancelado' &&
+    (l.unidadesVendidas || 0) < Math.max(l.cantidad || 1, 1)
+  );
+
+  if (!lotes.length) {
+    toast('No hay productos disponibles en Venta al Detalle para exportar', 'error');
+    return;
+  }
+
+  toast('Generando lista de precios…', 'info');
+
+  const emp       = getEmpresa();
+  const base      = new URL('.', window.location.href).href;
+  const mascotaUrl = base + 'img/Mascota-PNG.png';
+
+  const fechaHoy = new Date().toLocaleDateString('es-CR', {
+    day: 'numeric', month: 'long', year: 'numeric'
+  });
+
+  // Contacto en el pie
+  const contactParts = [];
+  if (emp.empTel)   contactParts.push('📞 ' + emp.empTel);
+  if (emp.empEmail) contactParts.push('✉ ' + emp.empEmail);
+  if (emp.empWeb)   contactParts.push('🌐 ' + emp.empWeb);
+  const contactLine = contactParts.join('  ·  ');
+
+  // Filas de la tabla
+  const rowsHtml = lotes.map((l, i) => {
+    const total      = Math.max(l.cantidad || 1, 1);
+    const vendidas   = Math.min(l.unidadesVendidas || 0, total);
+    const disponibles = total - vendidas;
+    const precio     = l.precio_unitario || 0;
+    const rowBg      = i % 2 === 0 ? '#ffffff' : '#f4f8ff';
+    return `
+    <tr style="background:${rowBg};border-bottom:1px solid #e8f0f8">
+      <td style="padding:14px 12px;font-size:11px;font-weight:700;color:#8cafd2;text-align:center;width:40px">${i+1}</td>
+      <td style="padding:14px 14px">
+        <div style="font-size:14px;font-weight:700;color:#0f1f33;margin-bottom:3px">${escHtml(l.pieza||'—')}</div>
+        ${l.material ? `<div style="font-size:11px;color:#8cafd2">${escHtml(l.material)}</div>` : ''}
+      </td>
+      <td style="padding:14px 12px;white-space:nowrap">
+        <span style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;background:#eef5fc;color:#1a60a6;border:1px solid #dde6f0">${escHtml(l.categoria||'General')}</span>
+      </td>
+      <td style="padding:14px 12px;text-align:center">
+        <span style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;background:rgba(5,150,105,0.1);color:#047857">${disponibles} disp.</span>
+      </td>
+      <td style="padding:14px 18px;text-align:right;white-space:nowrap">
+        <div style="font-size:22px;font-weight:800;color:#1a60a6;font-variant-numeric:tabular-nums;line-height:1">₡${precio.toLocaleString('es-CR')}</div>
+        <div style="font-size:9px;color:#8cafd2;font-weight:500;margin-top:2px;text-transform:uppercase;letter-spacing:.04em">por unidad</div>
+      </td>
+    </tr>`;
+  }).join('');
+
+  const nombreArchivo = 'LISTA DE PRECIOS - Pin&Pon 3D';
+
+  const htmlContent = `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<title>${nombreArchivo}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{font-family:"Plus Jakarta Sans",system-ui,sans-serif;background:#EEF1F5;-webkit-font-smoothing:antialiased}
+body{min-height:100vh;padding:20px 0 80px;display:flex;justify-content:center;align-items:flex-start}
+.page{
+  width:min(794px,100vw);
+  min-height:1027px;
+  background:#fff;
+  overflow:hidden;
+  box-shadow:0 20px 60px -16px rgba(15,42,69,.22),0 4px 16px rgba(15,42,69,.1);
+  display:flex;flex-direction:column;
+}
+@media screen and (max-width:820px){
+  body{padding:0}
+  .page{box-shadow:none;border-radius:0;min-height:100vh;width:100%}
+}
+@media print{
+  html,body{padding:0;margin:0;background:#fff}
+  .page{box-shadow:none;width:100%;min-height:0}
+  @page{size:letter;margin:0!important}
+}
+#loading-overlay{
+  position:fixed;inset:0;background:rgba(10,31,61,.88);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:18px;z-index:999;color:#fff;font-family:inherit
+}
+.spinner{width:42px;height:42px;border:3px solid rgba(255,255,255,.25);
+  border-top-color:#f4c70f;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<div id="loading-overlay">
+  <div class="spinner"></div>
+  <div style="font-size:15px;font-weight:600;letter-spacing:.02em">Generando lista de precios…</div>
+  <div style="font-size:12px;opacity:.6">Preparando PDF</div>
+</div>
+
+<div class="page" id="the-page">
+
+  <!-- ══ ENCABEZADO ══════════════════════════════════════════ -->
+  <div style="background:linear-gradient(135deg,#0a1f3d 0%,#1a3a6b 60%,#133658 100%);padding:32px 40px 26px;position:relative;overflow:hidden">
+
+    <!-- Círculos decorativos (SVG inline) -->
+    <svg style="position:absolute;right:-20px;top:-20px;width:180px;height:180px;opacity:.07"
+         viewBox="0 0 180 180" fill="none">
+      <circle cx="90" cy="90" r="80" stroke="white" stroke-width="2"/>
+      <circle cx="90" cy="90" r="55" stroke="white" stroke-width="2"/>
+      <circle cx="90" cy="90" r="30" fill="white"/>
+    </svg>
+    <svg style="position:absolute;left:40%;bottom:-30px;width:120px;height:120px;opacity:.04"
+         viewBox="0 0 120 120" fill="white">
+      <polygon points="60,10 110,90 10,90"/>
+    </svg>
+
+    <!-- Contenido del header -->
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:20px;position:relative">
+
+      <!-- Izquierda: logo + títulos -->
+      <div style="display:flex;align-items:center;gap:18px">
+        <div style="width:64px;height:64px;background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.18);border-radius:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden">
+          <img src="${mascotaUrl}" alt="Pin&Pon 3D" width="52" height="52" style="object-fit:contain" crossorigin="anonymous"/>
+        </div>
+        <div>
+          <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.5);letter-spacing:.15em;text-transform:uppercase;margin-bottom:4px">Pin&amp;Pon 3D — Impresión 3D Personalizada</div>
+          <div style="font-size:30px;font-weight:800;color:#ffffff;letter-spacing:-.02em;line-height:1">LISTA DE PRECIOS</div>
+          <div style="font-size:12px;color:rgba(255,255,255,.45);margin-top:5px;font-weight:400">Precios unitarios al público · Venta al detalle</div>
+        </div>
+      </div>
+
+      <!-- Derecha: fecha -->
+      <div style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:12px;padding:14px 20px;text-align:center;flex-shrink:0">
+        <div style="font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.45);font-weight:600;margin-bottom:5px">Vigente al</div>
+        <div style="font-size:15px;font-weight:800;color:#f4c70f;white-space:nowrap">${fechaHoy}</div>
+      </div>
+    </div>
+
+    <!-- Línea dorada inferior -->
+    <div style="position:absolute;bottom:0;left:0;right:0;height:4px;background:linear-gradient(90deg,#f4c70f 0%,#d2ac09 55%,rgba(210,172,9,.1) 100%)"></div>
+  </div>
+
+  <!-- ══ CUERPO ════════════════════════════════════════════== -->
+  <div style="padding:28px 40px 36px;flex:1">
+
+    <!-- Label sección -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px">
+      <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:#8cafd2;white-space:nowrap">Catálogo de productos disponibles</div>
+      <div style="flex:1;height:1px;background:#dde6f0"></div>
+      <div style="font-size:9px;color:#8cafd2">${lotes.length} producto${lotes.length !== 1 ? 's' : ''}</div>
+    </div>
+
+    <!-- Tabla -->
+    <table style="width:100%;border-collapse:collapse;border-radius:10px;overflow:hidden;border:1px solid #e8f0f8">
+      <thead>
+        <tr style="background:linear-gradient(90deg,#1a60a6 0%,#133658 100%)">
+          <th style="padding:11px 12px;font-size:9px;font-weight:700;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.08em;text-align:center;width:40px">#</th>
+          <th style="padding:11px 14px;font-size:9px;font-weight:700;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.08em;text-align:left">Producto</th>
+          <th style="padding:11px 12px;font-size:9px;font-weight:700;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.08em;text-align:left">Categoría</th>
+          <th style="padding:11px 12px;font-size:9px;font-weight:700;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.08em;text-align:center">Disponible</th>
+          <th style="padding:11px 18px;font-size:9px;font-weight:700;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.08em;text-align:right">Precio unitario</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rowsHtml}
+      </tbody>
+    </table>
+
+    <!-- ══ PIE DE PÁGINA ═══════════════════════════════════ -->
+    <div style="margin-top:28px;padding-top:16px;border-top:2px solid #dde6f0;display:flex;justify-content:space-between;align-items:flex-end;gap:16px">
+      <div style="display:flex;flex-direction:column;gap:3px">
+        <div style="font-size:12px;font-weight:800;color:#133658;letter-spacing:.02em">Pin<span style="color:#f4c70f">&amp;</span>Pon 3D — Impresión 3D Personalizada</div>
+        ${contactLine ? `<div style="font-size:10px;color:#4e6882">${contactLine}</div>` : ''}
+        <div style="font-size:9px;color:#8cafd2;font-style:italic;margin-top:2px">* Precios en colones costarricenses (₡) · Incluye IVA cuando aplica · Sujetos a cambio sin previo aviso</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-size:10px;color:#8cafd2">Generado el ${fechaHoy}</div>
+      </div>
+    </div>
+  </div>
+</div><!-- /.page -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script>
+(async function(){
+  const ov    = document.getElementById('loading-overlay');
+  const setMsg = (txt,sub) => {
+    ov.innerHTML = \`<div class="spinner"></div>
+      <div style="font-size:15px;font-weight:600">\${txt}</div>
+      <div style="font-size:12px;opacity:.6">\${sub||''}</div>\`;
+  };
+  try {
+    await document.fonts.ready;
+    setMsg('Renderizando…','Procesando diseño');
+    await new Promise(r => setTimeout(r, 700));
+
+    const { jsPDF } = window.jspdf;
+    const pageEl = document.getElementById('the-page');
+    pageEl.style.width    = '794px';
+    pageEl.style.minWidth = '794px';
+
+    const canvas = await html2canvas(pageEl, {
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: '#ffffff',
+      logging: false,
+      imageTimeout: 10000,
+      width: 794,
+      height: pageEl.scrollHeight
+    });
+
+    setMsg('Generando PDF…','');
+    const pdf = new jsPDF({ orientation:'portrait', unit:'mm', format:'letter' });
+    const W   = pdf.internal.pageSize.getWidth();
+    const H   = pdf.internal.pageSize.getHeight();
+    const imgH = W * canvas.height / canvas.width;
+
+    if (imgH <= H) {
+      pdf.addImage(canvas.toDataURL('image/jpeg', 0.97), 'JPEG', 0, 0, W, imgH);
+    } else {
+      const scale = H / imgH;
+      const sw = W * scale;
+      pdf.addImage(canvas.toDataURL('image/jpeg', 0.97), 'JPEG', (W-sw)/2, 0, sw, H);
+    }
+
+    pdf.save('LISTA DE PRECIOS - Pin&Pon 3D.pdf');
+    ov.innerHTML = '<div style="font-size:36px">✅</div><div style="font-size:15px;font-weight:700;margin-top:8px">¡PDF descargado!</div>';
+    setTimeout(() => window.close(), 1800);
+  } catch(err) {
+    console.error('Error generando PDF:', err);
+    ov.innerHTML = '<div style="font-size:36px">⚠️</div><div style="font-size:14px;margin-top:8px">Error generando PDF<br><span style="font-size:12px;opacity:.7">Intentá imprimir con Ctrl+P</span></div>';
+  }
+})();
+</script>
+</body>
+</html>`;
+
+  const win = window.open('', '_blank');
+  if (!win) { toast('Permite ventanas emergentes para descargar el PDF', 'error'); return; }
+  win.document.write(htmlContent);
+  win.document.close();
 }
 
 /* ----------------------------------------------------------
@@ -1610,8 +2302,227 @@ async function _gDriveSubirHTML(nombre, htmlStr) {
 }
 
 /* ----------------------------------------------------------
+   Gestión de Costos
+---------------------------------------------------------- */
+
+async function cargarCostos() {
+  try {
+    [gastos, inversion] = await Promise.all([fbCargarGastos(), fbCargarInversion()]);
+    renderCostos();
+    renderInversion();
+    actualizarDashboardInversion();
+  } catch(e) {
+    console.error('Error cargando costos:', e);
+  }
+}
+
+function resetFormGasto() {
+  const hoy = new Date().toISOString().split('T')[0];
+  el('g_descripcion') && (el('g_descripcion').value = '');
+  el('g_monto')       && (el('g_monto').value = '');
+  el('g_fecha')       && (el('g_fecha').value = hoy);
+}
+
+async function guardarGasto() {
+  const descripcion = (el('g_descripcion')?.value || '').trim();
+  const categoria   = el('g_categoria')?.value || 'Otro';
+  const monto       = parseFloat(el('g_monto')?.value || 0);
+  const fecha       = el('g_fecha')?.value || new Date().toISOString().split('T')[0];
+  const notas       = (el('g_notas')?.value || '').trim();
+  if (!descripcion || !monto) { toast('Completa descripción y monto', 'error'); return; }
+  const data = { id: Date.now().toString(), descripcion, categoria, monto, fecha, notas };
+  try {
+    await fbGuardarGasto(data);
+    gastos.unshift(data);
+    resetFormGasto();
+    renderCostos();
+    toast('Gasto registrado ✓', 'success');
+  } catch(e) {
+    toast('Error guardando gasto', 'error');
+  }
+}
+
+async function eliminarGasto(id) {
+  if (!confirm('¿Eliminar este gasto?')) return;
+  try {
+    await fbEliminarGasto(id);
+    gastos = gastos.filter(g => g.id !== id);
+    renderCostos();
+    toast('Gasto eliminado', 'success');
+  } catch(e) {
+    toast('Error eliminando gasto', 'error');
+  }
+}
+
+async function toggleInversionActiva() {
+  inversion.activa = !inversion.activa;
+  try {
+    await fbGuardarInversion(inversion);
+    renderInversion();
+    actualizarDashboardInversion();
+    toast(inversion.activa ? 'Inversión visible en dashboard ✓' : 'Inversión oculta del dashboard', 'success');
+  } catch(e) {
+    toast('Error guardando configuración', 'error');
+  }
+}
+
+async function guardarItemInversion() {
+  const descripcion = (el('inv_descripcion')?.value || '').trim();
+  const categoria   = el('invitem_categoria')?.value || 'Otro';
+  const monto       = parseFloat(el('inv_monto')?.value || 0);
+  if (!descripcion || !monto) { toast('Completa descripción y monto', 'error'); return; }
+  const item = { id: Date.now().toString(), descripcion, categoria, monto };
+  if (!inversion.items) inversion.items = [];
+  inversion.items.push(item);
+  try {
+    await fbGuardarInversion(inversion);
+    el('inv_descripcion').value = '';
+    el('inv_monto').value = '';
+    renderInversion();
+    actualizarDashboardInversion();
+    toast('Item de inversión agregado ✓', 'success');
+  } catch(e) {
+    toast('Error guardando inversión', 'error');
+  }
+}
+
+async function eliminarItemInversion(id) {
+  if (!confirm('¿Eliminar este item de inversión?')) return;
+  inversion.items = (inversion.items || []).filter(i => i.id !== id);
+  try {
+    await fbGuardarInversion(inversion);
+    renderInversion();
+    actualizarDashboardInversion();
+    toast('Item eliminado', 'success');
+  } catch(e) {
+    toast('Error eliminando item', 'error');
+  }
+}
+
+function actualizarDashboardInversion() {
+  const card = el('dash-inversion-card');
+  if (!card) return;
+  if (!inversion.activa || !inversion.items?.length) {
+    card.style.display = 'none';
+    return;
+  }
+  const totalInv   = (inversion.items || []).reduce((s, i) => s + (i.monto || 0), 0);
+  const recuperado = trabajos
+    .filter(t => t.estado !== 'Cancelado')
+    .reduce((s, t) => s + (t.precio_final || 0), 0);
+  const pct    = totalInv > 0 ? Math.min(100, (recuperado / totalInv) * 100) : 0;
+  const rest   = Math.max(0, totalInv - recuperado);
+  card.style.display = '';
+  set('dash-inv-total',     fmt(totalInv));
+  set('dash-inv-recuperado', fmt(recuperado));
+  set('dash-inv-faltante',  fmt(rest));
+  set('dash-inv-pct',       pct.toFixed(1) + '%');
+  const bar = el('dash-inv-bar');
+  if (bar) {
+    bar.style.width = pct + '%';
+    bar.style.background = pct >= 100 ? 'var(--success)' : pct >= 60 ? 'var(--accent)' : 'var(--brand-gold, #F2C61F)';
+  }
+}
+
+/* ----------------------------------------------------------
    Inicialización básica (antes de autenticar)
 ---------------------------------------------------------- */
+/* ----------------------------------------------------------
+   Categorías de Pago — gestión
+---------------------------------------------------------- */
+async function cargarCategoriasPago() {
+  try {
+    const stored = await fbCargarCategoriasPago();
+    if (stored && stored.length) categoriasPago = stored;
+  } catch(e) { console.warn('categoriasPago: usando defaults'); }
+  actualizarFiltrosPago();
+}
+
+function actualizarFiltrosPago() {
+  // Reconstruir el filtro #tr-pago
+  const sel = el('tr-pago');
+  if (sel) {
+    sel.innerHTML = `<option value="">Todos los pagos</option>` +
+      categoriasPago.map(c => `<option value="${c}">${c}</option>`).join('');
+  }
+  renderCategoriasPagoConfig();
+}
+
+function renderCategoriasPagoConfig() {
+  const list = el('cfg-pago-list');
+  if (!list) return;
+  list.innerHTML = categoriasPago.map((c, i) => `
+    <div class="inv-item">
+      <div class="inv-item-info">
+        <span class="inv-item-desc">${escHtml(c)}</span>
+        ${i === 0 ? '<span class="badge badge-pago-pendiente" style="font-size:.65rem">Pendiente base</span>'
+          : i === categoriasPago.length-1 ? '<span class="badge badge-pago-pagado" style="font-size:.65rem">Pagado base</span>'
+          : '<span class="badge badge-pago-abono" style="font-size:.65rem">Intermedio</span>'}
+      </div>
+      <div class="inv-item-right">
+        ${i === 0 || i === categoriasPago.length-1
+          ? '<span style="font-size:.72rem;color:var(--text3)">Requerido</span>'
+          : `<button class="btn btn-danger btn-icon btn-sm" onclick="eliminarCategoriaPago(${i})">
+               <svg width="12" height="12" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+             </button>`
+        }
+      </div>
+    </div>`).join('');
+}
+
+async function agregarCategoriaPago() {
+  const input = el('cfg-pago-nueva');
+  const nombre = (input?.value || '').trim();
+  if (!nombre) { toast('Escribe un nombre', 'error'); return; }
+  if (categoriasPago.includes(nombre)) { toast('Ya existe esa categoría', 'error'); return; }
+  // Insertar antes del último (antes de "Pagado")
+  categoriasPago.splice(categoriasPago.length - 1, 0, nombre);
+  if (input) input.value = '';
+  try {
+    await fbGuardarCategoriasPago(categoriasPago);
+    actualizarFiltrosPago();
+    toast(`Categoría "${nombre}" agregada ✓`, 'success');
+  } catch(e) { toast('Error guardando', 'error'); }
+}
+
+async function eliminarCategoriaPago(idx) {
+  if (idx === 0 || idx === categoriasPago.length - 1) return;
+  const nombre = categoriasPago[idx];
+  showConfirm(
+    '¿Eliminar categoría?',
+    `Se eliminará la categoría de pago "${nombre}".`,
+    async () => {
+      categoriasPago.splice(idx, 1);
+      try {
+        await fbGuardarCategoriasPago(categoriasPago);
+        actualizarFiltrosPago();
+        toast(`Categoría eliminada ✓`, 'success');
+      } catch(e) { toast('Error eliminando', 'error'); }
+    }
+  );
+}
+
+function getPagoClass(estado) {
+  const cats = categoriasPago.length ? categoriasPago : ['Pendiente','Abono','Pagado'];
+  const i = cats.indexOf(estado);
+  if (i < 0 || i === 0) return 'badge-pago-pendiente';
+  if (i === cats.length - 1) return 'badge-pago-pagado';
+  return 'badge-pago-abono';
+}
+
+async function cambiarPago(id, pago, selectEl) {
+  const t = trabajos.find(x => x.id === id);
+  if (t) t.estadoPago = pago;
+  const cls = getPagoClass(pago);
+  if (selectEl) selectEl.className = `badge ${cls} pago-select`;
+  try {
+    await fbActualizarPago(id, { estadoPago: pago });
+    toast('Pago actualizado ✓', 'success');
+  } catch(e) {
+    toast('Error actualizando pago', 'error');
+  }
+}
+
 /* ─── AUTOCOMPLETADO DE CLIENTES ─── */
 function initClienteAutocomplete() {
   const input = el('c_cliente');
@@ -1658,6 +2569,7 @@ document.addEventListener('DOMContentLoaded', () => {
   calcCfg();
   calcular();
   initClienteAutocomplete();
+  cargarCategoriasPago();
   // Restaurar Client ID de Drive (predeterminado + localStorage)
   const DEFAULT_GDRIVE_CID = '1087662880090-o7ammg0cc2sofe5r3hoq4ur5dcf11j6j.apps.googleusercontent.com';
   const savedCid = localStorage.getItem('gdrive_client_id') || DEFAULT_GDRIVE_CID;
@@ -1670,6 +2582,91 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.key === 'Escape') cerrarModalEdicion();
   });
 });
+
+/* ----------------------------------------------------------
+   Toggle filtros en móvil
+---------------------------------------------------------- */
+function toggleFiltrosMobile() {
+  const extras = document.getElementById('filter-extras');
+  const btn    = document.getElementById('btn-toggle-filters');
+  if (!extras) return;
+  const isOpen = extras.classList.toggle('fe-open');
+  if (btn) {
+    const sp = btn.querySelector('span');
+    if (sp) sp.textContent = isOpen ? 'Cerrar' : 'Filtros';
+    btn.classList.toggle('btn-primary', isOpen);
+    btn.classList.toggle('btn-secondary', !isOpen);
+  }
+}
+
+/* ----------------------------------------------------------
+   Badge de trabajos pendientes en la navegación
+---------------------------------------------------------- */
+function actualizarBadgeNav() {
+  const PENDIENTES = ['Aprobado', 'En impresión', 'Post-proceso', 'Listo'];
+  const count = trabajos.filter(t => PENDIENTES.includes(t.estado)).length;
+  const badge = el('badge-trabajos');
+  if (!badge) return;
+  if (count > 0) {
+    badge.textContent = count > 99 ? '99+' : count;
+    badge.classList.add('visible');
+  } else {
+    badge.textContent = '';
+    badge.classList.remove('visible');
+  }
+}
+
+/* ----------------------------------------------------------
+   Modal "Usar como base" — copiar parámetros de cotización anterior
+---------------------------------------------------------- */
+function abrirModalBase() {
+  const lista = el('base-lista');
+  if (!lista) return;
+  const recientes = [...trabajos]
+    .sort((a, b) => String(b.id).localeCompare(String(a.id)))
+    .slice(0, 30);
+  if (!recientes.length) {
+    lista.innerHTML = '<p style="text-align:center;color:var(--text3);padding:24px">Sin cotizaciones anteriores</p>';
+  } else {
+    lista.innerHTML = recientes.map(t => `
+      <div class="base-item" onclick="usarComoBase('${t.id}')">
+        <div class="base-item-info">
+          <div class="base-item-pieza">${escHtml(t.pieza || '—')}</div>
+          <div class="base-item-sub">${escHtml(t.cliente || '—')} · ${t.fecha || '—'} · ${fmt(t.precio_final || 0)}</div>
+        </div>
+      </div>`).join('');
+  }
+  el('modal-base').style.display = 'flex';
+}
+
+function cerrarModalBase() {
+  const m = el('modal-base');
+  if (m) m.style.display = 'none';
+}
+
+function usarComoBase(id) {
+  const t = trabajos.find(t => t.id === id);
+  if (!t) return;
+  cerrarModalBase();
+  const campos = {
+    c_gramos:    t.gramos    || 0,
+    c_horas_imp: t.horas_imp || 0,
+    c_horas_mo:  t.horas_mo  || 0,
+    c_horas_dis: t.horas_dis || 0,
+    c_costo_dis: t.costo_dis || 0,
+    c_postpro:   t.postpro   || 0,
+    c_otros:     t.otros     || 0,
+    c_fallos:    t.pFallos   || 5,
+    c_margen:    t.pMargen   || 35,
+    c_iva:       t.pIVA      || 0,
+    c_cantidad:  t.cantidad  || 1,
+    c_placas:    t.placas    || 1,
+  };
+  Object.entries(campos).forEach(([k, v]) => { if (el(k)) el(k).value = v; });
+  if (t.material && el('c_material')) el('c_material').value = t.material;
+  calcular();
+  toast(`Parámetros copiados de "${t.pieza}"`, 'success');
+}
 
 /* ----------------------------------------------------------
    Callback post-autenticación (llamado desde auth.js)

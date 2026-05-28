@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <!-- Capa de estilos -->
-<link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/styles.css?v=20260611">
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
@@ -175,7 +175,7 @@
 <div class="modal-overlay" id="modal-venta" style="display:none" onclick="if(event.target===this)cerrarModalVenta()">
   <div class="modal-card" style="max-width:420px;width:100%">
     <div class="modal-header">
-      <div class="modal-title">
+      <div class="modal-title" id="mv-titulo">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
         Registrar venta
       </div>
@@ -185,6 +185,7 @@
     </div>
 
     <input type="hidden" id="mv-id">
+    <input type="hidden" id="mv-tipo" value="venta">
 
     <div class="mv-info">
       <div>
@@ -192,14 +193,14 @@
         <div class="mv-pieza" id="mv-pieza-lbl">—</div>
       </div>
       <div style="text-align:right">
-        <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text2);margin-bottom:3px">Disponibles</div>
+        <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text2);margin-bottom:3px" id="mv-ref-lbl">Disponibles</div>
         <div class="mv-disp"><strong id="mv-disp-num">0</strong> unidades</div>
       </div>
     </div>
 
     <div class="form-grid" style="grid-template-columns:1fr 1fr;gap:14px;margin-top:14px">
       <div class="form-group">
-        <label>Cantidad a vender *</label>
+        <label id="mv-cant-lbl">Cantidad a vender *</label>
         <input type="number" id="mv-cantidad" min="1" value="1" style="font-size:1.1rem;font-weight:700;text-align:center">
       </div>
       <div class="form-group">
@@ -209,12 +210,53 @@
     </div>
 
     <div class="btn-group" style="margin-top:18px">
-      <button class="btn btn-primary" onclick="guardarVenta()">
+      <button class="btn btn-primary" id="mv-btn-guardar" onclick="guardarVenta()">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-        Registrar venta
+        <span id="mv-btn-lbl">Registrar venta</span>
       </button>
       <button class="btn btn-ghost" onclick="cerrarModalVenta()">Cancelar</button>
     </div>
+  </div>
+</div>
+
+<!-- =====================================================
+     MODAL: CONFIRMACIÓN GENÉRICA
+====================================================== -->
+<div class="modal-overlay" id="modal-confirm" style="display:none" onclick="if(event.target===this)closeConfirm()">
+  <div class="modal-card" style="max-width:360px;width:100%;text-align:center">
+    <div class="confirm-icon">
+      <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
+        <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+      </svg>
+    </div>
+    <div style="font-weight:700;font-size:1.05rem;margin-bottom:8px" id="confirm-title">¿Eliminar?</div>
+    <p id="confirm-msg" style="color:var(--text2);font-size:.9rem;margin:0 0 20px"></p>
+    <div class="btn-group" style="justify-content:center">
+      <button class="btn btn-danger" id="confirm-ok-btn" onclick="confirmAction()">Eliminar</button>
+      <button class="btn btn-ghost" onclick="closeConfirm()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- =====================================================
+     MODAL: USAR COTIZACIÓN COMO BASE
+====================================================== -->
+<div class="modal-overlay" id="modal-base" style="display:none" onclick="if(event.target===this)cerrarModalBase()">
+  <div class="modal-card" style="max-width:460px;width:100%">
+    <div class="modal-header">
+      <div class="modal-title">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+        </svg>
+        Usar cotización como base
+      </div>
+      <button class="modal-close" onclick="cerrarModalBase()">
+        <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <p style="font-size:.88rem;color:var(--text2);margin:0 0 12px">Copiará gramos, horas, márgenes y material. No copia cliente ni pieza.</p>
+    <div id="base-lista" style="max-height:320px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius-xs)"></div>
   </div>
 </div>
 
@@ -258,6 +300,7 @@
     <div class="nav-item" data-page="trabajos" onclick="navTo('trabajos')">
       <svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
       Trabajos
+      <span class="nav-badge" id="badge-trabajos"></span>
     </div>
     <div class="nav-item" data-page="detalle" onclick="navTo('detalle')">
       <svg viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
@@ -273,6 +316,10 @@
     <div class="nav-item" data-page="inventario" onclick="navTo('inventario')">
       <svg viewBox="0 0 24 24"><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
       Inventario
+    </div>
+    <div class="nav-item" data-page="costos" onclick="navTo('costos')">
+      <svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+      Costos
     </div>
     <div class="nav-item" data-page="configuracion" onclick="navTo('configuracion')">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -382,7 +429,6 @@
               <option value="Prototipo">Prototipo</option><option value="Educativo">Educativo</option>
               <option value="Repuesto">Repuesto</option><option value="Personalizado">Personalizado</option>
               <option value="Venta al Detalle">Venta al Detalle</option>
-              <option value="Venta">Venta</option>
               <option value="Otro">Otro</option>
             </select>
           </div>
@@ -404,6 +450,34 @@
           <div class="form-group"><label>Costo fijo diseño (₡)</label><input type="number" id="c_costo_dis" value="0" min="0" step="100" oninput="calcular()"></div>
           <div class="form-group"><label>Postprocesado (₡)</label><input type="number" id="c_postpro" value="0" min="0" step="100" oninput="calcular()"></div>
           <div class="form-group"><label>Otros costos (₡)</label><input type="number" id="c_otros" value="0" min="0" step="100" oninput="calcular()"></div>
+        </div>
+      </div>
+      <!-- MATERIALES DEL INVENTARIO -->
+      <div class="card">
+        <div class="card-title">
+          <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+          Otros materiales del inventario
+          <span style="font-size:.75rem;color:var(--text3);font-weight:400;margin-left:8px">opcional</span>
+        </div>
+        <div id="mat-lista-cotizacion" style="margin-bottom:8px"></div>
+        <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
+          <div class="form-group" style="flex:2;min-width:160px">
+            <label>Material</label>
+            <select id="mat_select" onchange="actualizarCostoMaterial()">
+              <option value="">— Seleccionar —</option>
+            </select>
+          </div>
+          <div class="form-group" style="flex:1;min-width:90px">
+            <label>Cantidad (<span id="mat_unidad_label">und.</span>)</label>
+            <input type="number" id="mat_cantidad" value="0" min="0" step="0.1" oninput="actualizarCostoMaterial()">
+          </div>
+          <div class="form-group" style="flex:1;min-width:80px">
+            <label>Costo</label>
+            <div id="mat_costo_preview" style="font-weight:700;color:var(--primary);padding:6px 0;font-size:.95rem">₡0</div>
+          </div>
+          <div style="margin-bottom:2px">
+            <button class="btn btn-secondary btn-sm" onclick="agregarMaterialCotizacion()">+ Agregar</button>
+          </div>
         </div>
       </div>
       <div class="card">
@@ -430,6 +504,7 @@
           <div class="breakdown-row"><span>Diseño</span><span class="breakdown-val" id="b_dis">₡0.00</span></div>
           <div class="breakdown-row"><span>Postprocesado</span><span class="breakdown-val" id="b_post">₡0.00</span></div>
           <div class="breakdown-row"><span>Otros</span><span class="breakdown-val" id="b_otros">₡0.00</span></div>
+          <div class="breakdown-row" id="b_materiales_row" style="display:none"><span>Materiales inventario</span><span class="breakdown-val" id="b_materiales">₡0.00</span></div>
           <div class="breakdown-row subtotal"><span>Subtotal</span><span class="breakdown-val" id="b_sub">₡0.00</span></div>
           <div class="breakdown-row"><span id="b_fallos_label">+ Fallos (5%)</span><span class="breakdown-val" id="b_fallos_val">₡0.00</span></div>
           <div class="breakdown-row subtotal"><span id="b_costo_fallos_label">Costo total (1 placa)</span><span class="breakdown-val" id="b_costo_fallos">₡0.00</span></div>
@@ -484,6 +559,12 @@
             </svg>
             <span>Copiar WhatsApp</span>
           </button>
+          <button class="btn btn-ghost" onclick="abrirModalBase()">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+            </svg>
+            <span>Copiar parámetros</span>
+          </button>
           <button class="btn btn-ghost" onclick="nuevaCotizacion()">
             <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             <span>Nueva cotización</span>
@@ -507,47 +588,61 @@
       </div>
       <div class="card">
         <div class="filter-bar">
-          <input type="text" id="tr-search" placeholder="Buscar cliente, pieza…" oninput="renderTrabajos()">
-          <select id="tr-estado" onchange="renderTrabajos()">
-            <option value="">Todos los estados</option>
-            <option value="Cotizado">Cotizado</option>
-            <option value="Aprobado">Aprobado</option>
-            <option value="En impresión">En impresión</option>
-            <option value="Post-proceso">Post-proceso</option>
-            <option value="Listo">Listo</option>
-            <option value="Entregado">Entregado</option>
-            <option value="Cancelado">Cancelado</option>
-          </select>
-          <select id="tr-pago" onchange="renderTrabajos()">
-            <option value="">Todos los pagos</option>
-            <option value="Pendiente">Pendiente</option>
-            <option value="Abono">Abono</option>
-            <option value="Pagado">Pagado</option>
-          </select>
-          <select id="tr-categoria" onchange="renderTrabajos()">
-            <option value="">Todas las categorías</option>
-            <option value="Funcional">Funcional</option><option value="Decorativa">Decorativa</option>
-            <option value="Prototipo">Prototipo</option><option value="Educativo">Educativo</option>
-            <option value="Repuesto">Repuesto</option><option value="Personalizado">Personalizado</option>
-            <option value="Venta al Detalle">Venta al Detalle</option>
-            <option value="Venta">Venta</option>
-            <option value="Otro">Otro</option>
-          </select>
-          <button class="btn btn-secondary btn-sm" onclick="cargarTrabajos()">
-            <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-            Recargar
-          </button>
-          <button class="btn btn-secondary btn-sm" onclick="exportarCSV()" title="Exportar trabajos filtrados como CSV">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            CSV
-          </button>
-          <!-- Toggle tabla / kanban -->
-          <div class="vista-toggle">
-            <button class="vista-btn active" data-vista="tabla" onclick="toggleTrabajosVista('tabla')" title="Vista tabla">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+          <!-- Fila de búsqueda (siempre visible) -->
+          <div class="filter-search-row">
+            <input type="text" id="tr-search" placeholder="Buscar cliente, pieza…" oninput="renderTrabajos()">
+            <!-- Botón toggle filtros (solo visible en móvil) -->
+            <button id="btn-toggle-filters" class="btn btn-secondary btn-sm" onclick="toggleFiltrosMobile()" title="Filtros">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+              <span>Filtros</span>
             </button>
-            <button class="vista-btn" data-vista="kanban" onclick="toggleTrabajosVista('kanban')" title="Vista kanban">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="5" height="18" rx="1"/><rect x="10" y="3" width="5" height="12" rx="1"/><rect x="17" y="3" width="5" height="15" rx="1"/></svg>
+            <!-- Toggle tabla / kanban -->
+            <div class="vista-toggle">
+              <button class="vista-btn active" data-vista="tabla" onclick="toggleTrabajosVista('tabla')" title="Vista tabla">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+              </button>
+              <button class="vista-btn" data-vista="kanban" onclick="toggleTrabajosVista('kanban')" title="Vista kanban">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="5" height="18" rx="1"/><rect x="10" y="3" width="5" height="12" rx="1"/><rect x="17" y="3" width="5" height="15" rx="1"/></svg>
+              </button>
+            </div>
+          </div>
+          <!-- Filtros extra (colapsables en móvil, siempre visibles en desktop) -->
+          <div class="filter-extras" id="filter-extras">
+            <select id="tr-estado" onchange="renderTrabajos()">
+              <option value="">Todos los estados</option>
+              <option value="Cotizado">Cotizado</option>
+              <option value="Aprobado">Aprobado</option>
+              <option value="En impresión">En impresión</option>
+              <option value="Post-proceso">Post-proceso</option>
+              <option value="Listo">Listo</option>
+              <option value="Entregado">Entregado</option>
+              <option value="Cancelado">Cancelado</option>
+              <option value="Venta">Venta</option>
+            </select>
+            <select id="tr-pago" onchange="renderTrabajos()">
+              <option value="">Todos los pagos</option>
+              <option value="Pendiente">Pendiente</option>
+              <option value="Abono">Abono</option>
+              <option value="Pagado">Pagado</option>
+            </select>
+            <select id="tr-categoria" onchange="renderTrabajos()">
+              <option value="">Todas las categorías</option>
+              <option value="Funcional">Funcional</option><option value="Decorativa">Decorativa</option>
+              <option value="Prototipo">Prototipo</option><option value="Educativo">Educativo</option>
+              <option value="Repuesto">Repuesto</option><option value="Personalizado">Personalizado</option>
+              <option value="Venta al Detalle">Venta al Detalle</option>
+              <option value="Otro">Otro</option>
+            </select>
+            <button id="btn-mostrar-entregados" class="btn btn-secondary btn-sm" onclick="toggleMostrarEntregados()">
+              📦 <span>Mostrar entregados</span>
+            </button>
+            <button class="btn btn-secondary btn-sm" onclick="cargarTrabajos()">
+              <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+              <span>Recargar</span>
+            </button>
+            <button class="btn btn-secondary btn-sm" onclick="exportarCSV()" title="Exportar trabajos filtrados como CSV">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              <span>CSV</span>
             </button>
           </div>
         </div>
@@ -583,49 +678,49 @@
                 <span class="kanban-col-title">Cotizado</span>
                 <span class="kanban-col-count" id="kc-Cotizado">0</span>
               </div>
-              <div class="kanban-col-body" id="kb-Cotizado"></div>
+              <div class="kanban-col-body" id="kb-Cotizado" ondragover="kcDragOver(event)" ondragleave="kcDragLeave(event)" ondrop="kcDrop(event)"></div>
             </div>
             <div class="kanban-col" data-estado="Aprobado">
               <div class="kanban-col-head" style="--kc:var(--accent)">
                 <span class="kanban-col-title">Aprobado</span>
                 <span class="kanban-col-count" id="kc-Aprobado">0</span>
               </div>
-              <div class="kanban-col-body" id="kb-Aprobado"></div>
+              <div class="kanban-col-body" id="kb-Aprobado" ondragover="kcDragOver(event)" ondragleave="kcDragLeave(event)" ondrop="kcDrop(event)"></div>
             </div>
             <div class="kanban-col" data-estado="En impresión">
               <div class="kanban-col-head" style="--kc:var(--brand-gold)">
                 <span class="kanban-col-title">En impresión</span>
                 <span class="kanban-col-count" id="kc-EnImpresion">0</span>
               </div>
-              <div class="kanban-col-body" id="kb-EnImpresion"></div>
+              <div class="kanban-col-body" id="kb-EnImpresion" ondragover="kcDragOver(event)" ondragleave="kcDragLeave(event)" ondrop="kcDrop(event)"></div>
             </div>
             <div class="kanban-col" data-estado="Post-proceso">
               <div class="kanban-col-head" style="--kc:var(--warn)">
                 <span class="kanban-col-title">Post-proceso</span>
                 <span class="kanban-col-count" id="kc-PostProceso">0</span>
               </div>
-              <div class="kanban-col-body" id="kb-PostProceso"></div>
+              <div class="kanban-col-body" id="kb-PostProceso" ondragover="kcDragOver(event)" ondragleave="kcDragLeave(event)" ondrop="kcDrop(event)"></div>
             </div>
             <div class="kanban-col" data-estado="Listo">
               <div class="kanban-col-head" style="--kc:var(--success)">
                 <span class="kanban-col-title">Listo</span>
                 <span class="kanban-col-count" id="kc-Listo">0</span>
               </div>
-              <div class="kanban-col-body" id="kb-Listo"></div>
+              <div class="kanban-col-body" id="kb-Listo" ondragover="kcDragOver(event)" ondragleave="kcDragLeave(event)" ondrop="kcDrop(event)"></div>
             </div>
             <div class="kanban-col" data-estado="Entregado">
               <div class="kanban-col-head" style="--kc:#16a34a">
                 <span class="kanban-col-title">Entregado</span>
                 <span class="kanban-col-count" id="kc-Entregado">0</span>
               </div>
-              <div class="kanban-col-body" id="kb-Entregado"></div>
+              <div class="kanban-col-body" id="kb-Entregado" ondragover="kcDragOver(event)" ondragleave="kcDragLeave(event)" ondrop="kcDrop(event)"></div>
             </div>
             <div class="kanban-col kanban-col-sm" data-estado="Cancelado">
               <div class="kanban-col-head" style="--kc:var(--danger)">
                 <span class="kanban-col-title">Cancelado</span>
                 <span class="kanban-col-count" id="kc-Cancelado">0</span>
               </div>
-              <div class="kanban-col-body" id="kb-Cancelado"></div>
+              <div class="kanban-col-body" id="kb-Cancelado" ondragover="kcDragOver(event)" ondragleave="kcDragLeave(event)" ondrop="kcDrop(event)"></div>
             </div>
           </div>
         </div>
@@ -669,6 +764,38 @@
         <div class="stat-card">
           <div class="stat-label">Entregas urgentes</div>
           <div class="stat-value danger" id="dash-urgentes">0</div>
+        </div>
+      </div>
+
+      <!-- Tarjeta de inversión inicial (solo cuando está activa) -->
+      <div id="dash-inversion-card" style="display:none;margin-bottom:20px">
+        <div class="card inv-dash-card">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+            <div>
+              <div style="font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--text3)">🎯 Recuperación de Inversión Inicial</div>
+              <div style="font-size:.75rem;color:var(--text2);margin-top:2px">Todos los ingresos acumulados vs inversión de arranque</div>
+            </div>
+            <span id="dash-inv-pct" style="font-size:1.5rem;font-weight:800;color:var(--accent)">0%</span>
+          </div>
+          <div class="inv-progress-wrap" style="margin-bottom:14px">
+            <div class="inv-progress-track">
+              <div class="inv-progress-bar" id="dash-inv-bar" style="width:0%"></div>
+            </div>
+          </div>
+          <div class="inv-stats-row">
+            <div class="inv-stat">
+              <span>Inversión total</span>
+              <strong id="dash-inv-total">₡0</strong>
+            </div>
+            <div class="inv-stat">
+              <span>Recuperado</span>
+              <strong id="dash-inv-recuperado" style="color:var(--success)">₡0</strong>
+            </div>
+            <div class="inv-stat">
+              <span>Por recuperar</span>
+              <strong id="dash-inv-faltante" style="color:var(--danger)">₡0</strong>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -813,10 +940,21 @@
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
           Cotizaciones con categoría <strong style="color:var(--text1);margin:0 3px">"Venta al Detalle"</strong> aparecen aquí automáticamente.
         </div>
-        <button class="btn btn-secondary btn-sm" onclick="cargarVentaDetalle()">
-          <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-          Recargar
-        </button>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button class="btn btn-primary btn-sm" onclick="generarListaPrecios()">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              <line x1="16" y1="13" x2="8" y2="13"/>
+              <line x1="16" y1="17" x2="8" y2="17"/>
+            </svg>
+            <span>📋 Lista de Precios</span>
+          </button>
+          <button class="btn btn-secondary btn-sm" onclick="cargarVentaDetalle()">
+            <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            <span>Recargar</span>
+          </button>
+        </div>
       </div>
 
       <div id="detalle-grid" class="detalle-grid"></div>
@@ -831,14 +969,29 @@
 
     <!-- PÁGINA: INVENTARIO -->
     <div class="page" id="page-inventario">
-      <div class="section-title">Inventario de Filamentos</div>
-      <div class="section-sub">Gestione su stock de filamentos</div>
+      <div class="section-title">Inventario de Materiales</div>
+      <div class="section-sub">Gestione su stock de materiales e insumos</div>
       <div class="card">
         <div class="card-title">
           <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          Agregar Filamento
+          Agregar Material
         </div>
-        <div class="form-grid">
+        <!-- Tipo de material -->
+        <div class="form-grid" style="margin-bottom:0">
+          <div class="form-group" style="grid-column:span 2">
+            <label>Tipo de material</label>
+            <div style="display:flex;gap:8px;margin-top:4px">
+              <button type="button" id="inv-btn-filamento" class="btn btn-primary btn-sm" onclick="setTipoMaterial('Filamento')" style="flex:1">🧵 Filamento</button>
+              <button type="button" id="inv-btn-otro"      class="btn btn-secondary btn-sm" onclick="setTipoMaterial('otro')" style="flex:1">📦 Otro material</button>
+            </div>
+          </div>
+          <div class="form-group" id="inv-categoria-custom-row" style="display:none;grid-column:span 2">
+            <label>Categoría / tipo <span style="color:var(--text3);font-weight:400">(ej: Resina, Adhesivo, Tornillos…)</span></label>
+            <input type="text" id="inv_categoria_custom" placeholder="Ej: Resina, Adhesivo, Ferretería…">
+          </div>
+        </div>
+        <!-- Campos específicos de filamento -->
+        <div id="inv-fields-filamento" class="form-grid" style="margin-bottom:0">
           <div class="form-group">
             <label>Tipo</label>
             <select id="inv_tipo">
@@ -849,21 +1002,41 @@
             </select>
           </div>
           <div class="form-group"><label>Color</label><input type="text" id="inv_color" placeholder="Ej: Blanco, Negro…"></div>
-          <div class="form-group"><label>Marca</label><input type="text" id="inv_marca" placeholder="Ej: Polymaker, Sunlu…"></div>
           <div class="form-group"><label>Precio por rollo (₡)</label><input type="number" id="inv_precio" value="0" min="0" step="100"></div>
           <div class="form-group"><label>Peso del rollo (g)</label><input type="number" id="inv_peso" value="1000" min="1"></div>
           <div class="form-group"><label>Rollos disponibles</label><input type="number" id="inv_disp" value="1" min="0" step="0.1"></div>
+        </div>
+        <!-- Campos generales (no filamento) -->
+        <div id="inv-fields-general" class="form-grid" style="display:none;margin-bottom:0">
+          <div class="form-group" style="grid-column:span 2"><label>Nombre del material *</label><input type="text" id="inv_nombre" placeholder="Ej: Resina Clear Elegoo, Tornillo M3 10mm…"></div>
+          <div class="form-group">
+            <label>Unidad</label>
+            <select id="inv_unidad">
+              <option value="unidades">Unidades</option>
+              <option value="g">Gramos (g)</option>
+              <option value="ml">Mililitros (ml)</option>
+              <option value="kg">Kilogramos (kg)</option>
+              <option value="L">Litros (L)</option>
+              <option value="metros">Metros</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Precio unitario (₡)</label><input type="number" id="inv_precio_unit" value="0" min="0" step="1"></div>
+          <div class="form-group"><label>Stock disponible</label><input type="number" id="inv_stock" value="0" min="0" step="1"></div>
+        </div>
+        <!-- Campos comunes -->
+        <div class="form-grid" style="margin-bottom:0">
+          <div class="form-group"><label>Marca</label><input type="text" id="inv_marca" placeholder="Ej: Polymaker, Sunlu…"></div>
           <div class="form-group"><label>Proveedor</label><input type="text" id="inv_prov" placeholder="Nombre del proveedor"></div>
           <div class="form-group"><label>Fecha de compra</label><input type="date" id="inv_fecha"></div>
-          <div class="form-group" style="grid-column:span 2"><label>Notas</label><textarea id="inv_notas" rows="2" placeholder="Notas sobre el filamento…"></textarea></div>
+          <div class="form-group" style="grid-column:span 2"><label>Notas</label><textarea id="inv_notas" rows="2" placeholder="Notas adicionales…"></textarea></div>
         </div>
         <div class="btn-group" style="margin-top:14px">
-          <button class="btn btn-primary" onclick="agregarFilamento()">
+          <button class="btn btn-primary" onclick="guardarMaterial()">
             <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            <span>Agregar al inventario</span>
+            <span>Guardar material</span>
           </button>
           <span id="inv-edit-id" style="display:none"></span>
-          <button class="btn btn-ghost" id="inv-cancel-edit" style="display:none" onclick="cancelarEditFilamento()">Cancelar edición</button>
+          <button class="btn btn-ghost" id="inv-cancel-edit" style="display:none" onclick="cancelarEditMaterial()">Cancelar edición</button>
         </div>
       </div>
       <div class="card">
@@ -873,13 +1046,141 @@
         </div>
         <div class="table-wrap">
           <table id="inv-table">
-            <thead><tr><th>Tipo</th><th>Color</th><th>Marca</th><th>Precio/Rollo</th><th>Peso (g)</th><th>Costo/g</th><th>Disponible</th><th>Valor restante</th><th>Proveedor</th><th>Fecha compra</th><th>Acciones</th></tr></thead>
+            <thead><tr><th>Categoría</th><th>Nombre</th><th>Unidad</th><th>P. Unitario</th><th>Stock</th><th>Valor total</th><th>Marca</th><th>Acciones</th></tr></thead>
             <tbody id="inv-tbody"></tbody>
           </table>
         </div>
         <div id="inv-empty" class="empty-state" style="display:none">
           <svg viewBox="0 0 24 24"><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
-          <p>No hay filamentos en el inventario</p>
+          <p>No hay materiales en el inventario</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- PÁGINA: COSTOS -->
+    <div class="page" id="page-costos">
+      <div class="section-title">Gestión de Costos</div>
+      <div class="section-sub">Registro de gastos operativos e inversión inicial</div>
+
+      <!-- ── GASTOS OPERATIVOS ─────────────────────────────── -->
+      <div class="card" style="margin-bottom:24px">
+        <div class="card-title">📋 Gastos Operativos</div>
+        <div class="card-sub" style="margin-bottom:16px">Filamentos, electricidad, herramientas y otros gastos del negocio</div>
+
+        <!-- Formulario agregar gasto -->
+        <div class="costos-form">
+          <div class="form-group">
+            <label>Descripción</label>
+            <input type="text" id="g_descripcion" placeholder="Ej: Rollo PLA Negro 1kg">
+          </div>
+          <div class="form-group">
+            <label>Categoría</label>
+            <select id="g_categoria">
+              <option value="Filamento">Filamento</option>
+              <option value="Electricidad">Electricidad</option>
+              <option value="Herramienta">Herramienta</option>
+              <option value="Servicio">Servicio</option>
+              <option value="Impresora">Impresora</option>
+              <option value="Otro">Otro</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Monto (₡)</label>
+            <input type="number" id="g_monto" placeholder="0" min="0" step="50">
+          </div>
+          <div class="form-group">
+            <label>Fecha</label>
+            <input type="date" id="g_fecha">
+          </div>
+          <div class="form-group" style="grid-column:span 2">
+            <label>Notas (opcional)</label>
+            <input type="text" id="g_notas" placeholder="Marca, proveedor, etc.">
+          </div>
+          <div class="form-group" style="align-self:end">
+            <button class="btn btn-primary" onclick="guardarGasto()">+ Agregar gasto</button>
+          </div>
+        </div>
+
+        <!-- Tabla de gastos -->
+        <div class="table-wrap" style="margin-top:16px">
+          <table class="table" id="gastos-table">
+            <thead>
+              <tr>
+                <th>Fecha</th><th>Descripción</th><th>Categoría</th>
+                <th>Monto</th><th>Notas</th><th>Acción</th>
+              </tr>
+            </thead>
+            <tbody id="gastos-tbody"></tbody>
+          </table>
+          <div id="gastos-empty" class="empty-state" style="display:none">
+            <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>
+            <p>Sin gastos registrados</p>
+          </div>
+        </div>
+        <div style="text-align:right;margin-top:10px;font-size:.85rem;color:var(--text2)">
+          Total gastos: <strong id="gastos-total" style="color:var(--danger)">₡0</strong>
+        </div>
+      </div>
+
+      <!-- ── INVERSIÓN INICIAL ──────────────────────────────── -->
+      <div class="card" id="inversion-wrap">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <div>
+            <div class="card-title">🎯 Inversión Inicial</div>
+            <div class="card-sub">Equipos, muebles y costos de arranque del negocio</div>
+          </div>
+          <button id="inv-toggle-btn" class="btn btn-secondary btn-sm" onclick="toggleInversionActiva()">
+            🙈 Oculto del dashboard
+          </button>
+        </div>
+
+        <!-- Formulario agregar item -->
+        <div class="costos-form" style="margin-top:16px">
+          <div class="form-group" style="grid-column:span 2">
+            <label>Descripción del item</label>
+            <input type="text" id="inv_descripcion" placeholder="Ej: Impresora Bambu A1 Mini">
+          </div>
+          <div class="form-group">
+            <label>Categoría</label>
+            <select id="invitem_categoria">
+              <option value="Impresora">Impresora</option>
+              <option value="Filamento inicial">Filamento inicial</option>
+              <option value="Mobiliario">Mobiliario</option>
+              <option value="Herramienta">Herramienta</option>
+              <option value="Software">Software</option>
+              <option value="Otro">Otro</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Monto (₡)</label>
+            <input type="number" id="inv_monto" placeholder="0" min="0" step="1000">
+          </div>
+          <div class="form-group" style="align-self:end">
+            <button class="btn btn-primary" onclick="guardarItemInversion()">+ Agregar</button>
+          </div>
+        </div>
+
+        <!-- Lista de items -->
+        <div id="inversion-list" style="margin-top:16px;display:flex;flex-direction:column;gap:8px"></div>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+          <span style="font-size:.85rem;color:var(--text2)">Total inversión:</span>
+          <strong id="inv-total" style="font-size:1rem;color:var(--text)">₡0</strong>
+        </div>
+
+        <!-- Progreso de recuperación -->
+        <div id="inversion-progress-section" style="margin-top:20px;display:none">
+          <div style="font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--text3);margin-bottom:12px">Recuperación de inversión</div>
+          <div class="inv-progress-wrap">
+            <div class="inv-progress-track">
+              <div class="inv-progress-bar" id="inv-progress-bar" style="width:0%"></div>
+            </div>
+            <span class="inv-pct" id="inv-pct">0%</span>
+          </div>
+          <div class="inv-stats-row">
+            <div class="inv-stat"><span>Ingresos acumulados</span><strong id="inv-recuperado" style="color:var(--success)">₡0</strong></div>
+            <div class="inv-stat"><span>Por recuperar</span><strong id="inv-faltante" style="color:var(--danger)">₡0</strong></div>
+          </div>
         </div>
       </div>
     </div>
@@ -953,6 +1254,17 @@
             <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
             <span>Recargar desde Firebase</span>
           </button>
+        </div>
+
+        <!-- ── CATEGORÍAS DE PAGO ── -->
+        <div class="card" style="margin-top:20px">
+          <div class="card-title">💳 Categorías de Pago</div>
+          <div class="card-sub" style="margin-bottom:16px">Define los estados de pago disponibles. La primera es "pendiente" y la última es "pagado completamente".</div>
+          <div id="cfg-pago-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px"></div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input type="text" id="cfg-pago-nueva" placeholder="Nueva categoría (ej: En disputa)" style="flex:1">
+            <button class="btn btn-primary" onclick="agregarCategoriaPago()">+ Agregar</button>
+          </div>
         </div>
       </div>
 
@@ -1163,11 +1475,11 @@
   </div>
 </div>
 
-<script src="js/db.js"></script>
-<script src="js/logic.js"></script>
-<script src="js/ui.js"></script>
-<script src="js/app.js"></script>
-<script src="js/auth.js"></script>
+<script src="js/db.js?v=20260526"></script>
+<script src="js/logic.js?v=20260526"></script>
+<script src="js/ui.js?v=20260610"></script>
+<script src="js/app.js?v=20260610"></script>
+<script src="js/auth.js?v=20260526"></script>
 
 </body>
 </html>

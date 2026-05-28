@@ -11,6 +11,35 @@
 'use strict';
 
 /* ----------------------------------------------------------
+   Helpers de ingresos / ganancias por lote
+   - ventaDetalle: contabilizar proporcionalmente según unidades vendidas
+   - resto: contabilizar solo cuando estado === 'Entregado'
+---------------------------------------------------------- */
+function _unidadesVendidas(t) {
+  return Math.min(t.unidadesVendidas || 0, Math.max(t.cantidad || 1, 1));
+}
+function _esDetalle(t) {
+  return t.ventaDetalle === true || t.categoria === 'Venta al Detalle';
+}
+
+function ingresosLote(t) {
+  if (t.estado === 'Cancelado') return 0;
+  if (_esDetalle(t)) return _unidadesVendidas(t) * (t.precio_unitario || 0);
+  return t.estado === 'Entregado' ? (t.precio_final || 0) : 0;
+}
+
+function gananciaLote(t) {
+  if (t.estado === 'Cancelado') return 0;
+  if (_esDetalle(t)) {
+    const costoU = (t.costo_total || 0) / Math.max(t.cantidad || 1, 1);
+    return _unidadesVendidas(t) * ((t.precio_unitario || 0) - costoU);
+  }
+  return t.estado === 'Entregado'
+    ? (t.precio_final || 0) - (t.costo_total || 0)
+    : 0;
+}
+
+/* ----------------------------------------------------------
    Toast / notificaciones
 ---------------------------------------------------------- */
 
@@ -69,7 +98,7 @@ function escHtml(str) {
    Mapas de colores — estados y pagos
 ---------------------------------------------------------- */
 
-/** Colores para los 7 estados de pedido */
+/** Colores para los estados de pedido */
 const ESTADO_COLOR = {
   'Cotizado':     'badge-gray',
   'Aprobado':     'badge-blue',
@@ -77,19 +106,38 @@ const ESTADO_COLOR = {
   'Post-proceso': 'badge-warn',
   'Listo':        'badge-success',
   'Entregado':    'badge-darkgreen',
-  'Cancelado':    'badge-danger'
+  'Cancelado':    'badge-danger',
+  'Venta':        'badge-blue'
 };
 
-/** Colores para los estados de pago */
+// getPagoClass() is defined in app.js (uses dynamic categoriasPago)
+// Fallback map for when app.js isn't loaded yet
 const PAGO_COLOR = {
   'Pendiente': 'badge-pago-pendiente',
   'Abono':     'badge-pago-abono',
   'Pagado':    'badge-pago-pagado'
 };
+function pagoClass(estado) {
+  return (typeof getPagoClass === 'function')
+    ? getPagoClass(estado)
+    : (PAGO_COLOR[estado] || 'badge-pago-pendiente');
+}
 
 /* ----------------------------------------------------------
    Tabla de trabajos
 ---------------------------------------------------------- */
+
+let _mostrarEntregados = false;
+
+function toggleMostrarEntregados() {
+  _mostrarEntregados = !_mostrarEntregados;
+  const btn = el('btn-mostrar-entregados');
+  if (btn) {
+    btn.textContent = _mostrarEntregados ? '👁 Ocultar entregados' : '📦 Mostrar entregados';
+    btn.classList.toggle('active', _mostrarEntregados);
+  }
+  renderTrabajos();
+}
 
 function renderTrabajos() {
   const search  = el('tr-search')?.value.toLowerCase()  || '';
@@ -97,14 +145,19 @@ function renderTrabajos() {
   const catF    = el('tr-categoria')?.value             || '';
   const pagoF   = el('tr-pago')?.value                  || '';
 
-  const list = trabajos.filter(t => {
-    const matchSearch = !search  || (t.pieza||'').toLowerCase().includes(search)
-                                 || (t.cliente||'').toLowerCase().includes(search);
-    const matchEstado = !estadoF || t.estado     === estadoF;
-    const matchCat    = !catF    || t.categoria  === catF;
-    const matchPago   = !pagoF   || (t.estadoPago||'Pendiente') === pagoF;
-    return matchSearch && matchEstado && matchCat && matchPago;
-  });
+  const list = trabajos
+    .filter(t => {
+      const matchSearch = !search  || (t.pieza||'').toLowerCase().includes(search)
+                                   || (t.cliente||'').toLowerCase().includes(search);
+      const matchEstado = !estadoF || t.estado    === estadoF;
+      const matchCat    = !catF    || t.categoria === catF;
+      const matchPago   = !pagoF   || (t.estadoPago||'Pendiente') === pagoF;
+      // Ocultar entregados por defecto (salvo que el filtro los pida explícitamente)
+      const mostrarEste = _mostrarEntregados || estadoF === 'Entregado' || t.estado !== 'Entregado';
+      return matchSearch && matchEstado && matchCat && matchPago && mostrarEste;
+    })
+    // Ordenar por ID descendente (más reciente primero — IDs son timestamps)
+    .sort((a, b) => String(b.id).localeCompare(String(a.id)));
 
   const hoy = new Date().toISOString().split('T')[0];
 
@@ -113,8 +166,8 @@ function renderTrabajos() {
   const total      = trabajos.length;
   const aprobados  = trabajos.filter(t => t.estado === 'Aprobado').length;
   const entregados = trabajos.filter(t => t.estado === 'Entregado').length;
-  const ingresos   = trabajos.filter(t => t.estado === 'Entregado' && t.estado !== 'Cancelado').reduce((s,t) => s + (t.precio_final||0), 0);
-  const ganancias  = trabajos.filter(t => t.estado === 'Entregado' && t.estado !== 'Cancelado').reduce((s,t) => s + ((t.precio_final||0) - (t.costo_total||0)), 0);
+  const ingresos   = trabajos.reduce((s,t) => s + ingresosLote(t), 0);
+  const ganancias  = trabajos.reduce((s,t) => s + gananciaLote(t), 0);
   const pendPago   = trabajos.filter(t => t.estado !== 'Cancelado' && (t.estadoPago||'Pendiente') !== 'Pagado').length;
   const porCobrar  = trabajos
     .filter(t => ESTADOS_POR_COBRAR.includes(t.estado))
@@ -143,7 +196,7 @@ function renderTrabajos() {
 
   tbody.innerHTML = list.map(t => {
     const ec        = ESTADO_COLOR[t.estado] || 'badge-gray';
-    const pagoClass = PAGO_COLOR[t.estadoPago||'Pendiente'] || 'badge-pago-pendiente';
+    const pcls      = pagoClass(t.estadoPago||'Pendiente');
     const ganObj    = t.ganancia_por_objeto != null
                     ? t.ganancia_por_objeto
                     : ((t.precio_final||0) - (t.costo_total||0)) / Math.max(t.cantidad||1, 1);
@@ -177,14 +230,18 @@ function renderTrabajos() {
       <td class="td-mono"><strong style="${ganClass}">${fmt(ganObj)}</strong></td>
       <td>
         <select class="badge ${ec} estado-select" onchange="cambiarEstado('${t.id}',this.value,this)">
-          ${['Cotizado','Aprobado','En impresión','Post-proceso','Listo','Entregado','Cancelado']
+          ${['Cotizado','Aprobado','En impresión','Post-proceso','Listo','Entregado','Cancelado','Venta']
             .map(s=>`<option value="${s}"${t.estado===s?' selected':''}>${s}</option>`).join('')}
         </select>
         <div style="font-size:.6rem;color:var(--text3);margin-top:2px">${fechaAct}</div>
       </td>
-      <td><span class="badge ${pagoClass}">${t.estadoPago||'Pendiente'}</span></td>
+      <td>
+        <select class="badge ${pcls} pago-select" onchange="cambiarPago('${t.id}',this.value,this)">
+          ${(typeof categoriasPago!=='undefined'?categoriasPago:['Pendiente','Abono','Pagado'])
+            .map(c=>`<option value="${c}"${(t.estadoPago||categoriasPago[0]||'Pendiente')===c?' selected':''}>${c}</option>`).join('')}
+        </select>
+      </td>
       <td><div class="td-actions">
-        ${t.categoria === 'Venta' ? '' : `
         <button class="btn btn-ghost btn-icon btn-sm" title="Copiar WhatsApp"
           onclick='copiarMensajeWA("${t.id}")'>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -217,15 +274,25 @@ function renderTrabajos() {
             <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
           </svg>
         </button>
-        `}
       </div></td>
     </tr>`;
   }).join('');
+  if (typeof actualizarBadgeNav === 'function') actualizarBadgeNav();
 }
 
 /* ----------------------------------------------------------
    Tabla de inventario
 ---------------------------------------------------------- */
+
+const CATEGORIA_COLOR = {
+  'Filamento':      'badge-accent',
+  'Resina':         'badge-blue',
+  'Adhesivo':       'badge-warn',
+  'Pintura/Acabado':'badge-pago-abono',
+  'Ferretería':     'badge-gray',
+  'Electrónica':    'badge-pago-pendiente',
+  'Otro':           'badge-gray'
+};
 
 function renderInventario() {
   const tbody = el('inv-tbody');
@@ -233,28 +300,30 @@ function renderInventario() {
   el('inv-empty').style.display = filamentos.length ? 'none'  : 'block';
   el('inv-table').style.display = filamentos.length ? 'table' : 'none';
 
-  tbody.innerHTML = filamentos.map(f => {
-    const costoG        = f.peso_rollo > 0 ? (f.precio_rollo / f.peso_rollo) : 0;
-    const valorRestante = costoG * f.peso_rollo * f.disponibles;
+  tbody.innerHTML = filamentos.map(m => {
+    const nombre    = (typeof getMaterialNombre         === 'function') ? getMaterialNombre(m)          : (m.nombre || m.tipo || '');
+    const pu        = (typeof getMaterialPrecioUnitario === 'function') ? getMaterialPrecioUnitario(m)   : 0;
+    const unidad    = (typeof getMaterialUnidad         === 'function') ? getMaterialUnidad(m)           : (m.unidad || 'g');
+    const stock     = (typeof getMaterialStock          === 'function') ? getMaterialStock(m)            : ((m.disponibles||0)*(m.peso_rollo||1000));
+    const categoria = m.categoria || 'Filamento';
+    const catClass  = CATEGORIA_COLOR[categoria] || 'badge-gray';
+    const valorTotal = pu * stock;
     return `<tr>
-      <td><span class="badge badge-accent">${escHtml(f.tipo||'')}</span></td>
-      <td>${escHtml(f.color||'')}</td>
-      <td>${escHtml(f.marca||'')}</td>
-      <td class="td-mono">${fmt(f.precio_rollo||0)}</td>
-      <td class="td-mono">${(f.peso_rollo||0).toLocaleString('es-CR')}g</td>
-      <td class="td-mono">${fmt(costoG)}/g</td>
-      <td class="td-mono">${(f.disponibles||0).toFixed(1)} rollos</td>
-      <td class="td-mono">${fmt(valorRestante)}</td>
-      <td>${escHtml(f.proveedor||'—')}</td>
-      <td class="td-mono">${f.fecha_compra||'—'}</td>
+      <td><span class="badge ${catClass}">${escHtml(categoria)}</span></td>
+      <td>${escHtml(nombre)}</td>
+      <td class="td-mono">${escHtml(unidad)}</td>
+      <td class="td-mono">${fmt(pu)}</td>
+      <td class="td-mono">${stock.toLocaleString('es-CR')}</td>
+      <td class="td-mono">${fmt(valorTotal)}</td>
+      <td>${escHtml(m.marca||'—')}</td>
       <td><div class="td-actions">
-        <button class="btn btn-ghost btn-icon btn-sm" title="Editar" onclick='editarFilamento("${f.id}")'>
+        <button class="btn btn-ghost btn-icon btn-sm" title="Editar" onclick='editarMaterial("${m.id}")'>
           <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
           </svg>
         </button>
-        <button class="btn btn-danger btn-icon btn-sm" title="Eliminar" onclick='eliminarFilamento("${f.id}")'>
+        <button class="btn btn-danger btn-icon btn-sm" title="Eliminar" onclick='eliminarFilamento("${m.id}")'>
           <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
             <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
@@ -357,8 +426,8 @@ function renderDashboard(filtro = 'mes-actual') {
 
   // Calcular KPIs
   const entregados  = lista.filter(t => t.estado === 'Entregado');
-  const ventasMes   = entregados.reduce((s,t) => s + (t.precio_final||0), 0);
-  const gananciaMes = entregados.reduce((s,t) => s + ((t.precio_final||0) - (t.costo_total||0)), 0);
+  const ventasMes   = lista.reduce((s,t) => s + ingresosLote(t), 0);
+  const gananciaMes = lista.reduce((s,t) => s + gananciaLote(t), 0);
   const pendPago    = lista.filter(t => (t.estadoPago||'Pendiente') !== 'Pagado').length;
 
   const countByEstado = {};
@@ -420,6 +489,8 @@ function renderDashboard(filtro = 'mes-actual') {
   if (dashCharts) dashCharts.style.display = sinDatos ? 'none'  : 'block';
 
   if (!sinDatos) _renderCharts(lista, countByEstado, anio, mes);
+
+  if (typeof actualizarDashboardInversion === 'function') actualizarDashboardInversion();
 }
 
 function _renderCharts(lista, countByEstado, anio, mes) {
@@ -472,8 +543,8 @@ function _renderCharts(lista, countByEstado, anio, mes) {
       const label = new Date(a, m, 1).toLocaleDateString('es-CR', { month:'short', year:'2-digit' });
       meses.push(label);
       const ing = trabajos
-        .filter(t => t.estado === 'Entregado' && (t.fecha||'').startsWith(key))
-        .reduce((s,t) => s + (t.precio_final||0), 0);
+        .filter(t => t.estado !== 'Cancelado' && (t.fecha||'').startsWith(key))
+        .reduce((s,t) => s + ingresosLote(t), 0);
       ingresosPorMes.push(ing);
     }
     _chartIngresos = new Chart(ctxI, {
@@ -536,13 +607,18 @@ function renderVentaDetalle(lotes) {
     const histItems = (l.historialVentas || [])
       .slice()
       .reverse()
-      .map(v => `
-        <div class="vd-hist-item">
-          <span class="vd-hist-fecha">${(v.fecha||'').split('T')[0] || '—'}</span>
-          <span class="vd-hist-cant">×${v.cantidad}</span>
-          ${v.nota ? `<span class="vd-hist-nota">${escHtml(v.nota)}</span>` : ''}
-        </div>
-      `).join('');
+      .map(v => {
+        const esDev = (v.cantidad || 0) < 0;
+        const cantLabel = esDev
+          ? `<span class="vd-hist-cant" style="color:var(--danger,#dc2626)">−${Math.abs(v.cantidad)}</span>`
+          : `<span class="vd-hist-cant">+${v.cantidad}</span>`;
+        return `
+          <div class="vd-hist-item">
+            <span class="vd-hist-fecha">${(v.fecha||'').split('T')[0] || '—'}</span>
+            ${cantLabel}
+            ${v.nota ? `<span class="vd-hist-nota">${escHtml(v.nota)}</span>` : ''}
+          </div>`;
+      }).join('');
 
     const histLen = (l.historialVentas || []).length;
 
@@ -595,12 +671,20 @@ function renderVentaDetalle(lotes) {
       </div>
 
       <!-- Acción -->
-      ${agotado
-        ? `<div style="text-align:center;font-size:.8rem;color:var(--text2);padding:4px 0">✓ Todas las unidades vendidas</div>`
-        : `<button class="btn btn-primary btn-sm" style="width:100%" onclick="abrirModalVenta('${l.id}')">
-             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-             Registrar venta
-           </button>`}
+      <div style="display:flex;gap:8px">
+        ${agotado
+          ? `<div style="flex:1;text-align:center;font-size:.8rem;color:var(--text2);padding:4px 0">✓ Todas las unidades vendidas</div>`
+          : `<button class="btn btn-primary btn-sm" style="flex:1" onclick="abrirModalVenta('${l.id}')">
+               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+               Registrar venta
+             </button>`}
+        ${vendidas > 0
+          ? `<button class="btn btn-secondary btn-sm" onclick="abrirModalDevolucion('${l.id}')" title="Devolver unidades">
+               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>
+               Devolver
+             </button>`
+          : ''}
+      </div>
 
       <!-- Historial -->
       ${histLen > 0 ? `
@@ -611,6 +695,56 @@ function renderVentaDetalle(lotes) {
 
     </div>`;
   }).join('');
+}
+
+/* ----------------------------------------------------------
+   Kanban — Drag & Drop
+---------------------------------------------------------- */
+
+let _kcDragId = null;
+
+function kcDragStart(e, id) {
+  _kcDragId = id;
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', id);
+  // pequeño delay para que se vea el ghost antes de reducir opacidad
+  setTimeout(() => {
+    const card = document.querySelector(`.kanban-card[data-id="${id}"]`);
+    if (card) card.classList.add('kc-dragging');
+  }, 0);
+}
+
+function kcDragEnd(e) {
+  document.querySelectorAll('.kanban-card.kc-dragging').forEach(c => c.classList.remove('kc-dragging'));
+  document.querySelectorAll('.kanban-col-body.kc-drop-over').forEach(c => c.classList.remove('kc-drop-over'));
+}
+
+function kcDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  e.currentTarget.classList.add('kc-drop-over');
+}
+
+function kcDragLeave(e) {
+  // solo quitar si salimos del body (no de un hijo)
+  if (!e.currentTarget.contains(e.relatedTarget)) {
+    e.currentTarget.classList.remove('kc-drop-over');
+  }
+}
+
+async function kcDrop(e) {
+  e.preventDefault();
+  const body = e.currentTarget;
+  body.classList.remove('kc-drop-over');
+  const id = _kcDragId || e.dataTransfer.getData('text/plain');
+  _kcDragId = null;
+  if (!id) return;
+  const col = body.closest('.kanban-col');
+  const nuevoEstado = col?.dataset.estado;
+  if (!nuevoEstado) return;
+  const t = trabajos.find(x => x.id === id);
+  if (!t || t.estado === nuevoEstado) return;
+  await cambiarEstado(id, nuevoEstado);
 }
 
 /* ----------------------------------------------------------
@@ -642,7 +776,7 @@ function renderKanban(list) {
 }
 
 function renderKanbanCard(t) {
-  const pagoClass    = PAGO_COLOR[t.estadoPago || 'Pendiente'] || 'badge-pago-pendiente';
+  const kcPagoClass  = pagoClass(t.estadoPago || 'Pendiente');
   const hoyKc        = new Date().toISOString().split('T')[0];
   const entregaAlerta = t.fechaEntrega && t.estado !== 'Entregado' && t.estado !== 'Cancelado'
     ? (t.fechaEntrega < hoyKc ? 'overdue' : t.fechaEntrega === hoyKc ? 'today' : '')
@@ -653,14 +787,15 @@ function renderKanbanCard(t) {
   const entrega   = t.fechaEntrega
     ? `<span class="kc-entrega${entregaAlerta ? ' '+entregaAlerta : ''}">${entregaLabel} ${t.fechaEntrega}</span>` : '';
   const cardClass = entregaAlerta ? ` kc-urgente-${entregaAlerta}` : '';
-  return `<div class="kanban-card${cardClass}">
+  return `<div class="kanban-card${cardClass}" draggable="true" data-id="${t.id}"
+    ondragstart="kcDragStart(event,'${t.id}')" ondragend="kcDragEnd(event)">
     <div class="kc-top">
       <div class="kc-pieza">${escHtml(t.pieza || '—')}</div>
       <div class="kc-cliente">${escHtml(t.cliente || '')}</div>
       ${t.material ? `<div class="kc-material">${escHtml(t.material)}</div>` : ''}
     </div>
     <div class="kc-mid">
-      <span class="badge ${pagoClass}" style="font-size:.66rem;padding:2px 7px">${t.estadoPago || 'Pendiente'}</span>
+      <span class="badge ${kcPagoClass}" style="font-size:.66rem;padding:2px 7px">${t.estadoPago || 'Pendiente'}</span>
       <span class="kc-precio">${fmt(t.precio_final || 0)}</span>
     </div>
     <div class="kc-bot">
@@ -682,4 +817,100 @@ function renderKanbanCard(t) {
       </button>
     </div>
   </div>`;
+}
+
+/* ----------------------------------------------------------
+   Gestión de Costos — render
+---------------------------------------------------------- */
+
+const GASTO_COLOR = {
+  'Filamento':   'badge-accent',
+  'Electricidad':'badge-pago-pendiente',
+  'Herramienta': 'badge-gray',
+  'Servicio':    'badge-gray',
+  'Impresora':   'badge-cotizado',
+  'Otro':        'badge-gray'
+};
+
+function renderCostos() {
+  const tbody = el('gastos-tbody');
+  if (!tbody) return;
+  const empty = el('gastos-empty');
+  const totalEl = el('gastos-total');
+  if (!gastos.length) {
+    if (empty) empty.style.display = 'block';
+    tbody.innerHTML = '';
+    if (totalEl) totalEl.textContent = '₡0';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+  const total = gastos.reduce((s, g) => s + (g.monto || 0), 0);
+  if (totalEl) totalEl.textContent = fmt(total);
+  tbody.innerHTML = gastos.map(g => `
+    <tr>
+      <td class="td-mono">${g.fecha || '—'}</td>
+      <td>${escHtml(g.descripcion || '')}</td>
+      <td><span class="badge ${GASTO_COLOR[g.categoria] || 'badge-gray'}">${escHtml(g.categoria || '')}</span></td>
+      <td class="td-mono"><strong>${fmt(g.monto || 0)}</strong></td>
+      <td>${escHtml(g.notas || '')}</td>
+      <td>
+        <button class="btn btn-danger btn-icon btn-sm" title="Eliminar" onclick='eliminarGasto("${g.id}")'>
+          <svg width="13" height="13" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+        </button>
+      </td>
+    </tr>`).join('');
+}
+
+function renderInversion() {
+  const wrap = el('inversion-wrap');
+  if (!wrap) return;
+
+  const totalInv   = (inversion.items || []).reduce((s, i) => s + (i.monto || 0), 0);
+  const recuperado = (typeof trabajos !== 'undefined' ? trabajos : [])
+    .filter(t => t.estado !== 'Cancelado')
+    .reduce((s, t) => s + (t.precio_final || 0), 0);
+  const pct  = totalInv > 0 ? Math.min(100, (recuperado / totalInv) * 100) : 0;
+  const rest = Math.max(0, totalInv - recuperado);
+
+  // Toggle button state
+  const btn = el('inv-toggle-btn');
+  if (btn) {
+    btn.textContent = inversion.activa ? '👁 Visible en dashboard (clic para ocultar)' : '🙈 Oculto del dashboard (clic para mostrar)';
+    btn.className   = 'btn btn-sm ' + (inversion.activa ? 'btn-primary' : 'btn-secondary');
+  }
+
+  // Items list
+  const list = el('inversion-list');
+  if (list) {
+    list.innerHTML = !(inversion.items?.length)
+      ? '<div class="empty-inline">Sin items de inversión</div>'
+      : (inversion.items || []).map(i => `
+        <div class="inv-item">
+          <div class="inv-item-info">
+            <span class="inv-item-desc">${escHtml(i.descripcion)}</span>
+            <span class="badge badge-gray" style="font-size:.66rem">${escHtml(i.categoria)}</span>
+          </div>
+          <div class="inv-item-right">
+            <span class="inv-item-monto">${fmt(i.monto)}</span>
+            <button class="btn btn-danger btn-icon btn-sm" onclick='eliminarItemInversion("${i.id}")'>
+              <svg width="12" height="12" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+            </button>
+          </div>
+        </div>`).join('');
+  }
+
+  // Totals and progress
+  set('inv-total',      fmt(totalInv));
+  set('inv-recuperado', fmt(recuperado));
+  set('inv-faltante',   fmt(rest));
+  set('inv-pct',        pct.toFixed(1) + '%');
+  const bar = el('inv-progress-bar');
+  if (bar) {
+    bar.style.width = pct + '%';
+    bar.style.background = pct >= 100 ? 'var(--success)' : pct >= 60 ? 'var(--accent)' : '#F2C61F';
+  }
+
+  // Show/hide progress section
+  const progSec = el('inversion-progress-section');
+  if (progSec) progSec.style.display = totalInv > 0 ? '' : 'none';
 }
