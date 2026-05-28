@@ -105,7 +105,11 @@ function guardarCotizacion() {
   if (!pieza)   { toast('Ingrese el nombre de la pieza',  'error'); return; }
   if (!cliente) { toast('Ingrese el nombre del cliente',  'error'); return; }
 
+  // El preview de material no comprometido no debe entrar al precio guardado
+  const savedPreview = _matPreviewCosto;
+  _matPreviewCosto = 0;
   const desglose     = calcular();
+  _matPreviewCosto = savedPreview;
   const id           = editingId || genId();
   const precioFinal  = desglose.precioTotal;
   const montoAbonado = fv('c_monto_abonado') || 0;
@@ -580,7 +584,7 @@ function nuevaCotizacion() {
   materialesAdicionalesCotizacion = [];
   _matPreviewCosto = 0;
   renderMaterialesListaCotizacion();
-  poblarSelectMateriales();
+  cargarFilamentosYPoblar();
   ['c_pieza','c_cliente','c_notas','c_material'].forEach(f => { if(el(f)) el(f).value = ''; });
   const nums = {
     c_cantidad:1, c_placas:1, c_gramos:0, c_horas_imp:0, c_horas_mo:0,
@@ -854,24 +858,25 @@ async function agregarFilamento() {
   renderInventario();
 }
 
-async function cargarInventario() {
+async function _fetchFilamentos() {
   try {
     filamentos = await fbCargarFilamentos();
-    try { localStorage.setItem('filamentos3d',JSON.stringify(filamentos)); } catch(e){}
+    try { localStorage.setItem('filamentos3d', JSON.stringify(filamentos)); } catch(e) {}
   } catch(e) {
-    try { const l=localStorage.getItem('filamentos3d'); filamentos=l?JSON.parse(l):[];
-      toast('Filamentos cargados desde caché','info');
-    } catch(e2) { filamentos=[]; }
+    try { const l = localStorage.getItem('filamentos3d'); filamentos = l ? JSON.parse(l) : [];
+      toast('Filamentos cargados desde caché', 'info');
+    } catch(e2) { filamentos = []; }
   }
+}
+
+async function cargarInventario() {
+  await _fetchFilamentos();
   renderInventario();
   poblarSelectMateriales();
 }
 
 async function cargarFilamentosYPoblar() {
-  try {
-    filamentos = await fbCargarFilamentos();
-    try { localStorage.setItem('filamentos3d',JSON.stringify(filamentos)); } catch(e){}
-  } catch(e) {}
+  await _fetchFilamentos();
   poblarSelectMateriales();
 }
 
@@ -1253,47 +1258,34 @@ async function cargarVentaDetalle() {
   }
 }
 
-function abrirModalVenta(id) {
+function abrirModalVenta(id, tipo = 'venta') {
   const t = trabajos.find(t => t.id === id);
   if (!t) return;
-  const disponibles = Math.max((t.cantidad || 1) - (t.unidadesVendidas || 0), 0);
-  if (disponibles <= 0) { toast('No hay unidades disponibles', 'error'); return; }
+  const esDevolucion = tipo === 'devolucion';
+  const vendidas     = t.unidadesVendidas || 0;
+  const disponibles  = Math.max((t.cantidad || 1) - vendidas, 0);
+  const maxUnidades  = esDevolucion ? vendidas : disponibles;
+  if (maxUnidades <= 0) {
+    toast(esDevolucion ? 'No hay unidades vendidas que devolver' : 'No hay unidades disponibles', 'error');
+    return;
+  }
   const mv = el('modal-venta');
   if (!mv) return;
   el('mv-id').value              = id;
-  el('mv-tipo').value            = 'venta';
+  el('mv-tipo').value            = tipo;
   el('mv-pieza-lbl').textContent = t.pieza || '—';
-  el('mv-ref-lbl').textContent   = 'Disponibles';
-  el('mv-disp-num').textContent  = disponibles;
+  el('mv-ref-lbl').textContent   = esDevolucion ? 'Vendidas' : 'Disponibles';
+  el('mv-disp-num').textContent  = maxUnidades;
   el('mv-cantidad').value        = 1;
-  el('mv-cantidad').max          = disponibles;
+  el('mv-cantidad').max          = maxUnidades;
   el('mv-nota').value            = '';
-  set('mv-cant-lbl',  'Cantidad a vender *');
-  set('mv-btn-lbl',   'Registrar venta');
-  el('mv-btn-guardar').className = 'btn btn-primary';
+  set('mv-cant-lbl', esDevolucion ? 'Cantidad a devolver *' : 'Cantidad a vender *');
+  set('mv-btn-lbl',  esDevolucion ? 'Registrar devolución'  : 'Registrar venta');
+  el('mv-btn-guardar').className = esDevolucion ? 'btn btn-danger' : 'btn btn-primary';
   mv.style.display = 'flex';
 }
 
-function abrirModalDevolucion(id) {
-  const t = trabajos.find(t => t.id === id);
-  if (!t) return;
-  const vendidas = t.unidadesVendidas || 0;
-  if (vendidas <= 0) { toast('No hay unidades vendidas que devolver', 'error'); return; }
-  const mv = el('modal-venta');
-  if (!mv) return;
-  el('mv-id').value              = id;
-  el('mv-tipo').value            = 'devolucion';
-  el('mv-pieza-lbl').textContent = t.pieza || '—';
-  el('mv-ref-lbl').textContent   = 'Vendidas';
-  el('mv-disp-num').textContent  = vendidas;
-  el('mv-cantidad').value        = 1;
-  el('mv-cantidad').max          = vendidas;
-  el('mv-nota').value            = '';
-  set('mv-cant-lbl',  'Cantidad a devolver *');
-  set('mv-btn-lbl',   'Registrar devolución');
-  el('mv-btn-guardar').className = 'btn btn-danger';
-  mv.style.display = 'flex';
-}
+function abrirModalDevolucion(id) { abrirModalVenta(id, 'devolucion'); }
 
 function cerrarModalVenta() {
   const mv = el('modal-venta');

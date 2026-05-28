@@ -15,21 +15,24 @@
    - ventaDetalle: contabilizar proporcionalmente según unidades vendidas
    - resto: contabilizar solo cuando estado === 'Entregado'
 ---------------------------------------------------------- */
+function _unidadesVendidas(t) {
+  return Math.min(t.unidadesVendidas || 0, Math.max(t.cantidad || 1, 1));
+}
+function _esDetalle(t) {
+  return t.ventaDetalle === true || t.categoria === 'Venta al Detalle';
+}
+
 function ingresosLote(t) {
   if (t.estado === 'Cancelado') return 0;
-  if (t.ventaDetalle === true || t.categoria === 'Venta al Detalle') {
-    const vendidas = Math.min(t.unidadesVendidas || 0, Math.max(t.cantidad || 1, 1));
-    return vendidas * (t.precio_unitario || 0);
-  }
+  if (_esDetalle(t)) return _unidadesVendidas(t) * (t.precio_unitario || 0);
   return t.estado === 'Entregado' ? (t.precio_final || 0) : 0;
 }
 
 function gananciaLote(t) {
   if (t.estado === 'Cancelado') return 0;
-  if (t.ventaDetalle === true || t.categoria === 'Venta al Detalle') {
-    const vendidas = Math.min(t.unidadesVendidas || 0, Math.max(t.cantidad || 1, 1));
-    const costoU   = (t.costo_total || 0) / Math.max(t.cantidad || 1, 1);
-    return vendidas * ((t.precio_unitario || 0) - costoU);
+  if (_esDetalle(t)) {
+    const costoU = (t.costo_total || 0) / Math.max(t.cantidad || 1, 1);
+    return _unidadesVendidas(t) * ((t.precio_unitario || 0) - costoU);
   }
   return t.estado === 'Entregado'
     ? (t.precio_final || 0) - (t.costo_total || 0)
