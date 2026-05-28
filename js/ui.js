@@ -11,6 +11,32 @@
 'use strict';
 
 /* ----------------------------------------------------------
+   Helpers de ingresos / ganancias por lote
+   - ventaDetalle: contabilizar proporcionalmente según unidades vendidas
+   - resto: contabilizar solo cuando estado === 'Entregado'
+---------------------------------------------------------- */
+function ingresosLote(t) {
+  if (t.estado === 'Cancelado') return 0;
+  if (t.ventaDetalle === true || t.categoria === 'Venta al Detalle') {
+    const vendidas = Math.min(t.unidadesVendidas || 0, Math.max(t.cantidad || 1, 1));
+    return vendidas * (t.precio_unitario || 0);
+  }
+  return t.estado === 'Entregado' ? (t.precio_final || 0) : 0;
+}
+
+function gananciaLote(t) {
+  if (t.estado === 'Cancelado') return 0;
+  if (t.ventaDetalle === true || t.categoria === 'Venta al Detalle') {
+    const vendidas = Math.min(t.unidadesVendidas || 0, Math.max(t.cantidad || 1, 1));
+    const costoU   = (t.costo_total || 0) / Math.max(t.cantidad || 1, 1);
+    return vendidas * ((t.precio_unitario || 0) - costoU);
+  }
+  return t.estado === 'Entregado'
+    ? (t.precio_final || 0) - (t.costo_total || 0)
+    : 0;
+}
+
+/* ----------------------------------------------------------
    Toast / notificaciones
 ---------------------------------------------------------- */
 
@@ -137,8 +163,8 @@ function renderTrabajos() {
   const total      = trabajos.length;
   const aprobados  = trabajos.filter(t => t.estado === 'Aprobado').length;
   const entregados = trabajos.filter(t => t.estado === 'Entregado').length;
-  const ingresos   = trabajos.filter(t => t.estado === 'Entregado' && t.estado !== 'Cancelado').reduce((s,t) => s + (t.precio_final||0), 0);
-  const ganancias  = trabajos.filter(t => t.estado === 'Entregado' && t.estado !== 'Cancelado').reduce((s,t) => s + ((t.precio_final||0) - (t.costo_total||0)), 0);
+  const ingresos   = trabajos.reduce((s,t) => s + ingresosLote(t), 0);
+  const ganancias  = trabajos.reduce((s,t) => s + gananciaLote(t), 0);
   const pendPago   = trabajos.filter(t => t.estado !== 'Cancelado' && (t.estadoPago||'Pendiente') !== 'Pagado').length;
   const porCobrar  = trabajos
     .filter(t => ESTADOS_POR_COBRAR.includes(t.estado))
@@ -396,8 +422,8 @@ function renderDashboard(filtro = 'mes-actual') {
 
   // Calcular KPIs
   const entregados  = lista.filter(t => t.estado === 'Entregado');
-  const ventasMes   = entregados.reduce((s,t) => s + (t.precio_final||0), 0);
-  const gananciaMes = entregados.reduce((s,t) => s + ((t.precio_final||0) - (t.costo_total||0)), 0);
+  const ventasMes   = lista.reduce((s,t) => s + ingresosLote(t), 0);
+  const gananciaMes = lista.reduce((s,t) => s + gananciaLote(t), 0);
   const pendPago    = lista.filter(t => (t.estadoPago||'Pendiente') !== 'Pagado').length;
 
   const countByEstado = {};
@@ -513,8 +539,8 @@ function _renderCharts(lista, countByEstado, anio, mes) {
       const label = new Date(a, m, 1).toLocaleDateString('es-CR', { month:'short', year:'2-digit' });
       meses.push(label);
       const ing = trabajos
-        .filter(t => t.estado === 'Entregado' && (t.fecha||'').startsWith(key))
-        .reduce((s,t) => s + (t.precio_final||0), 0);
+        .filter(t => t.estado !== 'Cancelado' && (t.fecha||'').startsWith(key))
+        .reduce((s,t) => s + ingresosLote(t), 0);
       ingresosPorMes.push(ing);
     }
     _chartIngresos = new Chart(ctxI, {
