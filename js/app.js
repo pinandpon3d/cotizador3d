@@ -2281,7 +2281,7 @@ async function toggleInversionActiva() {
 
 async function guardarItemInversion() {
   const descripcion = (el('inv_descripcion')?.value || '').trim();
-  const categoria   = el('inv_categoria')?.value || 'Otro';
+  const categoria   = el('invitem_categoria')?.value || 'Otro';
   const monto       = parseFloat(el('inv_monto')?.value || 0);
   if (!descripcion || !monto) { toast('Completa descripción y monto', 'error'); return; }
   const item = { id: Date.now().toString(), descripcion, categoria, monto };
