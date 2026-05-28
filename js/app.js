@@ -72,7 +72,7 @@ function navTo(page) {
   if (page !== 'trabajos')      limpiarSeleccion();
   if (page === 'trabajos')      cargarTrabajos();
   if (page === 'inventario')    cargarInventario();
-  if (page === 'cotizador')     poblarSelectMateriales();
+  if (page === 'cotizador')     cargarFilamentosYPoblar();
   if (page === 'configuracion') { calcCfg(); actualizarUIUsuario && actualizarUIUsuario(); }
   if (page === 'usuarios')      { if (typeof cargarUsuarios === 'function') cargarUsuarios(); }
   if (page === 'dashboard')     cargarDashboard();
@@ -862,6 +862,14 @@ async function cargarInventario() {
     } catch(e2) { filamentos=[]; }
   }
   renderInventario();
+  poblarSelectMateriales();
+}
+
+async function cargarFilamentosYPoblar() {
+  try {
+    filamentos = await fbCargarFilamentos();
+    try { localStorage.setItem('filamentos3d',JSON.stringify(filamentos)); } catch(e){}
+  } catch(e) {}
   poblarSelectMateriales();
 }
 
@@ -2529,7 +2537,6 @@ function onAuthSuccess() {
   try { const l=localStorage.getItem('trabajos3d');   if(l) trabajos=JSON.parse(l);   } catch(e){}
   try { const l=localStorage.getItem('filamentos3d'); if(l) filamentos=JSON.parse(l); } catch(e){}
   try { const l=localStorage.getItem('clientes3d');   if(l) clientes=JSON.parse(l);  } catch(e){}
-  poblarSelectMateriales();
   navTo('dashboard');
   cargarConfiguracion();
 }
