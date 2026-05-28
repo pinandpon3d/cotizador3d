@@ -577,13 +577,18 @@ function renderVentaDetalle(lotes) {
     const histItems = (l.historialVentas || [])
       .slice()
       .reverse()
-      .map(v => `
-        <div class="vd-hist-item">
-          <span class="vd-hist-fecha">${(v.fecha||'').split('T')[0] || '—'}</span>
-          <span class="vd-hist-cant">×${v.cantidad}</span>
-          ${v.nota ? `<span class="vd-hist-nota">${escHtml(v.nota)}</span>` : ''}
-        </div>
-      `).join('');
+      .map(v => {
+        const esDev = (v.cantidad || 0) < 0;
+        const cantLabel = esDev
+          ? `<span class="vd-hist-cant" style="color:var(--danger,#dc2626)">−${Math.abs(v.cantidad)}</span>`
+          : `<span class="vd-hist-cant">+${v.cantidad}</span>`;
+        return `
+          <div class="vd-hist-item">
+            <span class="vd-hist-fecha">${(v.fecha||'').split('T')[0] || '—'}</span>
+            ${cantLabel}
+            ${v.nota ? `<span class="vd-hist-nota">${escHtml(v.nota)}</span>` : ''}
+          </div>`;
+      }).join('');
 
     const histLen = (l.historialVentas || []).length;
 
@@ -636,12 +641,20 @@ function renderVentaDetalle(lotes) {
       </div>
 
       <!-- Acción -->
-      ${agotado
-        ? `<div style="text-align:center;font-size:.8rem;color:var(--text2);padding:4px 0">✓ Todas las unidades vendidas</div>`
-        : `<button class="btn btn-primary btn-sm" style="width:100%" onclick="abrirModalVenta('${l.id}')">
-             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-             Registrar venta
-           </button>`}
+      <div style="display:flex;gap:8px">
+        ${agotado
+          ? `<div style="flex:1;text-align:center;font-size:.8rem;color:var(--text2);padding:4px 0">✓ Todas las unidades vendidas</div>`
+          : `<button class="btn btn-primary btn-sm" style="flex:1" onclick="abrirModalVenta('${l.id}')">
+               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+               Registrar venta
+             </button>`}
+        ${vendidas > 0
+          ? `<button class="btn btn-secondary btn-sm" onclick="abrirModalDevolucion('${l.id}')" title="Devolver unidades">
+               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>
+               Devolver
+             </button>`
+          : ''}
+      </div>
 
       <!-- Historial -->
       ${histLen > 0 ? `

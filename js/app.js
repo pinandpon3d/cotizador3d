@@ -1260,12 +1260,38 @@ function abrirModalVenta(id) {
   if (disponibles <= 0) { toast('No hay unidades disponibles', 'error'); return; }
   const mv = el('modal-venta');
   if (!mv) return;
-  el('mv-id').value           = id;
+  el('mv-id').value              = id;
+  el('mv-tipo').value            = 'venta';
   el('mv-pieza-lbl').textContent = t.pieza || '—';
+  el('mv-ref-lbl').textContent   = 'Disponibles';
   el('mv-disp-num').textContent  = disponibles;
-  el('mv-cantidad').value     = 1;
-  el('mv-cantidad').max       = disponibles;
-  el('mv-nota').value         = '';
+  el('mv-cantidad').value        = 1;
+  el('mv-cantidad').max          = disponibles;
+  el('mv-nota').value            = '';
+  set('mv-cant-lbl',  'Cantidad a vender *');
+  set('mv-btn-lbl',   'Registrar venta');
+  el('mv-btn-guardar').className = 'btn btn-primary';
+  mv.style.display = 'flex';
+}
+
+function abrirModalDevolucion(id) {
+  const t = trabajos.find(t => t.id === id);
+  if (!t) return;
+  const vendidas = t.unidadesVendidas || 0;
+  if (vendidas <= 0) { toast('No hay unidades vendidas que devolver', 'error'); return; }
+  const mv = el('modal-venta');
+  if (!mv) return;
+  el('mv-id').value              = id;
+  el('mv-tipo').value            = 'devolucion';
+  el('mv-pieza-lbl').textContent = t.pieza || '—';
+  el('mv-ref-lbl').textContent   = 'Vendidas';
+  el('mv-disp-num').textContent  = vendidas;
+  el('mv-cantidad').value        = 1;
+  el('mv-cantidad').max          = vendidas;
+  el('mv-nota').value            = '';
+  set('mv-cant-lbl',  'Cantidad a devolver *');
+  set('mv-btn-lbl',   'Registrar devolución');
+  el('mv-btn-guardar').className = 'btn btn-danger';
   mv.style.display = 'flex';
 }
 
@@ -1275,28 +1301,46 @@ function cerrarModalVenta() {
 }
 
 async function guardarVenta() {
-  const id       = el('mv-id')?.value;
-  const cantidad = parseInt(el('mv-cantidad')?.value) || 1;
-  const nota     = el('mv-nota')?.value?.trim() || '';
-  const t        = trabajos.find(t => t.id === id);
+  const id        = el('mv-id')?.value;
+  const tipo      = el('mv-tipo')?.value || 'venta';
+  const cantidad  = parseInt(el('mv-cantidad')?.value) || 1;
+  const nota      = el('mv-nota')?.value?.trim() || '';
+  const t         = trabajos.find(t => t.id === id);
   if (!t) return;
-  const disponibles = Math.max((t.cantidad || 1) - (t.unidadesVendidas || 0), 0);
-  if (cantidad < 1 || cantidad > disponibles) {
-    toast(`Cantidad inválida. Disponibles: ${disponibles}`, 'error'); return;
+
+  const esDevolucion = tipo === 'devolucion';
+  const vendidas     = t.unidadesVendidas || 0;
+  const disponibles  = Math.max((t.cantidad || 1) - vendidas, 0);
+
+  if (esDevolucion) {
+    if (cantidad < 1 || cantidad > vendidas) {
+      toast(`Cantidad inválida. Vendidas: ${vendidas}`, 'error'); return;
+    }
+  } else {
+    if (cantidad < 1 || cantidad > disponibles) {
+      toast(`Cantidad inválida. Disponibles: ${disponibles}`, 'error'); return;
+    }
   }
 
+  const delta   = esDevolucion ? -cantidad : cantidad;
+  const idx     = trabajos.findIndex(t => t.id === id);
+  const entrada = { fecha: new Date().toISOString(), cantidad: delta, nota: nota || (esDevolucion ? 'Devolución' : '') };
+
+  const prevEstado     = t.estado;
+  const prevEstadoPago = t.estadoPago;
+  const prevAbonado    = t.montoAbonado;
+  const prevPendiente  = t.montoPendiente;
+
   // Actualización optimista local
-  const idx    = trabajos.findIndex(t => t.id === id);
-  const entrada = { fecha: new Date().toISOString(), cantidad, nota };
   if (idx >= 0) {
-    trabajos[idx].unidadesVendidas = (trabajos[idx].unidadesVendidas || 0) + cantidad;
+    trabajos[idx].unidadesVendidas = Math.max(0, vendidas + delta);
     trabajos[idx].historialVentas  = [...(trabajos[idx].historialVentas || []), entrada];
   }
 
-  // ¿Se agotó el lote con esta venta?
-  const totalUnidades   = t.cantidad || 1;
-  const totalVendidas   = trabajos[idx]?.unidadesVendidas || 0;
-  const ahoraAgotado    = totalVendidas >= totalUnidades;
+  const totalUnidades = t.cantidad || 1;
+  const nuevasVendidas = trabajos[idx]?.unidadesVendidas || 0;
+  const ahoraAgotado  = !esDevolucion && nuevasVendidas >= totalUnidades;
+  const yaNoAgotado   = esDevolucion && prevEstado === 'Entregado' && nuevasVendidas < totalUnidades;
 
   if (ahoraAgotado && idx >= 0) {
     trabajos[idx].estado         = 'Entregado';
@@ -1305,40 +1349,51 @@ async function guardarVenta() {
     trabajos[idx].montoPendiente = 0;
     trabajos[idx].fechaActualizacionEstado = new Date().toISOString();
   }
+  if (yaNoAgotado && idx >= 0) {
+    trabajos[idx].estado         = 'Aprobado';
+    trabajos[idx].estadoPago     = 'Pendiente';
+    trabajos[idx].montoAbonado   = 0;
+    trabajos[idx].montoPendiente = trabajos[idx].precio_final || 0;
+    trabajos[idx].fechaActualizacionEstado = new Date().toISOString();
+  }
 
   cerrarModalVenta();
   renderVentaDetalle(trabajos.filter(t => t.ventaDetalle === true));
 
   try {
-    await fbRegistrarVenta(id, cantidad, nota);
+    await fbRegistrarVenta(id, delta, nota || (esDevolucion ? 'Devolución' : ''));
 
     if (ahoraAgotado) {
-      // Marcar Entregado + Pagado en Firestore
       await db.collection('cotizaciones').doc(String(id)).update({
-        estado:          'Entregado',
-        estadoPago:      'Pagado',
-        montoAbonado:    t.precio_final || 0,
-        montoPendiente:  0,
+        estado: 'Entregado', estadoPago: 'Pagado',
+        montoAbonado: t.precio_final || 0, montoPendiente: 0,
         fechaActualizacionEstado: new Date().toISOString()
       });
       toast('Lote agotado — Entregado y Pagado ✓', 'success');
+    } else if (yaNoAgotado) {
+      await db.collection('cotizaciones').doc(String(id)).update({
+        estado: 'Aprobado', estadoPago: 'Pendiente',
+        montoAbonado: 0, montoPendiente: t.precio_final || 0,
+        fechaActualizacionEstado: new Date().toISOString()
+      });
+      toast(`${cantidad} unidad${cantidad !== 1 ? 'es' : ''} devuelta${cantidad !== 1 ? 's' : ''} — lote reactivado ✓`, 'success');
+    } else if (esDevolucion) {
+      toast(`${cantidad} unidad${cantidad !== 1 ? 'es' : ''} devuelta${cantidad !== 1 ? 's' : ''} ✓`, 'success');
     } else {
       const u = cantidad === 1 ? '1 unidad vendida' : `${cantidad} unidades vendidas`;
       toast(`${u} ✓`, 'success');
     }
   } catch(e) {
     console.error(e);
-    toast('Error al registrar la venta', 'error');
+    toast('Error al registrar el movimiento', 'error');
     // Revertir local
     if (idx >= 0) {
-      trabajos[idx].unidadesVendidas -= cantidad;
+      trabajos[idx].unidadesVendidas = vendidas;
       trabajos[idx].historialVentas.pop();
-      if (ahoraAgotado) {
-        trabajos[idx].estado         = t.estado         || 'Cotizado';
-        trabajos[idx].estadoPago     = t.estadoPago     || 'Pendiente';
-        trabajos[idx].montoAbonado   = t.montoAbonado   || 0;
-        trabajos[idx].montoPendiente = t.montoPendiente || t.precio_final || 0;
-      }
+      trabajos[idx].estado         = prevEstado;
+      trabajos[idx].estadoPago     = prevEstadoPago;
+      trabajos[idx].montoAbonado   = prevAbonado;
+      trabajos[idx].montoPendiente = prevPendiente;
     }
     renderVentaDetalle(trabajos.filter(t => t.ventaDetalle === true));
   }
