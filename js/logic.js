@@ -73,13 +73,15 @@ function calcular() {
 
   const elecH = (watts / 1000) * kwh;
 
+  const costeMateriales = (typeof calcularTotalMaterialesAdicionales === 'function') ? calcularTotalMaterialesAdicionales() : 0;
+
   // Paso 1: costos × placas (costo fijo de diseño se aplica una sola vez)
   const material = gramos   * costoG    * placas;
   const elec     = horasImp * elecH     * placas;
   const desgaste = horasImp * desgasteH * placas;
   const mo       = horasMO  * moH       * placas;
   const dis      = horasDis * disH      * placas + costoDisFijo;
-  const subtotal = material + elec + desgaste + mo + dis + postpro * placas + otros * placas;
+  const subtotal = material + elec + desgaste + mo + dis + postpro * placas + otros * placas + costeMateriales;
 
   // Paso 2: fallos → costo total de todas las placas
   const fallosVal        = subtotal * (pFallos / 100);
@@ -108,6 +110,9 @@ function calcular() {
   set('b_dis',                fmt(dis));
   set('b_post',               fmt(postpro * placas));
   set('b_otros',              fmt(otros   * placas));
+  const hayMat = costeMateriales > 0;
+  if (el('b_materiales_row')) el('b_materiales_row').style.display = hayMat ? '' : 'none';
+  set('b_materiales',         fmt(costeMateriales));
   set('b_sub',                fmt(subtotal));
   set('b_fallos_label',       `+ Fallos (${pFallos}%)`);
   set('b_fallos_val',         fmt(fallosVal));

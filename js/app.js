@@ -138,6 +138,7 @@ function guardarCotizacion() {
     montoAbonado,
     montoPendiente: Math.max(0, precioFinal - montoAbonado),
     fechaPago:     '',
+    materialesAdicionales: materialesAdicionalesCotizacion.map(m => ({...m})),
     _desglose: desglose
   };
 
@@ -575,6 +576,9 @@ body{min-height:100vh;padding:20px 0 80px;display:flex;justify-content:center;al
 function nuevaCotizacion() {
   editingId = null;
   el('edit-banner').style.display = 'none';
+  materialesAdicionalesCotizacion = [];
+  renderMaterialesListaCotizacion();
+  poblarSelectMateriales();
   ['c_pieza','c_cliente','c_notas','c_material'].forEach(f => { if(el(f)) el(f).value = ''; });
   const nums = {
     c_cantidad:1, c_placas:1, c_gramos:0, c_horas_imp:0, c_horas_mo:0,
@@ -683,6 +687,9 @@ function editarEnCotizador(id) {
 
   el('edit-banner').style.display = 'flex';
   set('edit-banner-text', `Editando: ${t.pieza || 'cotización'} · ${t.cliente || ''}`);
+
+  materialesAdicionalesCotizacion = (t.materialesAdicionales || []).map(m=>({...m}));
+  renderMaterialesListaCotizacion();
 
   ocultarPostSave();
   calcular();
@@ -854,6 +861,7 @@ async function cargarInventario() {
     } catch(e2) { filamentos=[]; }
   }
   renderInventario();
+  poblarSelectMateriales();
 }
 
 function editarFilamento(id) {
@@ -869,8 +877,199 @@ function editarFilamento(id) {
 }
 
 function cancelarEditFilamento() {
-  if(el('inv-edit-id'))     { el('inv-edit-id').textContent=''; el('inv-edit-id').style.display='none'; }
-  if(el('inv-cancel-edit'))   el('inv-cancel-edit').style.display='none';
+  cancelarEditMaterial();
+}
+
+// ─── Material helpers ────────────────────────────────────
+function getMaterialNombre(m) {
+  if (m.nombre) return m.nombre;
+  return [m.tipo, m.color, m.marca].filter(Boolean).join(' ');
+}
+function getMaterialPrecioUnitario(m) {
+  if (m.precio_unitario != null) return m.precio_unitario;
+  if (m.precio_rollo && m.peso_rollo) return m.precio_rollo / m.peso_rollo;
+  return 0;
+}
+function getMaterialUnidad(m) { return m.unidad || 'g'; }
+function getMaterialStock(m) {
+  if (m.stock != null) return m.stock;
+  return (m.disponibles || 0) * (m.peso_rollo || 1000);
+}
+
+// ─── Inventory form toggle ────────────────────────────────
+function toggleInventarioTipo() {
+  const esFilamento = (el('inv_categoria')?.value || 'Filamento') === 'Filamento';
+  if (el('inv-fields-filamento')) el('inv-fields-filamento').style.display = esFilamento ? '' : 'none';
+  if (el('inv-fields-general'))   el('inv-fields-general').style.display   = esFilamento ? 'none' : '';
+}
+
+// ─── Save material (replaces agregarFilamento) ────────────
+async function guardarMaterial() {
+  const categoria = el('inv_categoria')?.value || 'Filamento';
+  const esFilamento = categoria === 'Filamento';
+  const editId = el('inv-edit-id')?.textContent?.trim() || '';
+  const id = editId || genId();
+  let data = { id, categoria };
+  data.marca       = el('inv_marca')?.value.trim()  || '';
+  data.proveedor   = el('inv_prov')?.value.trim()   || '';
+  data.notas       = el('inv_notas')?.value.trim()  || '';
+  data.fecha_compra = el('inv_fecha')?.value        || today();
+  if (esFilamento) {
+    const tipo  = el('inv_tipo')?.value || 'PLA';
+    const color = el('inv_color')?.value.trim();
+    if (!color) { toast('Ingrese el color del filamento', 'error'); return; }
+    const precio_rollo = fv('inv_precio');
+    const peso_rollo   = Math.max(fv('inv_peso') || 1000, 1);
+    const disponibles  = fv('inv_disp') || 1;
+    Object.assign(data, { tipo, color, precio_rollo, peso_rollo, disponibles });
+    data.nombre         = `${tipo} ${color}${data.marca ? ' '+data.marca : ''}`;
+    data.unidad         = 'g';
+    data.precio_unitario = precio_rollo / peso_rollo;
+    data.stock          = disponibles * peso_rollo;
+  } else {
+    const nombre = el('inv_nombre')?.value.trim();
+    if (!nombre) { toast('Ingrese el nombre del material', 'error'); return; }
+    data.nombre          = nombre;
+    data.unidad          = el('inv_unidad')?.value || 'unidades';
+    data.precio_unitario = fv('inv_precio_unit') || 0;
+    data.stock           = fv('inv_stock')       || 0;
+  }
+  const idx = filamentos.findIndex(f => f.id === id);
+  if (idx >= 0) filamentos[idx] = data; else filamentos.push(data);
+  try { localStorage.setItem('filamentos3d', JSON.stringify(filamentos)); } catch(e){}
+  try {
+    await fbGuardarFilamento(data);
+    toast(editId ? 'Material actualizado ✓' : 'Material agregado ✓', 'success');
+  } catch(e) { console.error(e); toast('No se pudo guardar el material','error'); }
+  cancelarEditMaterial();
+  limpiarFormMaterial();
+  renderInventario();
+  poblarSelectMateriales();
+}
+
+function limpiarFormMaterial() {
+  ['inv_color','inv_marca','inv_nombre','inv_prov','inv_notas'].forEach(id => { if(el(id)) el(id).value=''; });
+  if(el('inv_precio'))    el('inv_precio').value=0;
+  if(el('inv_peso'))      el('inv_peso').value=1000;
+  if(el('inv_disp'))      el('inv_disp').value=1;
+  if(el('inv_precio_unit')) el('inv_precio_unit').value=0;
+  if(el('inv_stock'))     el('inv_stock').value=0;
+  if(el('inv_fecha'))     el('inv_fecha').value=today();
+}
+
+function cancelarEditMaterial() {
+  if(el('inv-edit-id'))    { el('inv-edit-id').textContent=''; el('inv-edit-id').style.display='none'; }
+  if(el('inv-cancel-edit')) el('inv-cancel-edit').style.display='none';
+}
+
+function editarMaterial(id) {
+  const m = filamentos.find(f => f.id===id); if(!m) return;
+  if(el('inv-edit-id')) { el('inv-edit-id').textContent=id; el('inv-edit-id').style.display='none'; }
+  if(el('inv-cancel-edit')) el('inv-cancel-edit').style.display='inline-flex';
+  const categoria = m.categoria || 'Filamento';
+  if(el('inv_categoria')) el('inv_categoria').value = categoria;
+  toggleInventarioTipo();
+  if (categoria === 'Filamento') {
+    if(el('inv_tipo'))   el('inv_tipo').value   = m.tipo  || 'PLA';
+    if(el('inv_color'))  el('inv_color').value  = m.color || '';
+    if(el('inv_marca'))  el('inv_marca').value  = m.marca || '';
+    if(el('inv_precio')) el('inv_precio').value = m.precio_rollo || 0;
+    if(el('inv_peso'))   el('inv_peso').value   = m.peso_rollo   || 1000;
+    if(el('inv_disp'))   el('inv_disp').value   = m.disponibles  !== undefined ? m.disponibles : Math.round((m.stock||0)/(m.peso_rollo||1000)*10)/10;
+  } else {
+    if(el('inv_nombre'))     el('inv_nombre').value     = m.nombre         || '';
+    if(el('inv_unidad'))     el('inv_unidad').value     = m.unidad         || 'unidades';
+    if(el('inv_precio_unit'))el('inv_precio_unit').value= m.precio_unitario|| 0;
+    if(el('inv_stock'))      el('inv_stock').value      = m.stock          || 0;
+    if(el('inv_marca'))      el('inv_marca').value      = m.marca          || '';
+  }
+  if(el('inv_prov'))  el('inv_prov').value  = m.proveedor   || '';
+  if(el('inv_notas')) el('inv_notas').value = m.notas       || '';
+  if(el('inv_fecha')) el('inv_fecha').value = m.fecha_compra|| '';
+  document.getElementById('page-inventario')?.querySelector('.card')?.scrollIntoView({behavior:'smooth'});
+}
+
+// ─── Materiales en cotizador ──────────────────────────────
+let materialesAdicionalesCotizacion = [];
+
+function poblarSelectMateriales() {
+  const sel = el('mat_select'); if(!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">— Seleccionar —</option>';
+  [...filamentos]
+    .filter(m => getMaterialPrecioUnitario(m) > 0)
+    .sort((a,b) => getMaterialNombre(a).localeCompare(getMaterialNombre(b)))
+    .forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m.id;
+      const pu = getMaterialPrecioUnitario(m);
+      opt.textContent = `${getMaterialNombre(m)} (₡${pu.toFixed(2)}/${getMaterialUnidad(m)})`;
+      if(m.id===cur) opt.selected=true;
+      sel.appendChild(opt);
+    });
+}
+
+function actualizarCostoMaterial() {
+  const sel = el('mat_select');
+  const qty = parseFloat(el('mat_cantidad')?.value||0);
+  const m = sel?.value ? filamentos.find(f=>f.id===sel.value) : null;
+  if(m) {
+    const pu = getMaterialPrecioUnitario(m);
+    if(el('mat_unidad_label')) el('mat_unidad_label').textContent = getMaterialUnidad(m);
+    if(el('mat_costo_preview')) el('mat_costo_preview').textContent = fmt(pu*qty);
+  } else {
+    if(el('mat_unidad_label'))  el('mat_unidad_label').textContent  = 'und.';
+    if(el('mat_costo_preview')) el('mat_costo_preview').textContent = '₡0';
+  }
+}
+
+function agregarMaterialCotizacion() {
+  const sel = el('mat_select');
+  const qty = parseFloat(el('mat_cantidad')?.value||0);
+  if(!sel?.value) { toast('Seleccioná un material', 'error'); return; }
+  if(qty<=0)      { toast('Ingresá una cantidad mayor a 0', 'error'); return; }
+  const m = filamentos.find(f=>f.id===sel.value); if(!m) return;
+  const pu = getMaterialPrecioUnitario(m);
+  materialesAdicionalesCotizacion.push({
+    materialId: m.id, nombre: getMaterialNombre(m),
+    unidad: getMaterialUnidad(m), precio_unitario: pu, cantidad: qty, costo: pu*qty
+  });
+  sel.value='';
+  if(el('mat_cantidad')) el('mat_cantidad').value=0;
+  if(el('mat_unidad_label'))  el('mat_unidad_label').textContent='und.';
+  if(el('mat_costo_preview')) el('mat_costo_preview').textContent='₡0';
+  renderMaterialesListaCotizacion();
+  calcular();
+}
+
+function eliminarMaterialCotizacion(idx) {
+  materialesAdicionalesCotizacion.splice(idx,1);
+  renderMaterialesListaCotizacion();
+  calcular();
+}
+
+function renderMaterialesListaCotizacion() {
+  const cont = el('mat-lista-cotizacion'); if(!cont) return;
+  if(!materialesAdicionalesCotizacion.length) { cont.innerHTML=''; return; }
+  cont.innerHTML = materialesAdicionalesCotizacion.map((item,i) => `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:var(--surface2);border-radius:6px;margin-bottom:6px;font-size:.85rem;gap:8px">
+      <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+        <strong>${escHtml(item.nombre)}</strong> — ${item.cantidad} ${escHtml(item.unidad)}
+      </span>
+      <span style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+        <strong style="color:var(--primary)">${fmt(item.costo)}</strong>
+        <button class="btn btn-danger btn-icon btn-sm" onclick="eliminarMaterialCotizacion(${i})" title="Quitar">
+          <svg width="12" height="12" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2">
+            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
+            <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+          </svg>
+        </button>
+      </span>
+    </div>`).join('');
+}
+
+function calcularTotalMaterialesAdicionales() {
+  return materialesAdicionalesCotizacion.reduce((s,m)=>s+m.costo, 0);
 }
 
 async function eliminarFilamento(id) {

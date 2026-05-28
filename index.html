@@ -409,6 +409,34 @@
           <div class="form-group"><label>Otros costos (₡)</label><input type="number" id="c_otros" value="0" min="0" step="100" oninput="calcular()"></div>
         </div>
       </div>
+      <!-- MATERIALES DEL INVENTARIO -->
+      <div class="card">
+        <div class="card-title">
+          <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+          Materiales del Inventario
+          <span style="font-size:.75rem;color:var(--text3);font-weight:400;margin-left:8px">opcional</span>
+        </div>
+        <div id="mat-lista-cotizacion" style="margin-bottom:8px"></div>
+        <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
+          <div class="form-group" style="flex:2;min-width:160px">
+            <label>Material</label>
+            <select id="mat_select" onchange="actualizarCostoMaterial()">
+              <option value="">— Seleccionar —</option>
+            </select>
+          </div>
+          <div class="form-group" style="flex:1;min-width:90px">
+            <label>Cantidad (<span id="mat_unidad_label">und.</span>)</label>
+            <input type="number" id="mat_cantidad" value="0" min="0" step="0.1" oninput="actualizarCostoMaterial()">
+          </div>
+          <div class="form-group" style="flex:1;min-width:80px">
+            <label>Costo</label>
+            <div id="mat_costo_preview" style="font-weight:700;color:var(--primary);padding:6px 0;font-size:.95rem">₡0</div>
+          </div>
+          <div style="margin-bottom:2px">
+            <button class="btn btn-secondary btn-sm" onclick="agregarMaterialCotizacion()">+ Agregar</button>
+          </div>
+        </div>
+      </div>
       <div class="card">
         <div class="card-title">
           <svg viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
@@ -433,6 +461,7 @@
           <div class="breakdown-row"><span>Diseño</span><span class="breakdown-val" id="b_dis">₡0.00</span></div>
           <div class="breakdown-row"><span>Postprocesado</span><span class="breakdown-val" id="b_post">₡0.00</span></div>
           <div class="breakdown-row"><span>Otros</span><span class="breakdown-val" id="b_otros">₡0.00</span></div>
+          <div class="breakdown-row" id="b_materiales_row" style="display:none"><span>Materiales inventario</span><span class="breakdown-val" id="b_materiales">₡0.00</span></div>
           <div class="breakdown-row subtotal"><span>Subtotal</span><span class="breakdown-val" id="b_sub">₡0.00</span></div>
           <div class="breakdown-row"><span id="b_fallos_label">+ Fallos (5%)</span><span class="breakdown-val" id="b_fallos_val">₡0.00</span></div>
           <div class="breakdown-row subtotal"><span id="b_costo_fallos_label">Costo total (1 placa)</span><span class="breakdown-val" id="b_costo_fallos">₡0.00</span></div>
@@ -891,14 +920,30 @@
 
     <!-- PÁGINA: INVENTARIO -->
     <div class="page" id="page-inventario">
-      <div class="section-title">Inventario de Filamentos</div>
-      <div class="section-sub">Gestione su stock de filamentos</div>
+      <div class="section-title">Inventario de Materiales</div>
+      <div class="section-sub">Gestione su stock de materiales e insumos</div>
       <div class="card">
         <div class="card-title">
           <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          Agregar Filamento
+          Agregar Material
         </div>
-        <div class="form-grid">
+        <!-- Categoría -->
+        <div class="form-grid" style="margin-bottom:0">
+          <div class="form-group" style="grid-column:span 2">
+            <label>Categoría</label>
+            <select id="inv_categoria" onchange="toggleInventarioTipo()">
+              <option value="Filamento">Filamento</option>
+              <option value="Resina">Resina</option>
+              <option value="Adhesivo">Adhesivo</option>
+              <option value="Pintura">Pintura / Acabado</option>
+              <option value="Ferretería">Ferretería / Tornillería</option>
+              <option value="Electrónica">Electrónica</option>
+              <option value="Otro">Otro</option>
+            </select>
+          </div>
+        </div>
+        <!-- Campos específicos de filamento -->
+        <div id="inv-fields-filamento" class="form-grid" style="margin-bottom:0">
           <div class="form-group">
             <label>Tipo</label>
             <select id="inv_tipo">
@@ -909,21 +954,41 @@
             </select>
           </div>
           <div class="form-group"><label>Color</label><input type="text" id="inv_color" placeholder="Ej: Blanco, Negro…"></div>
-          <div class="form-group"><label>Marca</label><input type="text" id="inv_marca" placeholder="Ej: Polymaker, Sunlu…"></div>
           <div class="form-group"><label>Precio por rollo (₡)</label><input type="number" id="inv_precio" value="0" min="0" step="100"></div>
           <div class="form-group"><label>Peso del rollo (g)</label><input type="number" id="inv_peso" value="1000" min="1"></div>
           <div class="form-group"><label>Rollos disponibles</label><input type="number" id="inv_disp" value="1" min="0" step="0.1"></div>
+        </div>
+        <!-- Campos generales (no filamento) -->
+        <div id="inv-fields-general" class="form-grid" style="display:none;margin-bottom:0">
+          <div class="form-group" style="grid-column:span 2"><label>Nombre del material *</label><input type="text" id="inv_nombre" placeholder="Ej: Resina Clear Elegoo, Tornillo M3 10mm…"></div>
+          <div class="form-group">
+            <label>Unidad</label>
+            <select id="inv_unidad">
+              <option value="unidades">Unidades</option>
+              <option value="g">Gramos (g)</option>
+              <option value="ml">Mililitros (ml)</option>
+              <option value="kg">Kilogramos (kg)</option>
+              <option value="L">Litros (L)</option>
+              <option value="metros">Metros</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Precio unitario (₡)</label><input type="number" id="inv_precio_unit" value="0" min="0" step="1"></div>
+          <div class="form-group"><label>Stock disponible</label><input type="number" id="inv_stock" value="0" min="0" step="1"></div>
+        </div>
+        <!-- Campos comunes -->
+        <div class="form-grid" style="margin-bottom:0">
+          <div class="form-group"><label>Marca</label><input type="text" id="inv_marca" placeholder="Ej: Polymaker, Sunlu…"></div>
           <div class="form-group"><label>Proveedor</label><input type="text" id="inv_prov" placeholder="Nombre del proveedor"></div>
           <div class="form-group"><label>Fecha de compra</label><input type="date" id="inv_fecha"></div>
-          <div class="form-group" style="grid-column:span 2"><label>Notas</label><textarea id="inv_notas" rows="2" placeholder="Notas sobre el filamento…"></textarea></div>
+          <div class="form-group" style="grid-column:span 2"><label>Notas</label><textarea id="inv_notas" rows="2" placeholder="Notas adicionales…"></textarea></div>
         </div>
         <div class="btn-group" style="margin-top:14px">
-          <button class="btn btn-primary" onclick="agregarFilamento()">
+          <button class="btn btn-primary" onclick="guardarMaterial()">
             <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            <span>Agregar al inventario</span>
+            <span>Guardar material</span>
           </button>
           <span id="inv-edit-id" style="display:none"></span>
-          <button class="btn btn-ghost" id="inv-cancel-edit" style="display:none" onclick="cancelarEditFilamento()">Cancelar edición</button>
+          <button class="btn btn-ghost" id="inv-cancel-edit" style="display:none" onclick="cancelarEditMaterial()">Cancelar edición</button>
         </div>
       </div>
       <div class="card">
@@ -933,13 +998,13 @@
         </div>
         <div class="table-wrap">
           <table id="inv-table">
-            <thead><tr><th>Tipo</th><th>Color</th><th>Marca</th><th>Precio/Rollo</th><th>Peso (g)</th><th>Costo/g</th><th>Disponible</th><th>Valor restante</th><th>Proveedor</th><th>Fecha compra</th><th>Acciones</th></tr></thead>
+            <thead><tr><th>Categoría</th><th>Nombre</th><th>Unidad</th><th>P. Unitario</th><th>Stock</th><th>Valor total</th><th>Marca</th><th>Acciones</th></tr></thead>
             <tbody id="inv-tbody"></tbody>
           </table>
         </div>
         <div id="inv-empty" class="empty-state" style="display:none">
           <svg viewBox="0 0 24 24"><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
-          <p>No hay filamentos en el inventario</p>
+          <p>No hay materiales en el inventario</p>
         </div>
       </div>
     </div>
@@ -1364,8 +1429,8 @@
 
 <script src="js/db.js?v=20260526"></script>
 <script src="js/logic.js?v=20260526"></script>
-<script src="js/ui.js?v=20260529"></script>
-<script src="js/app.js?v=20260531"></script>
+<script src="js/ui.js?v=20260601"></script>
+<script src="js/app.js?v=20260601"></script>
 <script src="js/auth.js?v=20260526"></script>
 
 </body>
