@@ -578,6 +578,7 @@ function nuevaCotizacion() {
   editingId = null;
   el('edit-banner').style.display = 'none';
   materialesAdicionalesCotizacion = [];
+  _matPreviewCosto = 0;
   renderMaterialesListaCotizacion();
   poblarSelectMateriales();
   ['c_pieza','c_cliente','c_notas','c_material'].forEach(f => { if(el(f)) el(f).value = ''; });
@@ -690,6 +691,7 @@ function editarEnCotizador(id) {
   set('edit-banner-text', `Editando: ${t.pieza || 'cotización'} · ${t.cliente || ''}`);
 
   materialesAdicionalesCotizacion = (t.materialesAdicionales || []).map(m=>({...m}));
+  _matPreviewCosto = 0;
   renderMaterialesListaCotizacion();
 
   ocultarPostSave();
@@ -1012,6 +1014,7 @@ function editarMaterial(id) {
 
 // ─── Materiales en cotizador ──────────────────────────────
 let materialesAdicionalesCotizacion = [];
+let _matPreviewCosto = 0;
 
 function poblarSelectMateriales() {
   const sel = el('mat_select'); if(!sel) return;
@@ -1038,11 +1041,14 @@ function actualizarCostoMaterial() {
   if(m) {
     const pu = getMaterialPrecioUnitario(m);
     if(el('mat_unidad_label')) el('mat_unidad_label').textContent = getMaterialUnidad(m);
-    if(el('mat_costo_preview')) el('mat_costo_preview').textContent = fmt(pu*qty);
+    _matPreviewCosto = pu * qty;
+    if(el('mat_costo_preview')) el('mat_costo_preview').textContent = fmt(_matPreviewCosto);
   } else {
+    _matPreviewCosto = 0;
     if(el('mat_unidad_label'))  el('mat_unidad_label').textContent  = 'und.';
     if(el('mat_costo_preview')) el('mat_costo_preview').textContent = '₡0';
   }
+  calcular();
 }
 
 function agregarMaterialCotizacion() {
@@ -1050,12 +1056,14 @@ function agregarMaterialCotizacion() {
   const qty = parseFloat(el('mat_cantidad')?.value||0);
   if(!sel?.value) { toast('Seleccioná un material', 'error'); return; }
   if(qty<=0)      { toast('Ingresá una cantidad mayor a 0', 'error'); return; }
-  const m = filamentos.find(f=>f.id===sel.value); if(!m) return;
+  const m = filamentos.find(f=>f.id===sel.value);
+  if(!m) { toast('Material no encontrado en inventario', 'error'); return; }
   const pu = getMaterialPrecioUnitario(m);
   materialesAdicionalesCotizacion.push({
     materialId: m.id, nombre: getMaterialNombre(m),
     unidad: getMaterialUnidad(m), precio_unitario: pu, cantidad: qty, costo: pu*qty
   });
+  _matPreviewCosto = 0;
   sel.value='';
   if(el('mat_cantidad')) el('mat_cantidad').value=0;
   if(el('mat_unidad_label'))  el('mat_unidad_label').textContent='und.';
@@ -1091,7 +1099,7 @@ function renderMaterialesListaCotizacion() {
 }
 
 function calcularTotalMaterialesAdicionales() {
-  return materialesAdicionalesCotizacion.reduce((s,m)=>s+m.costo, 0);
+  return materialesAdicionalesCotizacion.reduce((s,m)=>s+m.costo, 0) + (_matPreviewCosto || 0);
 }
 
 async function eliminarFilamento(id) {
