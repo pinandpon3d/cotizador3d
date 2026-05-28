@@ -72,6 +72,7 @@ function navTo(page) {
   if (page !== 'trabajos')      limpiarSeleccion();
   if (page === 'trabajos')      cargarTrabajos();
   if (page === 'inventario')    cargarInventario();
+  if (page === 'cotizador')     poblarSelectMateriales();
   if (page === 'configuracion') { calcCfg(); actualizarUIUsuario && actualizarUIUsuario(); }
   if (page === 'usuarios')      { if (typeof cargarUsuarios === 'function') cargarUsuarios(); }
   if (page === 'dashboard')     cargarDashboard();
@@ -2528,6 +2529,7 @@ function onAuthSuccess() {
   try { const l=localStorage.getItem('trabajos3d');   if(l) trabajos=JSON.parse(l);   } catch(e){}
   try { const l=localStorage.getItem('filamentos3d'); if(l) filamentos=JSON.parse(l); } catch(e){}
   try { const l=localStorage.getItem('clientes3d');   if(l) clientes=JSON.parse(l);  } catch(e){}
+  poblarSelectMateriales();
   navTo('dashboard');
   cargarConfiguracion();
 }
