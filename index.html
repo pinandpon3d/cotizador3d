@@ -7,8 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<!-- Capa de estilos -->
-<link rel="stylesheet" href="css/styles.css?v=20260527">
+<!-- Capa de estilos — versión dinámica para evitar caché obsoleto -->
+<script>document.write('<link rel="stylesheet" href="css/styles.css?v='+Date.now()+'">');</script>
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
@@ -1426,11 +1426,14 @@
   </div>
 </div>
 
-<script src="js/db.js?v=20260526"></script>
-<script src="js/logic.js?v=20260526"></script>
-<script src="js/ui.js?v=20260612"></script>
-<script src="js/app.js?v=20260610"></script>
-<script src="js/auth.js?v=20260526"></script>
+<script>
+  (function(){
+    var v = Date.now();
+    ['js/db.js','js/logic.js','js/ui.js','js/app.js','js/auth.js'].forEach(function(s){
+      document.write('<script src="'+s+'?v='+v+'"><\/script>');
+    });
+  })();
+</script>
 
 </body>
 </html>
