@@ -199,10 +199,10 @@ async function cambiarEstado(id, estado, selectEl) {
   if (t) { t.estado = estado; t.fechaActualizacionEstado = ahora; }
   const ec = (typeof ESTADO_COLOR !== 'undefined' ? ESTADO_COLOR[estado] : null) || 'badge-gray';
   if (selectEl) selectEl.className = 'badge ' + ec + ' estado-select';
-  renderTrabajos();
   try {
     await fbActualizarEstado(id, estado);
     toast('Estado actualizado correctamente ✓', 'success');
+    renderTrabajos();
   } catch(e) {
     console.error('Error actualizando estado:', e);
     toast('No se pudo actualizar el estado', 'error');
@@ -2500,10 +2500,10 @@ async function cambiarPago(id, pago, selectEl) {
   if (t) t.estadoPago = pago;
   const cls = getPagoClass(pago);
   if (selectEl) selectEl.className = `badge ${cls} pago-select`;
-  renderTrabajos();
   try {
     await fbActualizarPago(id, { estadoPago: pago });
     toast('Pago actualizado ✓', 'success');
+    renderTrabajos();
   } catch(e) {
     toast('Error actualizando pago', 'error');
   }
