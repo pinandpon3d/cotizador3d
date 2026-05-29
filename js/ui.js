@@ -111,8 +111,7 @@ const ESTADO_COLOR = {
   'Post-proceso': 'badge-warn',
   'Listo':        'badge-success',
   'Entregado':    'badge-darkgreen',
-  'Cancelado':    'badge-danger',
-  'Venta':        'badge-blue'
+  'Cancelado':    'badge-danger'
 };
 
 // getPagoClass() is defined in app.js (uses dynamic categoriasPago)
@@ -166,19 +165,27 @@ function renderTrabajos() {
 
   const hoy = new Date().toISOString().split('T')[0];
 
-  // Estadísticas
-  const ESTADOS_POR_COBRAR = ['Aprobado', 'En impresión', 'Post-proceso'];
+  // Estadísticas — conteos globales, financieros sobre la lista visible
+  const ESTADOS_ACTIVOS = ['Aprobado', 'En impresión', 'Post-proceso', 'Listo'];
   const total      = trabajos.length;
   const aprobados  = trabajos.filter(t => t.estado === 'Aprobado').length;
   const entregados = trabajos.filter(t => t.estado === 'Entregado').length;
   const ingresos   = list.reduce((s,t) => s + ingresosLote(t), 0);
   const ganancias  = list.reduce((s,t) => s + gananciaLote(t), 0);
-  const pendPago   = trabajos.filter(t => t.estado !== 'Cancelado' && (t.estadoPago||'Pendiente') !== 'Pagado').length;
+  const pendPago   = trabajos.filter(t => ESTADOS_ACTIVOS.includes(t.estado) && (t.estadoPago||'Pendiente') !== 'Pagado').length;
   const porCobrar  = trabajos
-    .filter(t => ESTADOS_POR_COBRAR.includes(t.estado))
-    .reduce((s,t) => s + (t.montoPendiente != null
-      ? t.montoPendiente
-      : Math.max(0,(t.precio_final||0)-(t.montoAbonado||0))), 0);
+    .filter(t => ESTADOS_ACTIVOS.includes(t.estado))
+    .reduce((s, t) => {
+      if (_esDetalle(t)) {
+        const cant = Math.max(t.cantidad || 1, 1);
+        const v    = Math.min(t.unidadesVendidas || 0, cant);
+        return s + ((cant - v) / cant) * (t.precio_final || 0);
+      }
+      if ((t.estadoPago || 'Pendiente') === 'Pagado') return s;
+      return s + (t.montoPendiente != null
+        ? t.montoPendiente
+        : Math.max(0, (t.precio_final || 0) - (t.montoAbonado || 0)));
+    }, 0);
 
   set('st-total',      total);
   set('st-aprobados',  aprobados);
@@ -235,7 +242,7 @@ function renderTrabajos() {
       <td class="td-mono"><strong style="${ganClass}">${fmt(ganObj)}</strong></td>
       <td>
         <select class="badge ${ec} estado-select" onchange="cambiarEstado('${t.id}',this.value,this)">
-          ${['Cotizado','Aprobado','En impresión','Post-proceso','Listo','Entregado','Cancelado','Venta']
+          ${['Cotizado','Aprobado','En impresión','Post-proceso','Listo','Entregado','Cancelado']
             .map(s=>`<option value="${s}"${t.estado===s?' selected':''}>${s}</option>`).join('')}
         </select>
         <div style="font-size:.6rem;color:var(--text3);margin-top:2px">${fechaAct}</div>
@@ -457,12 +464,20 @@ function renderDashboard(filtro = 'mes-actual') {
   const clienteTop = clientTop ? `${clientTop[0]} (${clientTop[1]})` : '—';
 
   // Monto por cobrar y entregas urgentes
-  const ESTADOS_POR_COBRAR_DASH = ['Aprobado', 'En impresión', 'Post-proceso'];
+  const ESTADOS_ACTIVOS_DASH = ['Aprobado', 'En impresión', 'Post-proceso', 'Listo'];
   const montoPorCobrar = lista
-    .filter(t => ESTADOS_POR_COBRAR_DASH.includes(t.estado))
-    .reduce((s,t) => s + (t.montoPendiente != null
-      ? t.montoPendiente
-      : Math.max(0,(t.precio_final||0)-(t.montoAbonado||0))), 0);
+    .filter(t => ESTADOS_ACTIVOS_DASH.includes(t.estado))
+    .reduce((s, t) => {
+      if (_esDetalle(t)) {
+        const cant = Math.max(t.cantidad || 1, 1);
+        const v    = Math.min(t.unidadesVendidas || 0, cant);
+        return s + ((cant - v) / cant) * (t.precio_final || 0);
+      }
+      if ((t.estadoPago || 'Pendiente') === 'Pagado') return s;
+      return s + (t.montoPendiente != null
+        ? t.montoPendiente
+        : Math.max(0, (t.precio_final || 0) - (t.montoAbonado || 0)));
+    }, 0);
   const hoyDash = new Date().toISOString().split('T')[0];
   const urgentes = lista.filter(t =>
     t.fechaEntrega && t.fechaEntrega <= hoyDash &&
