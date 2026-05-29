@@ -29,7 +29,8 @@ function ingresosLote(t) {
     const v    = Math.min(t.unidadesVendidas || 0, cant);
     return v === 0 ? 0 : (v / cant) * (t.precio_final || 0);
   }
-  return t.estado === 'Entregado' ? (t.precio_final || 0) : 0;
+  return (t.estado === 'Entregado' && (t.estadoPago || 'Pendiente') === 'Pagado')
+    ? (t.precio_final || 0) : 0;
 }
 
 function gananciaLote(t) {
@@ -39,9 +40,8 @@ function gananciaLote(t) {
     const v    = Math.min(t.unidadesVendidas || 0, cant);
     return v === 0 ? 0 : (v / cant) * ((t.precio_final || 0) - (t.costo_total || 0));
   }
-  return t.estado === 'Entregado'
-    ? (t.precio_final || 0) - (t.costo_total || 0)
-    : 0;
+  return (t.estado === 'Entregado' && (t.estadoPago || 'Pendiente') === 'Pagado')
+    ? (t.precio_final || 0) - (t.costo_total || 0) : 0;
 }
 
 /* ----------------------------------------------------------
@@ -166,15 +166,16 @@ function renderTrabajos() {
   const hoy = new Date().toISOString().split('T')[0];
 
   // Estadísticas — conteos globales, financieros sobre la lista visible
-  const ESTADOS_ACTIVOS = ['Aprobado', 'En impresión', 'Post-proceso', 'Listo'];
+  const ESTADOS_ACTIVOS     = ['Aprobado', 'En impresión', 'Post-proceso', 'Listo'];
+  const ESTADOS_POR_COBRAR  = [...ESTADOS_ACTIVOS, 'Entregado'];
   const total      = trabajos.length;
   const aprobados  = trabajos.filter(t => t.estado === 'Aprobado').length;
   const entregados = trabajos.filter(t => t.estado === 'Entregado').length;
   const ingresos   = list.reduce((s,t) => s + ingresosLote(t), 0);
   const ganancias  = list.reduce((s,t) => s + gananciaLote(t), 0);
-  const pendPago   = trabajos.filter(t => ESTADOS_ACTIVOS.includes(t.estado) && (t.estadoPago||'Pendiente') !== 'Pagado').length;
+  const pendPago   = trabajos.filter(t => ESTADOS_POR_COBRAR.includes(t.estado) && (t.estadoPago||'Pendiente') !== 'Pagado').length;
   const porCobrar  = trabajos
-    .filter(t => ESTADOS_ACTIVOS.includes(t.estado))
+    .filter(t => ESTADOS_POR_COBRAR.includes(t.estado))
     .reduce((s, t) => {
       if (_esDetalle(t)) {
         const cant = Math.max(t.cantidad || 1, 1);
@@ -464,9 +465,9 @@ function renderDashboard(filtro = 'mes-actual') {
   const clienteTop = clientTop ? `${clientTop[0]} (${clientTop[1]})` : '—';
 
   // Monto por cobrar y entregas urgentes
-  const ESTADOS_ACTIVOS_DASH = ['Aprobado', 'En impresión', 'Post-proceso', 'Listo'];
+  const ESTADOS_POR_COBRAR_DASH = ['Aprobado', 'En impresión', 'Post-proceso', 'Listo', 'Entregado'];
   const montoPorCobrar = lista
-    .filter(t => ESTADOS_ACTIVOS_DASH.includes(t.estado))
+    .filter(t => ESTADOS_POR_COBRAR_DASH.includes(t.estado))
     .reduce((s, t) => {
       if (_esDetalle(t)) {
         const cant = Math.max(t.cantidad || 1, 1);
