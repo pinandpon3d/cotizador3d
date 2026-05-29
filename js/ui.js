@@ -24,15 +24,20 @@ function _esDetalle(t) {
 
 function ingresosLote(t) {
   if (t.estado === 'Cancelado') return 0;
-  if (_esDetalle(t)) return _unidadesVendidas(t) * (t.precio_unitario || 0);
+  if (_esDetalle(t)) {
+    const cant = Math.max(t.cantidad || 1, 1);
+    const v    = Math.min(t.unidadesVendidas || 0, cant);
+    return v === 0 ? 0 : (v / cant) * (t.precio_final || 0);
+  }
   return t.estado === 'Entregado' ? (t.precio_final || 0) : 0;
 }
 
 function gananciaLote(t) {
   if (t.estado === 'Cancelado') return 0;
   if (_esDetalle(t)) {
-    const costoU = (t.costo_total || 0) / Math.max(t.cantidad || 1, 1);
-    return _unidadesVendidas(t) * ((t.precio_unitario || 0) - costoU);
+    const cant = Math.max(t.cantidad || 1, 1);
+    const v    = Math.min(t.unidadesVendidas || 0, cant);
+    return v === 0 ? 0 : (v / cant) * ((t.precio_final || 0) - (t.costo_total || 0));
   }
   return t.estado === 'Entregado'
     ? (t.precio_final || 0) - (t.costo_total || 0)
@@ -166,8 +171,8 @@ function renderTrabajos() {
   const total      = trabajos.length;
   const aprobados  = trabajos.filter(t => t.estado === 'Aprobado').length;
   const entregados = trabajos.filter(t => t.estado === 'Entregado').length;
-  const ingresos   = trabajos.reduce((s,t) => s + ingresosLote(t), 0);
-  const ganancias  = trabajos.reduce((s,t) => s + gananciaLote(t), 0);
+  const ingresos   = list.reduce((s,t) => s + ingresosLote(t), 0);
+  const ganancias  = list.reduce((s,t) => s + gananciaLote(t), 0);
   const pendPago   = trabajos.filter(t => t.estado !== 'Cancelado' && (t.estadoPago||'Pendiente') !== 'Pagado').length;
   const porCobrar  = trabajos
     .filter(t => ESTADOS_POR_COBRAR.includes(t.estado))
@@ -598,9 +603,9 @@ function renderVentaDetalle(lotes) {
     const vendidas   = Math.min(l.unidadesVendidas || 0, total);
     const disponibles = total - vendidas;
     const pct        = Math.round((vendidas / total) * 100);
-    const precioUnit = l.precio_unitario || 0;
+    const precioUnit = total > 0 ? (l.precio_final || 0) / total : 0;
     const recaudado  = vendidas * precioUnit;
-    const potencial  = total   * precioUnit;
+    const potencial  = l.precio_final || 0;
     const agotado    = disponibles === 0;
 
     const histItems = (l.historialVentas || [])
