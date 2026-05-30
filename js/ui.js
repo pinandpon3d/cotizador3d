@@ -27,7 +27,8 @@ function ingresosLote(t) {
   if (_esDetalle(t)) {
     const cant = Math.max(t.cantidad || 1, 1);
     const v    = Math.min(t.unidadesVendidas || 0, cant);
-    return v === 0 ? 0 : (v / cant) * (t.precio_final || 0);
+    // Solo suma a Ingresos Totales cuando TODOS los objetos están vendidos
+    return v >= cant ? (t.precio_final || 0) : 0;
   }
   return (t.estado === 'Entregado' && (t.estadoPago || 'Pendiente') === 'Pagado')
     ? (t.precio_final || 0) : 0;
@@ -38,10 +39,18 @@ function gananciaLote(t) {
   if (_esDetalle(t)) {
     const cant = Math.max(t.cantidad || 1, 1);
     const v    = Math.min(t.unidadesVendidas || 0, cant);
-    return v === 0 ? 0 : (v / cant) * ((t.precio_final || 0) - (t.costo_total || 0));
+    return v >= cant ? (t.precio_final || 0) - (t.costo_total || 0) : 0;
   }
   return (t.estado === 'Entregado' && (t.estadoPago || 'Pendiente') === 'Pagado')
     ? (t.precio_final || 0) - (t.costo_total || 0) : 0;
+}
+
+function ingresosDetalleParcial(t) {
+  if (t.estado === 'Cancelado' || !_esDetalle(t)) return 0;
+  const cant = Math.max(t.cantidad || 1, 1);
+  const v    = Math.min(t.unidadesVendidas || 0, cant);
+  if (v <= 0 || v >= cant) return 0; // 0 vendidos = nada; todos vendidos = ya va a Ingresos Totales
+  return (v / cant) * (t.precio_final || 0);
 }
 
 /* ----------------------------------------------------------
@@ -171,8 +180,9 @@ function renderTrabajos() {
   const total      = trabajos.length;
   const aprobados  = trabajos.filter(t => t.estado === 'Aprobado').length;
   const entregados = trabajos.filter(t => t.estado === 'Entregado').length;
-  const ingresos   = list.reduce((s,t) => s + ingresosLote(t), 0);
-  const ganancias  = list.reduce((s,t) => s + gananciaLote(t), 0);
+  const ingresos        = list.reduce((s,t) => s + ingresosLote(t), 0);
+  const ganancias       = list.reduce((s,t) => s + gananciaLote(t), 0);
+  const ingresosDetalle = list.filter(_esDetalle).reduce((s,t) => s + ingresosDetalleParcial(t), 0);
   const pendPago   = trabajos.filter(t => ESTADOS_POR_COBRAR.includes(t.estado) && (t.estadoPago||'Pendiente') !== 'Pagado').length;
   const porCobrar  = trabajos
     .filter(t => ESTADOS_POR_COBRAR.includes(t.estado))
@@ -188,13 +198,14 @@ function renderTrabajos() {
         : Math.max(0, (t.precio_final || 0) - (t.montoAbonado || 0)));
     }, 0);
 
-  set('st-total',      total);
-  set('st-aprobados',  aprobados);
-  set('st-entregados', entregados);
-  set('st-ingresos',   fmt(ingresos));
-  set('st-ganancias',  fmt(ganancias));
-  set('st-pend-pago',  pendPago);
-  set('st-por-cobrar', fmt(porCobrar));
+  set('st-total',              total);
+  set('st-aprobados',          aprobados);
+  set('st-entregados',         entregados);
+  set('st-ingresos',           fmt(ingresos));
+  set('st-ingresos-detalle',   fmt(ingresosDetalle));
+  set('st-ganancias',          fmt(ganancias));
+  set('st-pend-pago',          pendPago);
+  set('st-por-cobrar',         fmt(porCobrar));
 
   // Vista kanban: delegar renderizado y salir
   if (typeof _trabajosVista !== 'undefined' && _trabajosVista === 'kanban') {
@@ -438,10 +449,11 @@ function renderDashboard(filtro = 'mes-actual') {
   }
 
   // Calcular KPIs
-  const entregados  = lista.filter(t => t.estado === 'Entregado');
-  const ventasMes   = lista.reduce((s,t) => s + ingresosLote(t), 0);
-  const gananciaMes = lista.reduce((s,t) => s + gananciaLote(t), 0);
-  const pendPago    = lista.filter(t => (t.estadoPago||'Pendiente') !== 'Pagado').length;
+  const entregados          = lista.filter(t => t.estado === 'Entregado');
+  const ventasMes           = lista.reduce((s,t) => s + ingresosLote(t), 0);
+  const gananciaMes         = lista.reduce((s,t) => s + gananciaLote(t), 0);
+  const ingresosDetalleMes  = lista.filter(_esDetalle).reduce((s,t) => s + ingresosDetalleParcial(t), 0);
+  const pendPago            = lista.filter(t => (t.estadoPago||'Pendiente') !== 'Pagado').length;
 
   const countByEstado = {};
   ['Cotizado','Aprobado','En impresión','Post-proceso','Listo','Entregado','Cancelado']
@@ -487,8 +499,9 @@ function renderDashboard(filtro = 'mes-actual') {
   ).length;
 
   // Actualizar DOM
-  set('dash-ventas',       fmt(ventasMes));
-  set('dash-ganancia',     fmt(gananciaMes));
+  set('dash-ventas',              fmt(ventasMes));
+  set('dash-ganancia',            fmt(gananciaMes));
+  set('dash-ingresos-detalle',    fmt(ingresosDetalleMes));
   set('dash-total-lista',  lista.length);
   set('dash-monto-cobrar', fmt(montoPorCobrar));
   set('dash-urgentes',     urgentes);
