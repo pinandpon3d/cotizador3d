@@ -220,6 +220,95 @@
 </div>
 
 <!-- =====================================================
+     MODAL: HISTORIAL DE PAGOS (ABONOS)
+====================================================== -->
+<div class="modal-overlay" id="modal-abono" style="display:none" onclick="if(event.target===this)cerrarModalAbono()">
+  <div class="modal" style="max-width:500px">
+    <div class="modal-header">
+      <div class="modal-title">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
+          <line x1="1" y1="10" x2="23" y2="10"/>
+          <line x1="8" y1="15" x2="8" y2="15" stroke-width="3" stroke-linecap="round"/>
+          <line x1="12" y1="15" x2="16" y2="15" stroke-width="3" stroke-linecap="round"/>
+        </svg>
+        Pagos — <span id="abono-modal-pieza">—</span>
+      </div>
+      <button class="modal-close" onclick="cerrarModalAbono()">
+        <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <!-- KPIs de pago -->
+      <div class="abono-summary">
+        <div class="abono-sum-item">
+          <div class="abono-sum-label">Total</div>
+          <div class="abono-sum-val" id="abono-total">₡0</div>
+        </div>
+        <div class="abono-sum-item">
+          <div class="abono-sum-label">Pagado</div>
+          <div class="abono-sum-val success" id="abono-pagado">₡0</div>
+        </div>
+        <div class="abono-sum-item">
+          <div class="abono-sum-label">Pendiente</div>
+          <div class="abono-sum-val warn" id="abono-pendiente">₡0</div>
+        </div>
+      </div>
+      <!-- Barra de progreso -->
+      <div class="abono-progress-wrap">
+        <div class="abono-progress-track">
+          <div class="abono-progress-bar" id="abono-progress-bar" style="width:0%"></div>
+        </div>
+        <span class="abono-progress-pct" id="abono-progress-pct">0%</span>
+      </div>
+
+      <!-- Historial -->
+      <div class="modal-section-title" style="margin:16px 0 8px">Historial de abonos</div>
+      <div id="abono-lista"></div>
+
+      <!-- Nuevo abono -->
+      <div class="modal-section-title" style="margin:18px 0 8px">Registrar nuevo abono</div>
+      <div class="form-grid" style="grid-template-columns:1fr 1fr">
+        <div class="form-group">
+          <label>Fecha</label>
+          <input type="date" id="abono-fecha">
+        </div>
+        <div class="form-group">
+          <label>Monto (₡)</label>
+          <input type="number" id="abono-monto" min="1" step="100" placeholder="0">
+        </div>
+        <div class="form-group">
+          <label>Método de pago</label>
+          <select id="abono-metodo">
+            <option value="">Sin especificar</option>
+            <option value="SINPE">SINPE Móvil</option>
+            <option value="Efectivo">Efectivo</option>
+            <option value="Transferencia">Transferencia bancaria</option>
+            <option value="Tarjeta">Tarjeta</option>
+            <option value="Otro">Otro</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Nota <span style="font-size:.75rem;color:var(--text3)">(opcional)</span></label>
+          <input type="text" id="abono-nota" placeholder="ej. primera cuota">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="cerrarModalAbono()">Cerrar</button>
+      <button class="btn btn-primary" onclick="registrarAbono()">
+        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+        Registrar abono
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- =====================================================
      LAYOUT PRINCIPAL (oculto hasta autenticarse)
 ====================================================== -->
 <div class="layout" id="app-layout" style="display:none">

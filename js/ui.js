@@ -225,6 +225,9 @@ function renderTrabajos() {
       checked ? 'tr-selected' : '',
       entregaAlerta ? `tr-entrega-${entregaAlerta}` : ''
     ].filter(Boolean).join(' ');
+    const rowPendiente = t.montoPendiente != null
+      ? t.montoPendiente
+      : Math.max(0, (t.precio_final||0) - (t.montoAbonado||0));
 
     return `<tr class="${trClass}">
       <td class="td-check"><input type="checkbox" class="sel-check" data-id="${t.id}" ${checked} onchange="toggleSeleccion('${t.id}', this)"></td>
@@ -249,10 +252,8 @@ function renderTrabajos() {
         <div style="font-size:.6rem;color:var(--text3);margin-top:2px">${fechaAct}</div>
       </td>
       <td>
-        <select class="badge ${pcls} pago-select" onchange="cambiarPago('${t.id}',this.value,this)">
-          ${(typeof categoriasPago!=='undefined'?categoriasPago:['Pendiente','Abono','Pagado'])
-            .map(c=>`<option value="${c}"${(t.estadoPago||categoriasPago[0]||'Pendiente')===c?' selected':''}>${c}</option>`).join('')}
-        </select>
+        <button class="badge ${pcls} abono-badge-btn" onclick="abrirModalAbono('${t.id}')" title="Ver historial de pagos">${t.estadoPago||'Pendiente'}</button>
+        ${(t.estadoPago||'Pendiente') === 'Abono' && rowPendiente > 0 ? `<div style="font-size:.6rem;color:var(--text3);margin-top:2px">Pend: ₡${fmt(rowPendiente)}</div>` : ''}
       </td>
       <td><div class="td-actions">
         <button class="btn btn-ghost btn-icon btn-sm" title="Copiar WhatsApp"
@@ -274,8 +275,8 @@ function renderTrabajos() {
             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
           </svg>
         </button>
-        <button class="btn btn-ghost btn-icon btn-sm" title="Actualizar pago"
-          onclick='abrirModalEdicion("${t.id}")'>
+        <button class="btn btn-ghost btn-icon btn-sm" title="Historial de pagos"
+          onclick='abrirModalAbono("${t.id}")'>
           <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/>
           </svg>
@@ -591,6 +592,73 @@ function _renderCharts(lista, countByEstado, anio, mes) {
       }
     });
   }
+}
+
+/* ----------------------------------------------------------
+   Modal historial de abonos — render interno
+---------------------------------------------------------- */
+function renderHistorialAbonos(t) {
+  const abonos    = t.abonos || [];
+  const total     = t.precio_final || 0;
+  const legacyAmt = abonos.length === 0 ? (t.montoAbonado || 0) : 0;
+  const pagado    = legacyAmt + abonos.reduce((s, a) => s + (a.monto || 0), 0);
+  const pendiente = Math.max(0, total - pagado);
+  const pct       = total > 0 ? Math.min(100, (pagado / total) * 100) : 0;
+
+  set('abono-modal-pieza', escHtml(t.pieza || '—'));
+  set('abono-total',     fmt(total));
+  set('abono-pagado',    fmt(pagado));
+  set('abono-pendiente', fmt(pendiente));
+
+  const bar = el('abono-progress-bar');
+  if (bar) bar.style.width = pct.toFixed(1) + '%';
+  const pctEl = el('abono-progress-pct');
+  if (pctEl) pctEl.textContent = pct.toFixed(0) + '%';
+
+  const lista = el('abono-lista');
+  if (!lista) return;
+
+  if (abonos.length === 0 && legacyAmt === 0) {
+    lista.innerHTML = '<div class="abono-empty">Sin abonos registrados</div>';
+    return;
+  }
+
+  const METODO = { 'SINPE':'📱','Efectivo':'💵','Transferencia':'🏦','Tarjeta':'💳','Otro':'📋' };
+  let html = '';
+
+  if (legacyAmt > 0) {
+    html += `<div class="abono-item abono-legado">
+      <div class="abono-item-info">
+        <span class="abono-item-metodo">${t.metodoPago ? (METODO[t.metodoPago]||'💰')+' '+t.metodoPago : '💰 Sin detalle'}</span>
+        <span class="abono-item-nota">Pago registrado antes del historial</span>
+      </div>
+      <div class="abono-item-right">
+        <span class="abono-item-monto">₡${fmt(legacyAmt)}</span>
+      </div>
+    </div>`;
+  }
+
+  html += abonos.map((a, i) => {
+    const icon = METODO[a.metodo] || '💰';
+    return `<div class="abono-item">
+      <div class="abono-item-info">
+        <span class="abono-item-fecha">${a.fecha || '—'}</span>
+        <span class="abono-item-metodo">${icon} ${a.metodo || 'Sin método'}</span>
+        ${a.nota ? `<span class="abono-item-nota">${escHtml(a.nota)}</span>` : ''}
+      </div>
+      <div class="abono-item-right">
+        <span class="abono-item-monto">₡${fmt(a.monto || 0)}</span>
+        <button class="btn btn-ghost btn-icon btn-sm abono-del" title="Eliminar abono" onclick="eliminarAbono(${i})">
+          <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
+            <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+          </svg>
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+
+  lista.innerHTML = html;
 }
 
 /* ----------------------------------------------------------

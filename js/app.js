@@ -662,6 +662,104 @@ async function guardarModalEdicion() {
   }
 }
 
+/* ----------------------------------------------------------
+   Modal historial de abonos
+---------------------------------------------------------- */
+let _abonoId = null;
+
+function abrirModalAbono(id) {
+  const t = trabajos.find(t => t.id === id);
+  if (!t) return;
+  _abonoId = id;
+  const fechaHoy = new Date().toISOString().split('T')[0];
+  if (el('abono-fecha'))  el('abono-fecha').value  = fechaHoy;
+  if (el('abono-monto'))  el('abono-monto').value  = '';
+  if (el('abono-metodo')) el('abono-metodo').value = '';
+  if (el('abono-nota'))   el('abono-nota').value   = '';
+  renderHistorialAbonos(t);
+  el('modal-abono').style.display = 'flex';
+}
+
+function cerrarModalAbono() {
+  const m = el('modal-abono');
+  if (m) m.style.display = 'none';
+  _abonoId = null;
+}
+
+async function registrarAbono() {
+  const t = trabajos.find(t => t.id === _abonoId);
+  if (!t) return;
+
+  const monto  = parseFloat(el('abono-monto')?.value);
+  const fecha  = el('abono-fecha')?.value;
+  const metodo = el('abono-metodo')?.value || '';
+  const nota   = (el('abono-nota')?.value || '').trim();
+
+  if (!monto || monto <= 0) { toast('Ingresá un monto válido', 'error'); return; }
+  if (!fecha)               { toast('Ingresá una fecha', 'error'); return; }
+
+  // Migrar legacy: si tiene montoAbonado pero sin abonos[], convertirlo en entrada del historial
+  let baseAbonos = t.abonos ? [...t.abonos] : [];
+  if (baseAbonos.length === 0 && (t.montoAbonado || 0) > 0) {
+    baseAbonos = [{
+      fecha:  t.fecha || fecha,
+      monto:  t.montoAbonado,
+      metodo: t.metodoPago || '',
+      nota:   'Pago anterior (migrado)'
+    }];
+  }
+
+  const nuevoAbono = { fecha, monto };
+  if (metodo) nuevoAbono.metodo = metodo;
+  if (nota)   nuevoAbono.nota   = nota;
+
+  const abonos       = [...baseAbonos, nuevoAbono];
+  const montoAbonado = abonos.reduce((s, a) => s + (a.monto || 0), 0);
+  const precioFinal  = t.precio_final || 0;
+  const montoPendiente = Math.max(0, precioFinal - montoAbonado);
+  const estadoPago   = calcEstadoPago(precioFinal, montoAbonado);
+
+  const updates = { abonos, montoAbonado, montoPendiente, estadoPago };
+
+  try {
+    await fbActualizarPago(_abonoId, updates);
+    Object.assign(t, updates);
+    if (el('abono-monto'))  el('abono-monto').value  = '';
+    if (el('abono-metodo')) el('abono-metodo').value = '';
+    if (el('abono-nota'))   el('abono-nota').value   = '';
+    renderHistorialAbonos(t);
+    renderTrabajos();
+    toast('Abono registrado ✓', 'success');
+  } catch(e) {
+    console.error(e);
+    toast('Error al registrar abono', 'error');
+  }
+}
+
+async function eliminarAbono(idx) {
+  const t = trabajos.find(t => t.id === _abonoId);
+  if (!t || !t.abonos) return;
+
+  const abonos       = t.abonos.filter((_, i) => i !== idx);
+  const montoAbonado = abonos.reduce((s, a) => s + (a.monto || 0), 0);
+  const precioFinal  = t.precio_final || 0;
+  const montoPendiente = Math.max(0, precioFinal - montoAbonado);
+  const estadoPago   = calcEstadoPago(precioFinal, montoAbonado);
+
+  const updates = { abonos, montoAbonado, montoPendiente, estadoPago };
+
+  try {
+    await fbActualizarPago(_abonoId, updates);
+    Object.assign(t, updates);
+    renderHistorialAbonos(t);
+    renderTrabajos();
+    toast('Abono eliminado', 'success');
+  } catch(e) {
+    console.error(e);
+    toast('Error al eliminar abono', 'error');
+  }
+}
+
 /* ─── EDITAR EN COTIZADOR ─── Carga todos los datos en el formulario de cálculo */
 function editarEnCotizador(id) {
   const t = trabajos.find(t => t.id === id); if (!t) return;
@@ -2563,9 +2661,9 @@ document.addEventListener('DOMContentLoaded', () => {
     localStorage.setItem('gdrive_client_id', savedCid);
     if (el('cfg_gdrive_client_id')) el('cfg_gdrive_client_id').value = savedCid;
   }
-  // Cerrar modal con Escape
+  // Cerrar modales con Escape
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') cerrarModalEdicion();
+    if (e.key === 'Escape') { cerrarModalEdicion(); cerrarModalAbono(); }
   });
 });
 

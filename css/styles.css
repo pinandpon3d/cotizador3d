@@ -962,6 +962,49 @@ tbody td{padding:10px 14px;color:var(--text);vertical-align:middle}
 [data-theme="dark"] .badge-pago-pagado{background:rgba(52,211,153,.12);color:#34d399}
 
 /* =========================================================
+   ABONOS — botón badge + modal historial de pagos
+========================================================= */
+.abono-badge-btn{
+  border:none;background:inherit;cursor:pointer;
+  font:inherit;padding:2px 8px;
+}
+.abono-badge-btn:hover{filter:brightness(.9)}
+
+.abono-summary{display:flex;gap:8px;margin-bottom:12px}
+.abono-sum-item{
+  flex:1;background:var(--surface2);border-radius:var(--radius-sm);
+  padding:10px 12px;text-align:center;
+}
+.abono-sum-label{font-size:.65rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--text2);margin-bottom:4px}
+.abono-sum-val{font-size:.95rem;font-weight:700;font-family:var(--mono);color:var(--text)}
+.abono-sum-val.success{color:var(--success)}
+.abono-sum-val.warn{color:var(--warn)}
+
+.abono-progress-wrap{display:flex;align-items:center;gap:10px;margin-bottom:2px}
+.abono-progress-track{flex:1;height:8px;background:var(--surface3);border-radius:99px;overflow:hidden}
+.abono-progress-bar{height:100%;background:linear-gradient(90deg,var(--accent),var(--brand-blue));border-radius:99px;transition:width .4s ease}
+.abono-progress-pct{font-size:.75rem;font-weight:700;color:var(--accent);min-width:36px;text-align:right}
+
+.abono-item{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 12px;border-radius:var(--radius-sm);
+  background:var(--surface2);margin-bottom:6px;gap:12px;
+}
+.abono-legado{background:transparent;border:1px dashed var(--border);opacity:.75}
+.abono-item-info{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
+.abono-item-fecha{font-size:.8rem;font-weight:600;color:var(--text)}
+.abono-item-metodo{font-size:.72rem;color:var(--text2)}
+.abono-item-nota{font-size:.68rem;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.abono-item-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.abono-item-monto{font-size:.9rem;font-weight:700;font-family:var(--mono);color:var(--text)}
+.abono-del{color:var(--danger)!important;opacity:.55}
+.abono-del:hover{opacity:1!important}
+.abono-empty{
+  text-align:center;padding:20px;color:var(--text3);font-size:.82rem;
+  background:var(--surface2);border-radius:var(--radius-sm);border:1px dashed var(--border);
+}
+
+/* =========================================================
    CLIENTES
 ========================================================= */
 .client-avatar{
