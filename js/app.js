@@ -385,7 +385,7 @@ body{min-height:100vh;padding:20px 0 80px;display:flex;justify-content:center;al
 .sum-total{background:#16395A;color:#fff;padding:14px 18px;border-radius:8px;display:flex;justify-content:space-between;align-items:center;margin-top:8px;position:relative;overflow:hidden;box-shadow:0 6px 16px -8px rgba(15,42,69,.5)}
 .sum-total::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:#F2C61F}
 .sum-total-label{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.2em;color:rgba(255,255,255,.8);padding-left:6px}
-.sum-total-val{font-size:24px;font-weight:800;letter-spacing:-.02em}
+.sum-total-val{font-size:24px;font-weight:800;letter-spacing:-.02em;white-space:nowrap}
 .footer-grid{display:grid;grid-template-columns:1.5fr 1fr;gap:24px;padding:16px 0 0;margin-top:auto}
 .fnotes ul{list-style:none;display:flex;flex-direction:column;gap:6px;margin-top:10px}
 .fnotes li{font-size:11.5px;color:#5B6A7E;padding-left:14px;position:relative;line-height:1.5}
@@ -1610,7 +1610,7 @@ body{min-height:100vh;padding:20px 0 80px;display:flex;justify-content:center;al
                     width:4px;background:#F2C61F}
 .sum-total-label{font-size:10.5px;font-weight:700;text-transform:uppercase;
                   letter-spacing:.2em;color:rgba(255,255,255,.8);padding-left:6px}
-.sum-total-val{font-size:24px;font-weight:800;letter-spacing:-.02em}
+.sum-total-val{font-size:24px;font-weight:800;letter-spacing:-.02em;white-space:nowrap}
 /* ── FOOTER GRID ── */
 .footer-grid{display:grid;grid-template-columns:1.5fr 1fr;gap:24px;
               padding:16px 0 0;margin-top:auto}
