@@ -483,7 +483,7 @@ body{min-height:100vh;padding:20px 0 80px;display:flex;justify-content:center;al
       <div class="sum-card">
         <div class="sum-total">
           <span class="sum-total-label">Total general</span>
-          <span class="sum-total-val">&#8353;&thinsp;${totalGeneral.toLocaleString('es-CR',{minimumFractionDigits:0})}</span>
+          <span class="sum-total-val">&#8353;&thinsp;${totalGeneral.toLocaleString('es-CR',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
         </div>
       </div>
     </div>
@@ -1754,7 +1754,7 @@ body{min-height:100vh;padding:20px 0 80px;display:flex;justify-content:center;al
         <div class="sum-row"><span class="sum-label">Saldo pendiente</span><span class="sum-val">&#8353;&thinsp;${pendiente.toLocaleString('es-CR',{minimumFractionDigits:2})}</span></div>` : ''}
         <div class="sum-total">
           <span class="sum-total-label">Total final</span>
-          <span class="sum-total-val">&#8353;&thinsp;${precioFinal.toLocaleString('es-CR',{minimumFractionDigits:0})}</span>
+          <span class="sum-total-val">&#8353;&thinsp;${precioFinal.toLocaleString('es-CR',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
         </div>
       </div>
     </div>
