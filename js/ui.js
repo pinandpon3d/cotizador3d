@@ -516,11 +516,11 @@ function renderDashboard(filtro = 'mes-actual') {
 function _renderCharts(lista, countByEstado, anio, mes) {
   if (typeof Chart === 'undefined') return;
 
-  // Colores de estado
+  // Colores de estado — paleta Pin&Pon 3D
   const estadoColors = {
-    'Cotizado':    '#9ca3af', 'Aprobado':     '#2563eb',
-    'En impresión':'#7c3aed', 'Post-proceso': '#d97706',
-    'Listo':       '#059669', 'Entregado':    '#047857',
+    'Cotizado':    '#b5d3f0', 'Aprobado':     '#1a60a6',
+    'En impresión':'#4185c6', 'Post-proceso': '#f4c70f',
+    'Listo':       '#133658', 'Entregado':    '#059669',
     'Cancelado':   '#dc2626'
   };
 
@@ -574,7 +574,7 @@ function _renderCharts(lista, countByEstado, anio, mes) {
         datasets: [{
           label: 'Ingresos (₡)',
           data: ingresosPorMes,
-          backgroundColor: 'rgba(124,58,237,.72)',
+          backgroundColor: 'rgba(26,96,166,.82)',
           borderRadius: 6, borderSkipped: false
         }]
       },
