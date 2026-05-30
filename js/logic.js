@@ -13,7 +13,7 @@
 
 const genId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const today = () => new Date().toISOString().split('T')[0];
-const fmt   = n  => new Intl.NumberFormat('es-CR', { style:'currency', currency:'CRC', minimumFractionDigits:2 }).format(n || 0);
+const fmt   = n  => new Intl.NumberFormat('es-CR', { style:'currency', currency:'CRC', minimumFractionDigits:0, maximumFractionDigits:0 }).format(Math.ceil(n || 0));
 const fv    = id => parseFloat(document.getElementById(id)?.value) || 0;
 const set   = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
 const el    = id => document.getElementById(id);
@@ -94,13 +94,13 @@ function calcular() {
   const gananciaObjeto = costoUnitario * (pMargen / 100);
   const antesIVA       = costoUnitario + gananciaObjeto;
 
-  // Paso 5: + IVA → precio por objeto (sin redondear)
+  // Paso 5: + IVA → precio por objeto → redondear al entero superior
   const ivaVal           = antesIVA * (pIVA / 100);
   const precioObjeto     = antesIVA + ivaVal;
-  const precioRedondeado = precioObjeto;   // sin redondeo
+  const precioRedondeado = Math.ceil(precioObjeto);
 
-  // Paso 6: precio total = precio por objeto × cantidad
-  const precioTotal = precioObjeto * cantidad;
+  // Paso 6: precio total = precio por objeto redondeado × cantidad
+  const precioTotal = precioRedondeado * cantidad;
 
   // Actualizar desglose en pantalla
   set('b_material',           fmt(material));
