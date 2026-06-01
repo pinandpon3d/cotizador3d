@@ -314,8 +314,8 @@ function generarPDFMultiple(items, clienteNombre) {
         ${t.notas ? `<div class="item-sub" style="font-style:italic">${escHtml(t.notas)}</div>` : ''}
       </td>
       <td>${cant}</td>
-      <td>&#8353;&thinsp;${(Math.ceil(pUnit/500)*500).toLocaleString('es-CR',{minimumFractionDigits:0,maximumFractionDigits:0})}</td>
-      <td><strong>&#8353;&thinsp;${(Math.ceil(total/500)*500).toLocaleString('es-CR',{minimumFractionDigits:0,maximumFractionDigits:0})}</strong></td>
+      <td>&#8353;&thinsp;${(Math.ceil(pUnit/100)*100).toLocaleString('es-CR',{minimumFractionDigits:0,maximumFractionDigits:0})}</td>
+      <td><strong>&#8353;&thinsp;${(Math.ceil(total/100)*100).toLocaleString('es-CR',{minimumFractionDigits:0,maximumFractionDigits:0})}</strong></td>
     </tr>`;
   }).join('');
 
@@ -483,7 +483,7 @@ body{min-height:100vh;padding:20px 0 80px;display:flex;justify-content:center;al
       <div class="sum-card">
         <div class="sum-total">
           <span class="sum-total-label">Total general</span>
-          <span class="sum-total-val">&#8353;&thinsp;${(Math.ceil(totalGeneral/500)*500).toLocaleString('es-CR',{minimumFractionDigits:0,maximumFractionDigits:0})}</span>
+          <span class="sum-total-val">&#8353;&thinsp;${(Math.ceil(totalGeneral/100)*100).toLocaleString('es-CR',{minimumFractionDigits:0,maximumFractionDigits:0})}</span>
         </div>
       </div>
     </div>
@@ -1835,8 +1835,8 @@ body{min-height:100vh;padding:20px 0 80px;display:flex;justify-content:center;al
             ${t.notas ? `<div class="item-sub" style="font-style:italic">${escHtml(t.notas)}</div>` : ''}
           </td>
           <td>${cantidad}</td>
-          <td>&#8353;&thinsp;${(Math.ceil(precioUnit/500)*500).toLocaleString('es-CR',{minimumFractionDigits:0,maximumFractionDigits:0})}</td>
-          <td><strong>&#8353;&thinsp;${(Math.ceil(precioFinal/500)*500).toLocaleString('es-CR',{minimumFractionDigits:0,maximumFractionDigits:0})}</strong></td>
+          <td>&#8353;&thinsp;${(Math.ceil(precioUnit/100)*100).toLocaleString('es-CR',{minimumFractionDigits:0,maximumFractionDigits:0})}</td>
+          <td><strong>&#8353;&thinsp;${(Math.ceil(precioFinal/100)*100).toLocaleString('es-CR',{minimumFractionDigits:0,maximumFractionDigits:0})}</strong></td>
         </tr>
       </tbody>
     </table>
@@ -1845,14 +1845,14 @@ body{min-height:100vh;padding:20px 0 80px;display:flex;justify-content:center;al
     <div class="summary">
       <div class="sum-card">
         ${pIVA > 0 ? `
-        <div class="sum-row"><span class="sum-label">Subtotal (sin IVA)</span><span class="sum-val">&#8353;&thinsp;${(Math.ceil(antesIVA/500)*500).toLocaleString('es-CR',{minimumFractionDigits:0,maximumFractionDigits:0})}</span></div>
-        <div class="sum-row"><span class="sum-label">IVA (${pIVA}%)</span><span class="sum-val">&#8353;&thinsp;${(Math.ceil(ivaVal/500)*500).toLocaleString('es-CR',{minimumFractionDigits:0,maximumFractionDigits:0})}</span></div>` : ''}
+        <div class="sum-row"><span class="sum-label">Subtotal (sin IVA)</span><span class="sum-val">&#8353;&thinsp;${(Math.ceil(antesIVA/100)*100).toLocaleString('es-CR',{minimumFractionDigits:0,maximumFractionDigits:0})}</span></div>
+        <div class="sum-row"><span class="sum-label">IVA (${pIVA}%)</span><span class="sum-val">&#8353;&thinsp;${(Math.ceil(ivaVal/100)*100).toLocaleString('es-CR',{minimumFractionDigits:0,maximumFractionDigits:0})}</span></div>` : ''}
         ${abono > 0 ? `
-        <div class="sum-row"><span class="sum-label">Abono recibido</span><span class="sum-val" style="color:#059669">&#8722; &#8353;&thinsp;${(Math.ceil(abono/500)*500).toLocaleString('es-CR',{minimumFractionDigits:0,maximumFractionDigits:0})}</span></div>
-        <div class="sum-row"><span class="sum-label">Saldo pendiente</span><span class="sum-val">&#8353;&thinsp;${(Math.ceil(pendiente/500)*500).toLocaleString('es-CR',{minimumFractionDigits:0,maximumFractionDigits:0})}</span></div>` : ''}
+        <div class="sum-row"><span class="sum-label">Abono recibido</span><span class="sum-val" style="color:#059669">&#8722; &#8353;&thinsp;${(Math.ceil(abono/100)*100).toLocaleString('es-CR',{minimumFractionDigits:0,maximumFractionDigits:0})}</span></div>
+        <div class="sum-row"><span class="sum-label">Saldo pendiente</span><span class="sum-val">&#8353;&thinsp;${(Math.ceil(pendiente/100)*100).toLocaleString('es-CR',{minimumFractionDigits:0,maximumFractionDigits:0})}</span></div>` : ''}
         <div class="sum-total">
           <span class="sum-total-label">Total final</span>
-          <span class="sum-total-val">&#8353;&thinsp;${(Math.ceil(precioFinal/500)*500).toLocaleString('es-CR',{minimumFractionDigits:0,maximumFractionDigits:0})}</span>
+          <span class="sum-total-val">&#8353;&thinsp;${(Math.ceil(precioFinal/100)*100).toLocaleString('es-CR',{minimumFractionDigits:0,maximumFractionDigits:0})}</span>
         </div>
       </div>
     </div>
@@ -2035,7 +2035,7 @@ function generarListaPrecios() {
         <span style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;background:rgba(5,150,105,0.1);color:#047857">${disponibles} disp.</span>
       </td>
       <td style="padding:14px 18px;text-align:right;white-space:nowrap">
-        <div style="font-size:22px;font-weight:800;color:#1a60a6;font-variant-numeric:tabular-nums;line-height:1">₡${(Math.ceil(precio/500)*500).toLocaleString('es-CR',{minimumFractionDigits:0,maximumFractionDigits:0})}</div>
+        <div style="font-size:22px;font-weight:800;color:#1a60a6;font-variant-numeric:tabular-nums;line-height:1">₡${(Math.ceil(precio/100)*100).toLocaleString('es-CR',{minimumFractionDigits:0,maximumFractionDigits:0})}</div>
         <div style="font-size:9px;color:#8cafd2;font-weight:500;margin-top:2px;text-transform:uppercase;letter-spacing:.04em">por unidad</div>
       </td>
     </tr>`;
