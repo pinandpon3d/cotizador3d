@@ -153,7 +153,7 @@ function calcular() {
            placas, cantidad,
            subtotal, fallosVal, costoTotalPlacas, costoUnitario,
            gananciaObjeto, antesIVA, ivaVal,
-           precioObjeto, precioRedondeado, precioTotal };
+           precioRedondeado, precioTotal };
 }
 
 /* ----------------------------------------------------------
