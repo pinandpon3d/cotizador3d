@@ -196,6 +196,7 @@ function renderTrabajos() {
   set('st-ganancias',          fmt(ganancias));
   set('st-pend-pago',          pendPago);
   set('st-por-cobrar',         fmt(porCobrar));
+  if (typeof actualizarDashboardInversion === 'function') actualizarDashboardInversion();
 
   // Vista kanban: delegar renderizado y salir
   if (typeof _trabajosVista !== 'undefined' && _trabajosVista === 'kanban') {

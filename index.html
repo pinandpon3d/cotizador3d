@@ -631,6 +631,30 @@
         <div class="stat-card"><div class="stat-label">Ganancia entregados</div><div class="stat-value success" id="st-ganancias">₡0</div></div>
         <div class="stat-card"><div class="stat-label">Por cobrar</div><div class="stat-value warn" id="st-por-cobrar">₡0</div></div>
       </div>
+
+      <!-- Tarjeta recuperación de inversión (solo cuando está activa) -->
+      <div id="tr-inversion-card" style="display:none;margin-bottom:16px">
+        <div class="card inv-dash-card">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+            <div>
+              <div style="font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--text3)">🎯 Recuperación de Inversión Inicial</div>
+              <div style="font-size:.75rem;color:var(--text2);margin-top:2px">Ingresos acumulados vs inversión de arranque</div>
+            </div>
+            <span id="tr-inv-pct" style="font-size:1.5rem;font-weight:800;color:var(--accent)">0%</span>
+          </div>
+          <div class="inv-progress-wrap" style="margin-bottom:14px">
+            <div class="inv-progress-track">
+              <div class="inv-progress-bar" id="tr-inv-bar" style="width:0%"></div>
+            </div>
+          </div>
+          <div class="inv-stats-row">
+            <div class="inv-stat"><span>Inversión total</span><strong id="tr-inv-total">₡0</strong></div>
+            <div class="inv-stat"><span>Recuperado</span><strong id="tr-inv-recuperado" style="color:var(--success)">₡0</strong></div>
+            <div class="inv-stat"><span>Por recuperar</span><strong id="tr-inv-faltante" style="color:var(--danger)">₡0</strong></div>
+          </div>
+        </div>
+      </div>
+
       <div class="card">
         <div class="filter-bar">
           <!-- Fila de búsqueda (siempre visible) -->

@@ -2489,27 +2489,41 @@ async function eliminarItemInversion(id) {
 }
 
 function actualizarDashboardInversion() {
-  const card = el('dash-inversion-card');
-  if (!card) return;
-  if (!inversion.activa || !inversion.items?.length) {
-    card.style.display = 'none';
-    return;
+  const activa = inversion.activa && (inversion.items?.length > 0);
+  const totalInv   = activa ? (inversion.items || []).reduce((s, i) => s + (i.monto || 0), 0) : 0;
+  const recuperado = activa
+    ? trabajos.filter(t => t.estado !== 'Cancelado').reduce((s, t) => s + ingresosLote(t), 0)
+    : 0;
+  const pct  = totalInv > 0 ? Math.min(100, (recuperado / totalInv) * 100) : 0;
+  const rest = Math.max(0, totalInv - recuperado);
+  const barColor = pct >= 100 ? 'var(--success)' : pct >= 60 ? 'var(--accent)' : 'var(--brand-gold, #F2C61F)';
+
+  // — Tarjeta Dashboard —
+  const dashCard = el('dash-inversion-card');
+  if (dashCard) {
+    dashCard.style.display = activa ? '' : 'none';
+    if (activa) {
+      set('dash-inv-total',      fmt(totalInv));
+      set('dash-inv-recuperado', fmt(recuperado));
+      set('dash-inv-faltante',   fmt(rest));
+      set('dash-inv-pct',        pct.toFixed(1) + '%');
+      const bar = el('dash-inv-bar');
+      if (bar) { bar.style.width = pct + '%'; bar.style.background = barColor; }
+    }
   }
-  const totalInv   = (inversion.items || []).reduce((s, i) => s + (i.monto || 0), 0);
-  const recuperado = trabajos
-    .filter(t => t.estado !== 'Cancelado')
-    .reduce((s, t) => s + (t.precio_final || 0), 0);
-  const pct    = totalInv > 0 ? Math.min(100, (recuperado / totalInv) * 100) : 0;
-  const rest   = Math.max(0, totalInv - recuperado);
-  card.style.display = '';
-  set('dash-inv-total',     fmt(totalInv));
-  set('dash-inv-recuperado', fmt(recuperado));
-  set('dash-inv-faltante',  fmt(rest));
-  set('dash-inv-pct',       pct.toFixed(1) + '%');
-  const bar = el('dash-inv-bar');
-  if (bar) {
-    bar.style.width = pct + '%';
-    bar.style.background = pct >= 100 ? 'var(--success)' : pct >= 60 ? 'var(--accent)' : 'var(--brand-gold, #F2C61F)';
+
+  // — Tarjeta Trabajos —
+  const trCard = el('tr-inversion-card');
+  if (trCard) {
+    trCard.style.display = activa ? '' : 'none';
+    if (activa) {
+      set('tr-inv-total',      fmt(totalInv));
+      set('tr-inv-recuperado', fmt(recuperado));
+      set('tr-inv-faltante',   fmt(rest));
+      set('tr-inv-pct',        pct.toFixed(1) + '%');
+      const bar = el('tr-inv-bar');
+      if (bar) { bar.style.width = pct + '%'; bar.style.background = barColor; }
+    }
   }
 }
 
