@@ -27,8 +27,7 @@ function ingresosLote(t) {
   if (_esDetalle(t)) {
     const cant = Math.max(t.cantidad || 1, 1);
     const v    = Math.min(t.unidadesVendidas || 0, cant);
-    // Solo suma a Ingresos Totales cuando TODOS los objetos están vendidos
-    return v >= cant ? (t.precio_final || 0) : 0;
+    return v <= 0 ? 0 : (v / cant) * (t.precio_final || 0);
   }
   return (t.estado === 'Entregado' && (t.estadoPago || 'Pendiente') === 'Pagado')
     ? (t.precio_final || 0) : 0;
@@ -39,7 +38,7 @@ function gananciaLote(t) {
   if (_esDetalle(t)) {
     const cant = Math.max(t.cantidad || 1, 1);
     const v    = Math.min(t.unidadesVendidas || 0, cant);
-    return v >= cant ? (t.precio_final || 0) - (t.costo_total || 0) : 0;
+    return v <= 0 ? 0 : (v / cant) * ((t.precio_final || 0) - (t.costo_total || 0));
   }
   return (t.estado === 'Entregado' && (t.estadoPago || 'Pendiente') === 'Pagado')
     ? (t.precio_final || 0) - (t.costo_total || 0) : 0;
@@ -49,8 +48,7 @@ function ingresosDetalleParcial(t) {
   if (t.estado === 'Cancelado' || !_esDetalle(t)) return 0;
   const cant = Math.max(t.cantidad || 1, 1);
   const v    = Math.min(t.unidadesVendidas || 0, cant);
-  if (v <= 0 || v >= cant) return 0; // 0 vendidos = nada; todos vendidos = ya va a Ingresos Totales
-  return (v / cant) * (t.precio_final || 0);
+  return v <= 0 ? 0 : (v / cant) * (t.precio_final || 0);
 }
 
 /* ----------------------------------------------------------
