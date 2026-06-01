@@ -44,12 +44,6 @@ function gananciaLote(t) {
     ? (t.precio_final || 0) - (t.costo_total || 0) : 0;
 }
 
-function ingresosDetalleParcial(t) {
-  if (t.estado === 'Cancelado' || !_esDetalle(t)) return 0;
-  const cant = Math.max(t.cantidad || 1, 1);
-  const v    = Math.min(t.unidadesVendidas || 0, cant);
-  return v <= 0 ? 0 : (v / cant) * (t.precio_final || 0);
-}
 
 /* ----------------------------------------------------------
    Toast / notificaciones
@@ -180,7 +174,6 @@ function renderTrabajos() {
   const entregados = trabajos.filter(t => t.estado === 'Entregado').length;
   const ingresos        = trabajos.reduce((s,t) => s + ingresosLote(t), 0);
   const ganancias       = trabajos.reduce((s,t) => s + gananciaLote(t), 0);
-  const ingresosDetalle = trabajos.filter(_esDetalle).reduce((s,t) => s + ingresosDetalleParcial(t), 0);
   const pendPago   = trabajos.filter(t => ESTADOS_POR_COBRAR.includes(t.estado) && (t.estadoPago||'Pendiente') !== 'Pagado').length;
   const porCobrar  = trabajos
     .filter(t => ESTADOS_POR_COBRAR.includes(t.estado))
@@ -200,7 +193,6 @@ function renderTrabajos() {
   set('st-aprobados',          aprobados);
   set('st-entregados',         entregados);
   set('st-ingresos',           fmt(ingresos));
-  set('st-ingresos-detalle',   fmt(ingresosDetalle));
   set('st-ganancias',          fmt(ganancias));
   set('st-pend-pago',          pendPago);
   set('st-por-cobrar',         fmt(porCobrar));
@@ -450,7 +442,6 @@ function renderDashboard(filtro = 'mes-actual') {
   const entregados          = lista.filter(t => t.estado === 'Entregado');
   const ventasMes           = lista.reduce((s,t) => s + ingresosLote(t), 0);
   const gananciaMes         = lista.reduce((s,t) => s + gananciaLote(t), 0);
-  const ingresosDetalleMes  = lista.filter(_esDetalle).reduce((s,t) => s + ingresosDetalleParcial(t), 0);
   const pendPago            = lista.filter(t => (t.estadoPago||'Pendiente') !== 'Pagado').length;
 
   const countByEstado = {};
@@ -499,7 +490,6 @@ function renderDashboard(filtro = 'mes-actual') {
   // Actualizar DOM
   set('dash-ventas',              fmt(ventasMes));
   set('dash-ganancia',            fmt(gananciaMes));
-  set('dash-ingresos-detalle',    fmt(ingresosDetalleMes));
   set('dash-total-lista',  lista.length);
   set('dash-monto-cobrar', fmt(montoPorCobrar));
   set('dash-urgentes',     urgentes);
