@@ -13,7 +13,7 @@
 
 const genId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const today = () => new Date().toISOString().split('T')[0];
-const fmt   = n  => new Intl.NumberFormat('es-CR', { style:'currency', currency:'CRC', minimumFractionDigits:0, maximumFractionDigits:0 }).format(Math.ceil((n || 0) / 100) * 100);
+const fmt   = n  => new Intl.NumberFormat('es-CR', { style:'currency', currency:'CRC', minimumFractionDigits:0, maximumFractionDigits:0 }).format(Math.ceil(n || 0));
 const fv    = id => parseFloat(document.getElementById(id)?.value) || 0;
 const set   = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
 const el    = id => document.getElementById(id);

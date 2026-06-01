@@ -180,9 +180,9 @@ function renderTrabajos() {
   const total      = trabajos.length;
   const aprobados  = trabajos.filter(t => t.estado === 'Aprobado').length;
   const entregados = trabajos.filter(t => t.estado === 'Entregado').length;
-  const ingresos        = list.reduce((s,t) => s + ingresosLote(t), 0);
-  const ganancias       = list.reduce((s,t) => s + gananciaLote(t), 0);
-  const ingresosDetalle = list.filter(_esDetalle).reduce((s,t) => s + ingresosDetalleParcial(t), 0);
+  const ingresos        = trabajos.reduce((s,t) => s + ingresosLote(t), 0);
+  const ganancias       = trabajos.reduce((s,t) => s + gananciaLote(t), 0);
+  const ingresosDetalle = trabajos.filter(_esDetalle).reduce((s,t) => s + ingresosDetalleParcial(t), 0);
   const pendPago   = trabajos.filter(t => ESTADOS_POR_COBRAR.includes(t.estado) && (t.estadoPago||'Pendiente') !== 'Pagado').length;
   const porCobrar  = trabajos
     .filter(t => ESTADOS_POR_COBRAR.includes(t.estado))
