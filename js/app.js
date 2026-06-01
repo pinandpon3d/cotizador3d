@@ -783,9 +783,10 @@ function editarEnCotizador(id) {
   sv('c_costo_dis', t.costo_dis || 0);
   sv('c_postpro',   t.postpro   || 0);
   sv('c_otros',     t.otros     || 0);
-  sv('c_fallos',    t.pFallos   ?? 5);
-  sv('c_margen',    t.pMargen   ?? 35);
-  sv('c_iva',       t.pIVA      ?? 0);
+  sv('c_fallos',        t.pFallos   ?? 5);
+  sv('c_margen',        t.pMargen   ?? 35);
+  sv('c_iva',           t.pIVA      ?? 0);
+  sv('c_precio_manual', '');
   sv('c_monto_abonado', t.montoAbonado || 0);
   if (el('c_metodo_pago')) el('c_metodo_pago').value = t.metodoPago || 'Efectivo';
 

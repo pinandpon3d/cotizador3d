@@ -90,17 +90,36 @@ function calcular() {
   // Paso 3: ÷ cantidad de objetos → costo por objeto
   const costoUnitario = costoTotalPlacas / cantidad;
 
-  // Paso 4: + ganancia sobre el costo unitario
-  const gananciaObjeto = costoUnitario * (pMargen / 100);
-  const antesIVA       = costoUnitario + gananciaObjeto;
+  // Paso 4-6: modo automático (margen → precio) o modo manual (precio → margen)
+  const precioManual = fv('c_precio_manual');
+  let gananciaObjeto, antesIVA, ivaVal, precioRedondeado, precioTotal, margenEfectivo;
 
-  // Paso 5: + IVA → precio por objeto → redondear al entero superior
-  const ivaVal           = antesIVA * (pIVA / 100);
-  const precioObjeto     = antesIVA + ivaVal;
-  const precioRedondeado = Math.ceil(precioObjeto / 100) * 100;
-
-  // Paso 6: precio total = precio por objeto redondeado × cantidad
-  const precioTotal = precioRedondeado * cantidad;
+  if (precioManual > 0) {
+    // Modo manual: el usuario fijó el precio total → calcular margen implícito
+    precioTotal      = precioManual;
+    precioRedondeado = precioTotal / cantidad;
+    const precioSinIVA = precioRedondeado / (1 + pIVA / 100);
+    antesIVA         = precioSinIVA;
+    ivaVal           = precioRedondeado - precioSinIVA;
+    gananciaObjeto   = precioSinIVA - costoUnitario;
+    margenEfectivo   = costoUnitario > 0 ? (gananciaObjeto / costoUnitario) * 100 : 0;
+    // Actualizar campo de margen con el valor calculado
+    const margenEl = el('c_margen');
+    if (margenEl && document.activeElement !== margenEl) margenEl.value = margenEfectivo.toFixed(1);
+    const ind = el('b_modo_precio');
+    if (ind) ind.style.display = 'inline';
+  } else {
+    // Modo automático: el usuario fijó el margen → calcular precio
+    gananciaObjeto   = costoUnitario * (pMargen / 100);
+    antesIVA         = costoUnitario + gananciaObjeto;
+    ivaVal           = antesIVA * (pIVA / 100);
+    const precioObjeto = antesIVA + ivaVal;
+    precioRedondeado = Math.ceil(precioObjeto / 100) * 100;
+    precioTotal      = precioRedondeado * cantidad;
+    margenEfectivo   = pMargen;
+    const ind = el('b_modo_precio');
+    if (ind) ind.style.display = 'none';
+  }
 
   // Actualizar desglose en pantalla
   set('b_material',           fmt(material));
@@ -120,7 +139,7 @@ function calcular() {
   set('b_costo_fallos',       fmt(costoTotalPlacas));
   set('b_costo_obj_label',    `÷ Objetos (${cantidad})`);
   set('b_costo_obj',          fmt(costoUnitario));
-  set('b_margen_label',       `+ Ganancia (${pMargen}%)`);
+  set('b_margen_label',       `+ Ganancia (${margenEfectivo.toFixed(1)}%)`);
   set('b_margen_val',         fmt(gananciaObjeto));
   set('b_antes_iva',          fmt(antesIVA));
   set('b_iva_label',          `+ IVA (${pIVA}%)`);
