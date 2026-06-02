@@ -410,8 +410,37 @@ function renderClientes(lista) {
 }
 
 /* ----------------------------------------------------------
-   Dashboard con Chart.js
+   Helpers: ingresos / ganancia de detalle por fecha real de venta
+   (para filtros mensuales del Dashboard)
 ---------------------------------------------------------- */
+function _ingresosDetallePorMes(a, m) {
+  return trabajos
+    .filter(t => _esDetalle(t) && t.estado !== 'Cancelado')
+    .reduce((s, t) => {
+      const cant  = Math.max(t.cantidad || 1, 1);
+      const pUnit = t.precio_unitario || ((t.precio_final || 0) / cant);
+      const nets  = (t.historialVentas || [])
+        .filter(v => { const d = new Date(v.fecha); return d.getFullYear() === a && d.getMonth() === m; })
+        .reduce((u, v) => u + (v.cantidad || 0), 0);
+      return s + Math.max(0, nets) * pUnit;
+    }, 0);
+}
+
+function _gananciaDetallePorMes(a, m) {
+  return trabajos
+    .filter(t => _esDetalle(t) && t.estado !== 'Cancelado')
+    .reduce((s, t) => {
+      const cant   = Math.max(t.cantidad || 1, 1);
+      const pUnit  = t.precio_unitario || ((t.precio_final || 0) / cant);
+      const cUnit  = (t.costo_total || 0) / cant;
+      const nets   = (t.historialVentas || [])
+        .filter(v => { const d = new Date(v.fecha); return d.getFullYear() === a && d.getMonth() === m; })
+        .reduce((u, v) => u + (v.cantidad || 0), 0);
+      return s + Math.max(0, nets) * (pUnit - cUnit);
+    }, 0);
+}
+
+
 
 let _chartEstados  = null;
 let _chartIngresos = null;
@@ -439,11 +468,24 @@ function renderDashboard(filtro = 'mes-actual') {
     });
   }
 
+  // Año/mes objetivo para los helpers de detalle
+  const tA = filtro === 'mes-anterior' ? (mes === 0 ? anio - 1 : anio) : anio;
+  const tM = filtro === 'mes-anterior' ? (mes === 0 ? 11 : mes - 1) : mes;
+
   // Calcular KPIs
-  const entregados          = lista.filter(t => t.estado === 'Entregado');
-  const ventasMes           = lista.reduce((s,t) => s + ingresosLote(t), 0);
-  const gananciaMes         = lista.reduce((s,t) => s + gananciaLote(t), 0);
-  const pendPago            = lista.filter(t => (t.estadoPago||'Pendiente') !== 'Pagado').length;
+  // Para filtros mensuales: no-detalle usa fecha de creación; detalle usa fecha real de venta
+  const entregados  = lista.filter(t => t.estado === 'Entregado');
+  const pendPago    = lista.filter(t => (t.estadoPago||'Pendiente') !== 'Pagado').length;
+  let ventasMes, gananciaMes;
+  if (filtro === 'todos') {
+    ventasMes   = lista.reduce((s,t) => s + ingresosLote(t), 0);
+    gananciaMes = lista.reduce((s,t) => s + gananciaLote(t), 0);
+  } else {
+    ventasMes = lista.filter(t => !_esDetalle(t)).reduce((s,t) => s + ingresosLote(t), 0)
+              + _ingresosDetallePorMes(tA, tM);
+    gananciaMes = lista.filter(t => !_esDetalle(t)).reduce((s,t) => s + gananciaLote(t), 0)
+                + _gananciaDetallePorMes(tA, tM);
+  }
 
   const countByEstado = {};
   ['Cotizado','Aprobado','En impresión','Post-proceso','Listo','Entregado','Cancelado']
@@ -565,10 +607,10 @@ function _renderCharts(lista, countByEstado, anio, mes) {
       const key   = `${a}-${String(m+1).padStart(2,'0')}`;
       const label = new Date(a, m, 1).toLocaleDateString('es-CR', { month:'short', year:'2-digit' });
       meses.push(label);
-      const ing = trabajos
-        .filter(t => t.estado !== 'Cancelado' && (t.fecha||'').startsWith(key))
+      const ingNoDetalle = trabajos
+        .filter(t => !_esDetalle(t) && t.estado !== 'Cancelado' && (t.fecha||'').startsWith(key))
         .reduce((s,t) => s + ingresosLote(t), 0);
-      ingresosPorMes.push(ing);
+      ingresosPorMes.push(ingNoDetalle + _ingresosDetallePorMes(a, m));
     }
     _chartIngresos = new Chart(ctxI, {
       type: 'bar',
