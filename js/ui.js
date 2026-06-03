@@ -999,8 +999,7 @@ function renderInversion() {
 
   const totalInv   = (inversion.items || []).reduce((s, i) => s + (i.monto || 0), 0);
   const recuperado = (typeof trabajos !== 'undefined' ? trabajos : [])
-    .filter(t => t.estado !== 'Cancelado')
-    .reduce((s, t) => s + (t.precio_final || 0), 0);
+    .reduce((s, t) => s + (typeof ingresosLote === 'function' ? ingresosLote(t) : 0), 0);
   const pct  = totalInv > 0 ? Math.min(100, (recuperado / totalInv) * 100) : 0;
   const rest = Math.max(0, totalInv - recuperado);
 
