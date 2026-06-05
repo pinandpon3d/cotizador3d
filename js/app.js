@@ -2755,22 +2755,10 @@ async function exportarTodosCSV() {
   const zip = new JSZip();
   const hoy = new Date().toISOString().split('T')[0];
 
-  /* 1 — Todas las cotizaciones */
-  zip.file('cotizaciones.csv', _csvStr([_HDR_COT, ...trabajos.map(_filaCot)]));
+  /* 1 — Todos los trabajos (filtrar por estado/estadoPago en Power BI) */
+  zip.file('trabajos.csv', _csvStr([_HDR_COT, ...trabajos.map(_filaCot)]));
 
-  /* 2 — Pagados (Entregado + estadoPago Pagado) */
-  const pagados = trabajos.filter(t =>
-    t.estado === 'Entregado' && (t.estadoPago||'') === 'Pagado'
-  );
-  zip.file('cotizaciones_pagadas.csv', _csvStr([_HDR_COT, ...pagados.map(_filaCot)]));
-
-  /* 3 — Pendientes de cobro (no cancelados, no pagados) */
-  const pendientes = trabajos.filter(t =>
-    t.estado !== 'Cancelado' && (t.estadoPago||'Pendiente') !== 'Pagado'
-  );
-  zip.file('cotizaciones_pendientes.csv', _csvStr([_HDR_COT, ...pendientes.map(_filaCot)]));
-
-  /* 4 — Historial de ventas al detalle */
+  /* 2 — Historial de ventas al detalle */
   const filasVentas = [['cotizacion_id','pieza','cliente','categoria','fecha_venta','cantidad','es_devolucion','nota']];
   trabajos.filter(t => (t.historialVentas||[]).length).forEach(t => {
     (t.historialVentas||[]).forEach(v => filasVentas.push([
@@ -2812,5 +2800,5 @@ async function exportarTodosCSV() {
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 
-  toast('ZIP descargado con 7 archivos CSV ✓', 'success', 4000);
+  toast('ZIP descargado con 5 archivos CSV ✓', 'success', 4000);
 }
