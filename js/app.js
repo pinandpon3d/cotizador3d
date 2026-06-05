@@ -802,10 +802,6 @@ function editarEnCotizador(id) {
   navTo('cotizador');
 }
 
-/* Compatibilidad con botones antiguos que usan editarTrabajo */
-function editarTrabajo(id)  { editarEnCotizador(id); }
-function verTrabajo(id)     { abrirModalEdicion(id); }
-
 /* ─── POST-SAVE BANNER ─── Aparece tras guardar en el Cotizador */
 function mostrarPostGuardado(pieza, isEdit) {
   const b = el('post-save-banner'); if (!b) return;
@@ -1317,7 +1313,7 @@ async function eliminarCliente(id) {
 async function cargarVentaDetalle() {
   try {
     // Siempre recargar desde Firestore para tener datos frescos
-    trabajos = await fbCargarTrabajos();
+    if (!trabajos.length) trabajos = await fbCargarTrabajos();
     try { localStorage.setItem('trabajos3d', JSON.stringify(trabajos)); } catch(e){}
 
     // Incluir tanto los que tienen ventaDetalle:true como los que
@@ -1452,21 +1448,28 @@ async function guardarVenta() {
   renderVentaDetalle(trabajos.filter(t => t.ventaDetalle === true));
 
   try {
-    await fbRegistrarVenta(id, delta, nota || (esDevolucion ? 'Devolución' : ''));
-
+    const updateData = {
+      unidadesVendidas: firebase.firestore.FieldValue.increment(delta),
+      historialVentas:  firebase.firestore.FieldValue.arrayUnion(entrada)
+    };
     if (ahoraAgotado) {
-      await db.collection('cotizaciones').doc(String(id)).update({
+      Object.assign(updateData, {
         estado: 'Entregado', estadoPago: 'Pagado',
         montoAbonado: t.precio_final || 0, montoPendiente: 0,
         fechaActualizacionEstado: new Date().toISOString()
       });
-      toast('Lote agotado — Entregado y Pagado ✓', 'success');
     } else if (yaNoAgotado) {
-      await db.collection('cotizaciones').doc(String(id)).update({
+      Object.assign(updateData, {
         estado: 'Aprobado', estadoPago: 'Pendiente',
         montoAbonado: 0, montoPendiente: t.precio_final || 0,
         fechaActualizacionEstado: new Date().toISOString()
       });
+    }
+    await db.collection('cotizaciones').doc(String(id)).update(updateData);
+
+    if (ahoraAgotado) {
+      toast('Lote agotado — Entregado y Pagado ✓', 'success');
+    } else if (yaNoAgotado) {
       toast(`${cantidad} unidad${cantidad !== 1 ? 'es' : ''} devuelta${cantidad !== 1 ? 's' : ''} — lote reactivado ✓`, 'success');
     } else if (esDevolucion) {
       toast(`${cantidad} unidad${cantidad !== 1 ? 'es' : ''} devuelta${cantidad !== 1 ? 's' : ''} ✓`, 'success');
@@ -1474,13 +1477,14 @@ async function guardarVenta() {
       const u = cantidad === 1 ? '1 unidad vendida' : `${cantidad} unidades vendidas`;
       toast(`${u} ✓`, 'success');
     }
+    try { localStorage.setItem('trabajos3d', JSON.stringify(trabajos)); } catch(_){}
   } catch(e) {
     console.error(e);
     toast('Error al registrar el movimiento', 'error');
     // Revertir local
     if (idx >= 0) {
       trabajos[idx].unidadesVendidas = vendidas;
-      trabajos[idx].historialVentas.pop();
+      trabajos[idx].historialVentas?.pop();
       trabajos[idx].estado         = prevEstado;
       trabajos[idx].estadoPago     = prevEstadoPago;
       trabajos[idx].montoAbonado   = prevAbonado;
