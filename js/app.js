@@ -2711,130 +2711,106 @@ function onAuthSuccess() {
 }
 
 /* ----------------------------------------------------------
-   Exportar datos a CSV (Power BI / Excel)
+   Exportar datos a CSV — un ZIP con todos los archivos
 ---------------------------------------------------------- */
-function _csvBlob(filas) {
+function _csvStr(filas) {
   const BOM = '﻿';
-  const body = filas.map(f =>
+  return BOM + filas.map(f =>
     f.map(v => {
       const s = String(v ?? '');
       return /[,"\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
     }).join(',')
   ).join('\r\n');
-  return new Blob([BOM + body], { type: 'text/csv;charset=utf-8;' });
 }
 
-function _descargarBlob(blob, nombre) {
-  const url = URL.createObjectURL(blob);
-  const a   = document.createElement('a');
-  a.href = url; a.download = nombre;
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 1500);
+function _filaCot(t) {
+  return [
+    t.id, t.fecha||'', t.cliente||'', t.pieza||'',
+    t.categoria||'', t.material||'',
+    t.estado||'', t.estadoPago||'', t.metodoPago||'',
+    t.cantidad||0, t.placas||0, t.gramos||0,
+    t.horas_imp||0, t.horas_mo||0, t.horas_dis||0,
+    t.pFallos||0, t.pMargen||0, t.pIVA||0,
+    t.costo_total||0, t.precio_final||0,
+    t.precio_unitario||0, t.ganancia_por_objeto||0,
+    t.montoAbonado||0, t.montoPendiente||0,
+    t.fechaEntrega||'',
+    t.fechaActualizacionEstado ? t.fechaActualizacionEstado.split('T')[0] : '',
+    t.ventaDetalle ? 1 : 0, t.unidadesVendidas||0, t.notas||''
+  ];
 }
 
-function exportarTodosCSV() {
+const _HDR_COT = ['id','fecha','cliente','pieza','categoria','material',
+  'estado','estadoPago','metodoPago',
+  'cantidad','placas','gramos','horas_imp','horas_mo','horas_dis',
+  'pFallos','pMargen','pIVA',
+  'costo_total','precio_final','precio_unitario','ganancia_por_objeto',
+  'montoAbonado','montoPendiente',
+  'fechaEntrega','fechaActualizacion','ventaDetalle','unidadesVendidas','notas'];
+
+async function exportarTodosCSV() {
+  if (typeof JSZip === 'undefined') {
+    toast('JSZip no cargó aún, reintentá en un momento', 'error'); return;
+  }
+  const zip = new JSZip();
   const hoy = new Date().toISOString().split('T')[0];
 
-  /* 1 — Cotizaciones (una fila por trabajo) */
-  const archivos = [];
+  /* 1 — Todas las cotizaciones */
+  zip.file('cotizaciones.csv', _csvStr([_HDR_COT, ...trabajos.map(_filaCot)]));
 
-  archivos.push([
-    `cotizaciones_${hoy}.csv`,
-    _csvBlob([
-      ['id','fecha','cliente','pieza','categoria','material',
-       'estado','estadoPago','metodoPago',
-       'cantidad','placas','gramos','horas_imp','horas_mo','horas_dis',
-       'pFallos','pMargen','pIVA',
-       'costo_total','precio_final','precio_unitario','ganancia_por_objeto',
-       'montoAbonado','montoPendiente',
-       'fechaEntrega','fechaActualizacion','ventaDetalle','unidadesVendidas','notas'],
-      ...trabajos.map(t => [
-        t.id, t.fecha||'', t.cliente||'', t.pieza||'',
-        t.categoria||'', t.material||'',
-        t.estado||'', t.estadoPago||'', t.metodoPago||'',
-        t.cantidad||0, t.placas||0, t.gramos||0,
-        t.horas_imp||0, t.horas_mo||0, t.horas_dis||0,
-        t.pFallos||0, t.pMargen||0, t.pIVA||0,
-        t.costo_total||0, t.precio_final||0,
-        t.precio_unitario||0, t.ganancia_por_objeto||0,
-        t.montoAbonado||0, t.montoPendiente||0,
-        t.fechaEntrega||'',
-        t.fechaActualizacionEstado ? t.fechaActualizacionEstado.split('T')[0] : '',
-        t.ventaDetalle ? 1 : 0, t.unidadesVendidas||0, t.notas||''
-      ])
-    ])
-  ]);
+  /* 2 — Pagados (Entregado + estadoPago Pagado) */
+  const pagados = trabajos.filter(t =>
+    t.estado === 'Entregado' && (t.estadoPago||'') === 'Pagado'
+  );
+  zip.file('cotizaciones_pagadas.csv', _csvStr([_HDR_COT, ...pagados.map(_filaCot)]));
 
-  /* 2 — Historial de ventas al detalle (una fila por transacción) */
-  const filasVentas = [];
+  /* 3 — Pendientes de cobro (no cancelados, no pagados) */
+  const pendientes = trabajos.filter(t =>
+    t.estado !== 'Cancelado' && (t.estadoPago||'Pendiente') !== 'Pagado'
+  );
+  zip.file('cotizaciones_pendientes.csv', _csvStr([_HDR_COT, ...pendientes.map(_filaCot)]));
+
+  /* 4 — Historial de ventas al detalle */
+  const filasVentas = [['cotizacion_id','pieza','cliente','categoria','fecha_venta','cantidad','es_devolucion','nota']];
   trabajos.filter(t => (t.historialVentas||[]).length).forEach(t => {
-    (t.historialVentas||[]).forEach(v => {
-      filasVentas.push([
-        t.id, t.pieza||'', t.cliente||'', t.categoria||'',
-        v.fecha ? new Date(v.fecha).toISOString().split('T')[0] : '',
-        Math.abs(v.cantidad||0),
-        (v.cantidad||0) < 0 ? 1 : 0,
-        v.nota||''
-      ]);
-    });
+    (t.historialVentas||[]).forEach(v => filasVentas.push([
+      t.id, t.pieza||'', t.cliente||'', t.categoria||'',
+      v.fecha ? new Date(v.fecha).toISOString().split('T')[0] : '',
+      Math.abs(v.cantidad||0), (v.cantidad||0) < 0 ? 1 : 0, v.nota||''
+    ]));
   });
-  archivos.push([
-    `historial_ventas_${hoy}.csv`,
-    _csvBlob([
-      ['cotizacion_id','pieza','cliente','categoria',
-       'fecha_venta','cantidad','es_devolucion','nota'],
-      ...filasVentas
-    ])
-  ]);
+  zip.file('historial_ventas.csv', _csvStr(filasVentas));
 
-  /* 3 — Abonos (una fila por pago registrado) */
-  const filasAbonos = [];
+  /* 5 — Abonos */
+  const filasAbonos = [['cotizacion_id','pieza','cliente','fecha_pago','monto','metodo','nota']];
   trabajos.forEach(t => {
     const ab = t.abonos || [];
     if (ab.length) {
-      ab.forEach(a => filasAbonos.push([
-        t.id, t.pieza||'', t.cliente||'',
-        a.fecha||'', a.monto||0, a.metodo||'', a.nota||''
-      ]));
+      ab.forEach(a => filasAbonos.push([t.id, t.pieza||'', t.cliente||'', a.fecha||'', a.monto||0, a.metodo||'', a.nota||'']));
     } else if ((t.montoAbonado||0) > 0) {
-      filasAbonos.push([
-        t.id, t.pieza||'', t.cliente||'',
-        t.fechaPago||'', t.montoAbonado||0, t.metodoPago||'', 'Pago legacy'
-      ]);
+      filasAbonos.push([t.id, t.pieza||'', t.cliente||'', t.fechaPago||'', t.montoAbonado||0, t.metodoPago||'', 'Pago legacy']);
     }
   });
-  archivos.push([
-    `abonos_${hoy}.csv`,
-    _csvBlob([
-      ['cotizacion_id','pieza','cliente','fecha_pago','monto','metodo','nota'],
-      ...filasAbonos
-    ])
-  ]);
+  zip.file('abonos.csv', _csvStr(filasAbonos));
 
-  /* 4 — Gastos operativos */
-  archivos.push([
-    `gastos_${hoy}.csv`,
-    _csvBlob([
-      ['id','fecha','descripcion','categoria','monto','notas'],
-      ...gastos.map(g => [g.id, g.fecha||'', g.descripcion||'', g.categoria||'', g.monto||0, g.notas||''])
-    ])
-  ]);
+  /* 6 — Gastos */
+  zip.file('gastos.csv', _csvStr([
+    ['id','fecha','descripcion','categoria','monto','notas'],
+    ...gastos.map(g => [g.id, g.fecha||'', g.descripcion||'', g.categoria||'', g.monto||0, g.notas||''])
+  ]));
 
-  /* 5 — Clientes */
-  archivos.push([
-    `clientes_${hoy}.csv`,
-    _csvBlob([
-      ['id','nombre','telefono','correo','instagram','totalPedidos','totalComprado','notas'],
-      ...clientes.map(c => [
-        c.id, c.nombre||'', c.telefono||'', c.correo||'',
-        c.instagram||'', c.totalPedidos||0, c.totalComprado||0, c.notas||''
-      ])
-    ])
-  ]);
+  /* 7 — Clientes */
+  zip.file('clientes.csv', _csvStr([
+    ['id','nombre','telefono','correo','instagram','totalPedidos','totalComprado','notas'],
+    ...clientes.map(c => [c.id, c.nombre||'', c.telefono||'', c.correo||'', c.instagram||'', c.totalPedidos||0, c.totalComprado||0, c.notas||''])
+  ]));
 
-  archivos.forEach(([nombre, blob], i) =>
-    setTimeout(() => _descargarBlob(blob, nombre), i * 450)
-  );
+  const blob = await zip.generateAsync({ type: 'blob' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = `cotizador3d_${hoy}.zip`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
 
-  toast(`Descargando ${archivos.length} archivos CSV…`, 'success', 4000);
+  toast('ZIP descargado con 7 archivos CSV ✓', 'success', 4000);
 }
