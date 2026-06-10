@@ -182,7 +182,7 @@ async function login() {
       case 'auth/network-request-failed':
         msg = 'Error de red. Verifique su conexión.'; break;
       default:
-        msg = `Error al iniciar sesión (${e.code || 'desconocido'})`;
+        msg = e.message ? `JS: ${e.message}` : `Error (${e.code || 'desconocido'})`;
     }
     errEl.textContent = msg;
     errEl.style.display = 'block';
