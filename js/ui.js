@@ -174,6 +174,11 @@ function renderTrabajos() {
   const entregados = trabajos.filter(t => t.estado === 'Entregado').length;
   const ingresos        = trabajos.reduce((s,t) => s + ingresosLote(t), 0);
   const ganancias       = trabajos.reduce((s,t) => s + gananciaLote(t), 0);
+  const gastosPagados   = (typeof gastos !== 'undefined' ? gastos : [])
+    .filter(g => g.pagado).reduce((s, g) => s + (g.monto || 0), 0);
+  const invPagada       = ((typeof inversion !== 'undefined' ? inversion.items : null) || [])
+    .filter(i => i.pagado).reduce((s, i) => s + (i.monto || 0), 0);
+  const neto            = ingresos - gastosPagados - invPagada;
   const pendPago   = trabajos.filter(t => ESTADOS_POR_COBRAR.includes(t.estado) && (t.estadoPago||'Pendiente') !== 'Pagado').length;
   const porCobrar  = trabajos
     .filter(t => ESTADOS_POR_COBRAR.includes(t.estado))
@@ -196,6 +201,7 @@ function renderTrabajos() {
   set('st-ganancias',          fmt(ganancias));
   set('st-pend-pago',          pendPago);
   set('st-por-cobrar',         fmt(porCobrar));
+  set('st-neto',               fmt(neto));
   if (typeof actualizarDashboardInversion === 'function') actualizarDashboardInversion();
 
   // Vista kanban: delegar renderizado y salir
@@ -967,30 +973,42 @@ const GASTO_COLOR = {
 function renderCostos() {
   const tbody = el('gastos-tbody');
   if (!tbody) return;
-  const empty = el('gastos-empty');
+  const empty   = el('gastos-empty');
   const totalEl = el('gastos-total');
+  const pagadoEl = el('gastos-pagado');
   if (!gastos.length) {
-    if (empty) empty.style.display = 'block';
+    if (empty)    empty.style.display = 'block';
+    if (totalEl)  totalEl.textContent = '₡0';
+    if (pagadoEl) pagadoEl.textContent = '₡0 pagado';
     tbody.innerHTML = '';
-    if (totalEl) totalEl.textContent = '₡0';
     return;
   }
   if (empty) empty.style.display = 'none';
-  const total = gastos.reduce((s, g) => s + (g.monto || 0), 0);
-  if (totalEl) totalEl.textContent = fmt(total);
-  tbody.innerHTML = gastos.map(g => `
-    <tr>
+  const total   = gastos.reduce((s, g) => s + (g.monto || 0), 0);
+  const pagado  = gastos.filter(g => g.pagado).reduce((s, g) => s + (g.monto || 0), 0);
+  if (totalEl)  totalEl.textContent  = fmt(total);
+  if (pagadoEl) pagadoEl.textContent = `${fmt(pagado)} pagado`;
+  tbody.innerHTML = gastos.map(g => {
+    const cls = g.pagado ? ' style="opacity:.55"' : '';
+    return `
+    <tr${cls}>
       <td class="td-mono">${g.fecha || '—'}</td>
       <td>${escHtml(g.descripcion || '')}</td>
       <td><span class="badge ${GASTO_COLOR[g.categoria] || 'badge-gray'}">${escHtml(g.categoria || '')}</span></td>
-      <td class="td-mono"><strong>${fmt(g.monto || 0)}</strong></td>
+      <td class="td-mono"><strong style="${g.pagado ? 'text-decoration:line-through;color:var(--text3)' : ''}">${fmt(g.monto || 0)}</strong></td>
       <td>${escHtml(g.notas || '')}</td>
       <td>
-        <button class="btn btn-danger btn-icon btn-sm" title="Eliminar" onclick='eliminarGasto("${g.id}")'>
-          <svg width="13" height="13" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
-        </button>
+        <div class="td-actions">
+          <button class="btn btn-sm ${g.pagado ? 'btn-success' : 'btn-secondary'}" style="font-size:.7rem;padding:3px 8px" title="${g.pagado ? 'Marcar como pendiente' : 'Marcar como pagado'}" onclick='toggleGastoPagado("${g.id}")'>
+            ${g.pagado ? '✓ Pagado' : 'Pagar'}
+          </button>
+          <button class="btn btn-danger btn-icon btn-sm" title="Eliminar" onclick='eliminarGasto("${g.id}")'>
+            <svg width="13" height="13" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+          </button>
+        </div>
       </td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
 }
 
 function renderInversion() {
@@ -1016,13 +1034,16 @@ function renderInversion() {
     list.innerHTML = !(inversion.items?.length)
       ? '<div class="empty-inline">Sin items de inversión</div>'
       : (inversion.items || []).map(i => `
-        <div class="inv-item">
+        <div class="inv-item" style="${i.pagado ? 'opacity:.55' : ''}">
           <div class="inv-item-info">
-            <span class="inv-item-desc">${escHtml(i.descripcion)}</span>
+            <span class="inv-item-desc" style="${i.pagado ? 'text-decoration:line-through;color:var(--text3)' : ''}">${escHtml(i.descripcion)}</span>
             <span class="badge badge-gray" style="font-size:.66rem">${escHtml(i.categoria)}</span>
           </div>
           <div class="inv-item-right">
             <span class="inv-item-monto">${fmt(i.monto)}</span>
+            <button class="btn btn-sm ${i.pagado ? 'btn-success' : 'btn-secondary'}" style="font-size:.68rem;padding:2px 7px" title="${i.pagado ? 'Marcar como pendiente' : 'Marcar como pagado'}" onclick='toggleInversionItemPagado("${i.id}")'>
+              ${i.pagado ? '✓ Pagado' : 'Pagar'}
+            </button>
             <button class="btn btn-danger btn-icon btn-sm" onclick='eliminarItemInversion("${i.id}")'>
               <svg width="12" height="12" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
             </button>

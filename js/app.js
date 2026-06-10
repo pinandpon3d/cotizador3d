@@ -2447,6 +2447,39 @@ async function eliminarGasto(id) {
   }
 }
 
+async function toggleGastoPagado(id) {
+  const idx = gastos.findIndex(g => g.id === id);
+  if (idx < 0) return;
+  gastos[idx].pagado = !gastos[idx].pagado;
+  try {
+    await db.collection('gastos').doc(String(id)).update({ pagado: gastos[idx].pagado });
+    renderCostos();
+    if (typeof renderTrabajos === 'function') renderTrabajos();
+    toast(gastos[idx].pagado ? 'Gasto marcado como pagado' : 'Gasto marcado como pendiente', 'success');
+  } catch(e) {
+    gastos[idx].pagado = !gastos[idx].pagado; // revert
+    renderCostos();
+    toast('Error al actualizar', 'error');
+  }
+}
+
+async function toggleInversionItemPagado(itemId) {
+  const item = (inversion.items || []).find(i => i.id === itemId);
+  if (!item) return;
+  item.pagado = !item.pagado;
+  try {
+    await fbGuardarInversion(inversion);
+    renderInversion();
+    if (typeof renderTrabajos === 'function') renderTrabajos();
+    actualizarDashboardInversion();
+    toast(item.pagado ? 'Item marcado como pagado' : 'Item marcado como pendiente', 'success');
+  } catch(e) {
+    item.pagado = !item.pagado; // revert
+    renderInversion();
+    toast('Error al actualizar', 'error');
+  }
+}
+
 async function toggleInversionActiva() {
   inversion.activa = !inversion.activa;
   try {
