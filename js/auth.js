@@ -164,11 +164,15 @@ async function login() {
     await auth.signInWithEmailAndPassword(emailVal, passVal);
     // onAuthStateChanged se encarga del resto
   } catch (e) {
+    console.error('Login error:', e.code, e.message);
     let msg = 'Error al iniciar sesión';
-    if (['auth/user-not-found','auth/wrong-password','auth/invalid-credential'].includes(e.code))
+    if (['auth/user-not-found','auth/wrong-password','auth/invalid-credential',
+         'auth/invalid-login-credentials','auth/invalid-email-and-password'].includes(e.code))
       msg = 'Email o contraseña incorrectos';
-    else if (e.code === 'auth/too-many-requests') msg = 'Demasiados intentos. Intente más tarde';
-    else if (e.code === 'auth/invalid-email')     msg = 'Email inválido';
+    else if (e.code === 'auth/too-many-requests')      msg = 'Demasiados intentos. Intente más tarde';
+    else if (e.code === 'auth/invalid-email')           msg = 'Email inválido';
+    else if (e.code === 'auth/network-request-failed') msg = 'Error de red. Verifique su conexión.';
+    else if (e.code === 'auth/user-disabled')           msg = 'Esta cuenta está deshabilitada.';
     errEl.textContent = msg;
     errEl.style.display = 'block';
     if (btn) { btn.disabled = false; btn.textContent = 'Entrar'; }
