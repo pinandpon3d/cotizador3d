@@ -177,7 +177,11 @@ function guardarCotizacion() {
 ---------------------------------------------------------- */
 async function cargarTrabajos() {
   try {
-    trabajos = await fbCargarTrabajos();
+    [trabajos, gastos, inversion] = await Promise.all([
+      fbCargarTrabajos(),
+      fbCargarGastos(),
+      fbCargarInversion()
+    ]);
     try { localStorage.setItem('trabajos3d', JSON.stringify(trabajos)); } catch(e){}
   } catch(e) {
     console.error('Error cargando trabajos:', e);
