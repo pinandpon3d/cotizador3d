@@ -1650,6 +1650,26 @@ tbody td{padding:10px 14px;color:var(--text);vertical-align:middle}
   color: var(--warn);
 }
 
+/* Entregado pendiente de cobro */
+.tr-cobrar {
+  background: rgba(244,199,15,.06) !important;
+  border-left: 3px solid var(--brand-gold) !important;
+}
+.tr-cobrar:hover {
+  background: rgba(244,199,15,.12) !important;
+}
+.badge-cobrar {
+  display: inline-block;
+  font-size: .62rem;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-top: 3px;
+  line-height: 1.5;
+  background: rgba(244,199,15,.15);
+  color: var(--brand-gold-dark);
+}
+
 /* Kanban card urgente */
 .kc-urgente-overdue {
   border-left: 3px solid var(--danger) !important;

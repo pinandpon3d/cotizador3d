@@ -157,8 +157,9 @@ function renderTrabajos() {
       const matchEstado = !estadoF || t.estado    === estadoF;
       const matchCat    = !catF    || t.categoria === catF;
       const matchPago   = !pagoF   || (t.estadoPago||'Pendiente') === pagoF;
-      // Ocultar entregados por defecto (salvo que el filtro los pida explícitamente)
-      const mostrarEste = _mostrarEntregados || estadoF === 'Entregado' || t.estado !== 'Entregado';
+      // Entregado + pago pendiente/abono siempre visible (requiere cobro)
+      const esCobrable  = t.estado === 'Entregado' && (t.estadoPago||'Pendiente') !== 'Pagado';
+      const mostrarEste = _mostrarEntregados || estadoF === 'Entregado' || t.estado !== 'Entregado' || esCobrable;
       return matchSearch && matchEstado && matchCat && matchPago && mostrarEste;
     })
     // Ordenar por ID descendente (más reciente primero — IDs son timestamps)
@@ -229,9 +230,11 @@ function renderTrabajos() {
     const entregaAlerta = t.fechaEntrega && t.estado !== 'Entregado' && t.estado !== 'Cancelado'
       ? (t.fechaEntrega < hoy ? 'overdue' : t.fechaEntrega === hoy ? 'today' : '')
       : '';
+    const esCobrable = t.estado === 'Entregado' && (t.estadoPago||'Pendiente') !== 'Pagado';
     const trClass = [
       checked ? 'tr-selected' : '',
-      entregaAlerta ? `tr-entrega-${entregaAlerta}` : ''
+      entregaAlerta ? `tr-entrega-${entregaAlerta}` : '',
+      esCobrable ? 'tr-cobrar' : ''
     ].filter(Boolean).join(' ');
     const rowPendiente = t.montoPendiente != null
       ? t.montoPendiente
@@ -246,6 +249,7 @@ function renderTrabajos() {
         ${t.material ? `<br><span style="font-size:.68rem;color:var(--text3)">${escHtml(t.material)}</span>` : ''}
         ${entregaAlerta === 'overdue' ? `<br><span class="badge-entrega urgente">⚠ Entrega vencida: ${t.fechaEntrega}</span>` : ''}
         ${entregaAlerta === 'today'   ? `<br><span class="badge-entrega hoy">📦 Entrega hoy: ${t.fechaEntrega}</span>` : ''}
+        ${esCobrable ? `<br><span class="badge-cobrar">💰 Entregado — pendiente de cobro</span>` : ''}
       </td>
       <td><span class="badge badge-accent">${escHtml(t.categoria||'')}</span></td>
       <td class="td-mono">${(t.gramos||0).toFixed(1)}g / ${(t.horas_imp||0).toFixed(1)}h</td>
