@@ -23,8 +23,8 @@ let currentRole   = null;
 let currentPerfil = null;
 
 const ROLE_PAGES = {
-  admin:   ['cotizador', 'trabajos', 'inventario', 'configuracion', 'usuarios', 'dashboard', 'clientes', 'detalle', 'costos'],
-  usuario: ['cotizador', 'trabajos', 'dashboard', 'clientes', 'detalle']
+  admin:   ['cotizador', 'trabajos', 'inventario', 'configuracion', 'usuarios', 'dashboard', 'clientes', 'detalle', 'costos', 'calendario'],
+  usuario: ['cotizador', 'trabajos', 'dashboard', 'clientes', 'detalle', 'calendario']
 };
 
 /* ----------------------------------------------------------

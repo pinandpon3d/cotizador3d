@@ -1066,3 +1066,134 @@ function renderInversion() {
   const progSec = el('inversion-progress-section');
   if (progSec) progSec.style.display = totalInv > 0 ? '' : 'none';
 }
+
+/* ================================================================
+   CALENDARIO DE PRODUCCIÓN
+================================================================ */
+const _CAL_DIAS   = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+const _CAL_MESES  = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
+                     'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const _CAL_DIAS_S = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+
+function _calEstadoCls(estado) {
+  const m = { 'Cotizado':'cal-cotizado','Aprobado':'cal-aprobado',
+    'En impresión':'cal-impresion','Post-proceso':'cal-postproceso',
+    'Listo':'cal-listo','Entregado':'cal-entregado','Cancelado':'cal-cancelado' };
+  return m[estado] || 'cal-cotizado';
+}
+
+function renderCalendario(year, month) {
+  const grid     = el('cal-grid');
+  const titulo   = el('cal-titulo');
+  const upcoming = el('cal-upcoming');
+  if (!grid) return;
+
+  if (titulo) titulo.textContent = `${_CAL_MESES[month]} ${year}`;
+
+  const hoy     = new Date();
+  const hoyStr  = `${hoy.getFullYear()}-${String(hoy.getMonth()+1).padStart(2,'0')}-${String(hoy.getDate()).padStart(2,'0')}`;
+
+  // Agrupar trabajos por fechaEntrega
+  const byDate = {};
+  (typeof trabajos !== 'undefined' ? trabajos : []).forEach(t => {
+    if (!t.fechaEntrega || t.estado === 'Cancelado') return;
+    const d = t.fechaEntrega.slice(0, 10);
+    (byDate[d] = byDate[d] || []).push(t);
+  });
+
+  // Calcular posición de inicio (Lunes = 0)
+  const firstDow = ((new Date(year, month, 1).getDay() + 6) % 7);
+  const daysInMonth    = new Date(year, month + 1, 0).getDate();
+  const daysInPrevMon  = new Date(year, month, 0).getDate();
+
+  let html = _CAL_DIAS.map(d => `<div class="cal-day-hdr">${d}</div>`).join('');
+
+  // Días del mes anterior
+  for (let i = firstDow - 1; i >= 0; i--) {
+    const day = daysInPrevMon - i;
+    const pm = month === 0 ? 11 : month - 1;
+    const py = month === 0 ? year - 1 : year;
+    html += _calCelda(day, `${py}-${String(pm+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`, byDate, hoyStr, true);
+  }
+
+  // Días del mes actual
+  for (let d = 1; d <= daysInMonth; d++) {
+    html += _calCelda(d, `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`, byDate, hoyStr, false);
+  }
+
+  // Días del mes siguiente para completar la última fila
+  const total = Math.ceil((firstDow + daysInMonth) / 7) * 7;
+  const nm = month === 11 ? 0 : month + 1;
+  const ny = month === 11 ? year + 1 : year;
+  for (let d = 1; d <= total - firstDow - daysInMonth; d++) {
+    html += _calCelda(d, `${ny}-${String(nm+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`, byDate, hoyStr, true);
+  }
+
+  grid.innerHTML = html;
+  if (upcoming) _calProximas(upcoming, hoyStr, byDate);
+}
+
+function _calCelda(dayNum, dateStr, byDate, hoyStr, otro) {
+  const isToday = dateStr === hoyStr;
+  const isPast  = dateStr < hoyStr;
+  const jobs    = byDate[dateStr] || [];
+
+  let cls = 'cal-cel';
+  if (otro)    cls += ' cal-otro';
+  if (isToday) cls += ' cal-hoy';
+
+  let html = `<div class="${cls}"><div class="cal-num">${dayNum}</div>`;
+
+  const MAX = 3;
+  jobs.slice(0, MAX).forEach(t => {
+    const vencido = isPast && !['Entregado'].includes(t.estado);
+    const jcls    = vencido ? 'cal-job cal-vencido' : `cal-job ${_calEstadoCls(t.estado)}`;
+    html += `<div class="${jcls}" onclick="abrirModalEdicion('${t.id}')" title="${escHtml(t.pieza||'')} · ${escHtml(t.cliente||'')}">
+      ${escHtml((t.pieza || t.cliente || '—').substring(0, 22))}
+    </div>`;
+  });
+  if (jobs.length > MAX) {
+    html += `<div class="cal-mas" onclick="">+${jobs.length - MAX} más</div>`;
+  }
+
+  return html + '</div>';
+}
+
+function _calProximas(container, hoyStr, byDate) {
+  const items = [];
+  for (let i = 0; i <= 30; i++) {
+    const d = new Date(hoyStr);
+    d.setDate(d.getDate() + i);
+    const ds = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    (byDate[ds] || []).forEach(t => {
+      if (!['Entregado','Cancelado'].includes(t.estado)) items.push({ ds, d: new Date(d), t });
+    });
+  }
+
+  if (!items.length) {
+    container.innerHTML = `<div style="text-align:center;color:var(--text2);font-size:.82rem;padding:20px">Sin entregas programadas en los próximos 30 días</div>`;
+    return;
+  }
+
+  const ecCls = (typeof ESTADO_COLOR !== 'undefined') ? ESTADO_COLOR : {};
+  container.innerHTML = `
+    <div class="cal-prox-titulo">Próximas entregas — 30 días</div>
+    <div class="cal-prox-grid">
+      ${items.slice(0, 15).map(({ d, t }) => {
+        const dn  = d.getDate();
+        const dia = _CAL_DIAS_S[d.getDay()];
+        const isH = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` === hoyStr;
+        return `<div class="cal-prox-item" onclick="abrirModalEdicion('${t.id}')">
+          <div class="cal-prox-fecha${isH?' cal-prox-hoy':''}">
+            <span class="cal-prox-dia-n">${dn}</span>
+            <span class="cal-prox-dia-s">${dia}</span>
+          </div>
+          <div class="cal-prox-info">
+            <div class="cal-prox-pieza">${escHtml(t.pieza||'—')}</div>
+            <div class="cal-prox-cliente">${escHtml(t.cliente||'—')}</div>
+          </div>
+          <span class="badge ${ecCls[t.estado]||'badge-gray'}" style="font-size:.62rem;flex-shrink:0">${t.estado}</span>
+        </div>`;
+      }).join('')}
+    </div>`;
+}

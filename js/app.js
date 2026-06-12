@@ -22,6 +22,8 @@ let categoriasPago = ['Pendiente', 'Abono', 'Pagado'];
 let _dashFiltro    = 'mes-actual';
 let seleccionados  = new Set();   // IDs seleccionados para cotización combinada
 let _trabajosVista = 'tabla';     // 'tabla' | 'kanban'
+let _calYear  = new Date().getFullYear();
+let _calMonth = new Date().getMonth();  // 0-indexed
 
 /* ----------------------------------------------------------
    Navegación
@@ -35,7 +37,8 @@ const PAGE_LABELS = {
   dashboard:    'Dashboard',
   clientes:     'Clientes',
   detalle:      'Al Detalle',
-  costos:       'Costos'
+  costos:       'Costos',
+  calendario:   'Calendario'
 };
 
 /* ─── TABS DE CONFIGURACIÓN ─── */
@@ -79,6 +82,7 @@ function navTo(page) {
   if (page === 'clientes')      cargarClientes();
   if (page === 'detalle')       cargarVentaDetalle();
   if (page === 'costos')        cargarCostos();
+  if (page === 'calendario')    cargarCalendario();
   closeSidebar();
 }
 
@@ -2742,6 +2746,29 @@ function toggleFiltrosMobile() {
 /* ----------------------------------------------------------
    Callback post-autenticación (llamado desde auth.js)
 ---------------------------------------------------------- */
+/* ----------------------------------------------------------
+   Calendario de Producción
+---------------------------------------------------------- */
+async function cargarCalendario() {
+  try {
+    if (!trabajos.length) trabajos = await fbCargarTrabajos();
+  } catch(e) { console.error('Error cargando calendario:', e); }
+  renderCalendario(_calYear, _calMonth);
+}
+
+function calCambiarMes(delta) {
+  _calMonth += delta;
+  if (_calMonth > 11) { _calMonth = 0; _calYear++; }
+  if (_calMonth < 0)  { _calMonth = 11; _calYear--; }
+  renderCalendario(_calYear, _calMonth);
+}
+
+function calHoy() {
+  _calYear  = new Date().getFullYear();
+  _calMonth = new Date().getMonth();
+  renderCalendario(_calYear, _calMonth);
+}
+
 function onAuthSuccess() {
   testFirebase();
   try { const l=localStorage.getItem('trabajos3d');   if(l) trabajos=JSON.parse(l);   } catch(e){}

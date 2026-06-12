@@ -1840,3 +1840,91 @@ tbody td{padding:10px 14px;color:var(--text);vertical-align:middle}
   border: 1px dashed var(--border);
   border-radius: var(--radius-xs);
 }
+
+/* ================================================================
+   CALENDARIO DE PRODUCCIÓN
+================================================================ */
+.cal-legend{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:14px;font-size:.72rem;color:var(--text2)}
+.cal-legend-item{display:flex;align-items:center;gap:5px}
+.cal-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+
+/* Grilla del calendario */
+.cal-grid{
+  display:grid;grid-template-columns:repeat(7,1fr);
+  gap:1px;background:var(--border);
+}
+.cal-day-hdr{
+  background:var(--surface2);
+  text-align:center;padding:9px 4px;
+  font-size:.68rem;font-weight:700;text-transform:uppercase;
+  letter-spacing:.06em;color:var(--text2);
+}
+.cal-cel{
+  background:var(--surface);min-height:88px;padding:5px 6px;
+}
+.cal-otro{background:var(--surface2);opacity:.5}
+.cal-hoy{background:linear-gradient(135deg,rgba(26,96,166,.06),rgba(26,96,166,.02))}
+.cal-num{
+  font-size:.72rem;font-weight:600;color:var(--text2);
+  width:22px;height:22px;display:flex;align-items:center;justify-content:center;
+  border-radius:50%;margin-bottom:3px;
+}
+.cal-hoy .cal-num{background:var(--accent);color:#fff;font-weight:700}
+
+/* Job chips dentro del calendario */
+.cal-job{
+  font-size:.63rem;padding:2px 5px;border-radius:4px;
+  margin-bottom:2px;cursor:pointer;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  font-weight:500;border-left:2px solid transparent;
+  transition:opacity .12s;
+}
+.cal-job:hover{opacity:.75}
+.cal-cotizado  {background:var(--surface2);color:var(--text2);border-color:var(--text3)}
+.cal-aprobado  {background:var(--accent-soft);color:var(--accent);border-color:var(--accent)}
+.cal-impresion {background:rgba(124,58,237,.1);color:#7c3aed;border-color:#7c3aed}
+.cal-postproceso{background:rgba(217,119,6,.1);color:var(--warn);border-color:var(--warn)}
+.cal-listo     {background:var(--success-soft);color:var(--success);border-color:var(--success)}
+.cal-entregado {background:var(--surface2);color:var(--text3);border-color:var(--text3);text-decoration:line-through}
+.cal-cancelado {background:var(--danger-soft);color:var(--danger);border-color:var(--danger);opacity:.6}
+.cal-vencido   {background:rgba(220,38,38,.15);color:var(--danger);border-color:var(--danger)}
+.cal-mas{font-size:.6rem;color:var(--text2);padding:1px 5px;cursor:pointer}
+.cal-mas:hover{color:var(--accent)}
+
+/* Próximas entregas */
+.cal-prox-titulo{
+  font-size:.7rem;font-weight:700;text-transform:uppercase;
+  letter-spacing:.08em;color:var(--text2);margin-bottom:12px;
+}
+.cal-prox-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+  gap:10px;
+}
+.cal-prox-item{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius-sm);padding:10px 14px;
+  display:flex;align-items:center;gap:12px;cursor:pointer;
+  transition:var(--transition);
+}
+.cal-prox-item:hover{border-color:var(--accent);box-shadow:var(--shadow)}
+.cal-prox-fecha{
+  text-align:center;width:38px;flex-shrink:0;
+  padding:4px 0;border-radius:var(--radius-xs);
+  border:1px solid var(--border);background:var(--surface2);
+}
+.cal-prox-fecha.cal-prox-hoy{background:var(--accent);border-color:var(--accent)}
+.cal-prox-dia-n{display:block;font-size:1.1rem;font-weight:800;line-height:1;color:var(--text)}
+.cal-prox-hoy .cal-prox-dia-n,.cal-prox-hoy .cal-prox-dia-s{color:#fff}
+.cal-prox-dia-s{display:block;font-size:.6rem;text-transform:uppercase;font-weight:600;color:var(--text2);letter-spacing:.04em;margin-top:1px}
+.cal-prox-info{flex:1;min-width:0}
+.cal-prox-pieza{font-size:.8rem;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cal-prox-cliente{font-size:.7rem;color:var(--text2);margin-top:1px}
+
+/* Responsive: en móvil las celdas son más pequeñas */
+@media(max-width:640px){
+  .cal-cel{min-height:60px;padding:3px 4px}
+  .cal-job{font-size:.58rem;padding:1px 3px}
+  .cal-day-hdr{font-size:.6rem;padding:6px 2px}
+  .cal-prox-grid{grid-template-columns:1fr}
+}
