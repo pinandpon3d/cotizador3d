@@ -110,6 +110,13 @@ function aplicarRol() {
     navItem.style.display = pages.includes(page) ? '' : 'none';
   });
 
+  // Ocultar grupos de nav que queden sin items visibles
+  document.querySelectorAll('.nav-group').forEach(group => {
+    const hasVisible = [...group.querySelectorAll('.nav-item[data-page]')]
+      .some(i => i.style.display !== 'none');
+    group.style.display = hasVisible ? '' : 'none';
+  });
+
   // Secciones marcadas como solo-admin
   document.querySelectorAll('[data-admin-only]').forEach(s => {
     s.style.display = currentRole === 'admin' ? '' : 'none';

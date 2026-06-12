@@ -338,45 +338,57 @@
   </div>
 
   <nav>
-    <!-- Operaciones principales (flujo diario) -->
-    <div class="nav-item" data-page="dashboard" onclick="navTo('dashboard')">
-      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-      Dashboard
+    <!-- ── OPERACIONES ── -->
+    <div class="nav-group" id="navg-operaciones">
+      <div class="nav-group-label">Operaciones</div>
+      <div class="nav-item" data-page="dashboard" onclick="navTo('dashboard')">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        Dashboard
+      </div>
+      <div class="nav-item" data-page="trabajos" onclick="navTo('trabajos')">
+        <svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
+        Trabajos
+      </div>
+      <div class="nav-item" data-page="detalle" onclick="navTo('detalle')">
+        <svg viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+        Al Detalle
+      </div>
     </div>
-    <div class="nav-item active" data-page="cotizador" onclick="navTo('cotizador')">
-      <svg viewBox="0 0 24 24"><path d="M9 7H6a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2v-3"/><path d="M16 5h2a1 1 0 0 1 1 1v2"/><path d="M12 12h5l-1.5-6"/><path d="m9 12 2 2 4-4"/></svg>
-      Cotizador
+    <!-- ── FINANZAS ── -->
+    <div class="nav-group" id="navg-finanzas">
+      <div class="nav-group-label">Finanzas</div>
+      <div class="nav-item" data-page="costos" onclick="navTo('costos')">
+        <svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        Costos &amp; Gastos
+      </div>
     </div>
-    <div class="nav-item" data-page="trabajos" onclick="navTo('trabajos')">
-      <svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
-      Trabajos
+    <!-- ── CATÁLOGO ── -->
+    <div class="nav-group" id="navg-catalogo">
+      <div class="nav-group-label">Catálogo</div>
+      <div class="nav-item active" data-page="cotizador" onclick="navTo('cotizador')">
+        <svg viewBox="0 0 24 24"><path d="M9 7H6a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2v-3"/><path d="M16 5h2a1 1 0 0 1 1 1v2"/><path d="M12 12h5l-1.5-6"/><path d="m9 12 2 2 4-4"/></svg>
+        Cotizador
+      </div>
+      <div class="nav-item" data-page="inventario" onclick="navTo('inventario')">
+        <svg viewBox="0 0 24 24"><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+        Inventario
+      </div>
+      <div class="nav-item" data-page="clientes" onclick="navTo('clientes')">
+        <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Clientes
+      </div>
     </div>
-    <div class="nav-item" data-page="detalle" onclick="navTo('detalle')">
-      <svg viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
-      Al Detalle
-    </div>
-    <!-- Separador -->
-    <div class="nav-divider"></div>
-    <!-- Datos y configuración -->
-    <div class="nav-item" data-page="clientes" onclick="navTo('clientes')">
-      <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-      Clientes
-    </div>
-    <div class="nav-item" data-page="inventario" onclick="navTo('inventario')">
-      <svg viewBox="0 0 24 24"><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
-      Inventario
-    </div>
-    <div class="nav-item" data-page="costos" onclick="navTo('costos')">
-      <svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-      Costos
-    </div>
-    <div class="nav-item" data-page="configuracion" onclick="navTo('configuracion')">
-      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-      Configuración
-    </div>
-    <div class="nav-item" data-page="usuarios" id="nav-usuarios" onclick="navTo('usuarios')" style="display:none">
-      <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-      Usuarios
+    <!-- ── ADMINISTRACIÓN ── -->
+    <div class="nav-group" id="navg-admin">
+      <div class="nav-group-label">Admin</div>
+      <div class="nav-item" data-page="configuracion" onclick="navTo('configuracion')">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Configuración
+      </div>
+      <div class="nav-item" data-page="usuarios" id="nav-usuarios" onclick="navTo('usuarios')" style="display:none">
+        <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Usuarios
+      </div>
     </div>
   </nav>
 
@@ -423,8 +435,12 @@
 
     <!-- PÁGINA: COTIZADOR -->
     <div class="page active" id="page-cotizador">
-      <div class="section-title">Nueva Cotización</div>
-      <div class="section-sub">Ingrese los datos de la pieza y materiales para calcular el precio</div>
+      <div class="page-hdr">
+        <div class="page-hdr-left">
+          <div class="page-hdr-title">Nueva Cotización</div>
+          <div class="page-hdr-sub">Ingrese los datos de la pieza y materiales para calcular el precio</div>
+        </div>
+      </div>
       <div class="edit-banner" id="edit-banner" style="display:none">
         <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
         <span id="edit-banner-text">Editando cotización</span>
@@ -622,17 +638,51 @@
 
     <!-- PÁGINA: TRABAJOS -->
     <div class="page" id="page-trabajos">
-      <div class="section-title">Trabajos Guardados</div>
-      <div class="section-sub">Historial de cotizaciones y trabajos</div>
+      <div class="page-hdr">
+        <div class="page-hdr-left">
+          <div class="page-hdr-title">Trabajos</div>
+          <div class="page-hdr-sub">Historial de cotizaciones, estados y facturación</div>
+        </div>
+        <div class="page-hdr-actions">
+          <button class="btn btn-primary btn-sm" onclick="navTo('cotizador')">
+            <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Nueva cotización
+          </button>
+        </div>
+      </div>
       <div class="stats-grid">
-        <div class="stat-card"><div class="stat-label">Total trabajos</div><div class="stat-value" id="st-total">0</div></div>
-        <div class="stat-card"><div class="stat-label">Aprobados</div><div class="stat-value accent" id="st-aprobados">0</div></div>
-        <div class="stat-card"><div class="stat-label">Entregados</div><div class="stat-value success" id="st-entregados">0</div></div>
-        <div class="stat-card"><div class="stat-label">Pendientes de pago</div><div class="stat-value warn" id="st-pend-pago">0</div></div>
-        <div class="stat-card"><div class="stat-label">Ingresos totales</div><div class="stat-value accent" id="st-ingresos">₡0</div></div>
-        <div class="stat-card"><div class="stat-label">Ganancia entregados</div><div class="stat-value success" id="st-ganancias">₡0</div></div>
-        <div class="stat-card"><div class="stat-label">Por cobrar</div><div class="stat-value warn" id="st-por-cobrar">₡0</div></div>
-        <div class="stat-card"><div class="stat-label">Ingresos netos</div><div class="stat-value" style="color:var(--brand-gold)" id="st-neto">₡0</div></div>
+        <div class="stat-card">
+          <div class="stat-icon stat-icon--neutral"><svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg></div>
+          <div class="stat-body"><div class="stat-label">Total trabajos</div><div class="stat-value" id="st-total">0</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon stat-icon--accent"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+          <div class="stat-body"><div class="stat-label">Aprobados</div><div class="stat-value accent" id="st-aprobados">0</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon stat-icon--success"><svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
+          <div class="stat-body"><div class="stat-label">Entregados</div><div class="stat-value success" id="st-entregados">0</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon stat-icon--warn"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+          <div class="stat-body"><div class="stat-label">Pendientes de pago</div><div class="stat-value warn" id="st-pend-pago">0</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon stat-icon--accent"><svg viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></div>
+          <div class="stat-body"><div class="stat-label">Ingresos totales</div><div class="stat-value accent" id="st-ingresos">₡0</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon stat-icon--success"><svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+          <div class="stat-body"><div class="stat-label">Ganancia entregados</div><div class="stat-value success" id="st-ganancias">₡0</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon stat-icon--warn"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
+          <div class="stat-body"><div class="stat-label">Por cobrar</div><div class="stat-value warn" id="st-por-cobrar">₡0</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon stat-icon--gold"><svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div>
+          <div class="stat-body"><div class="stat-label">Ingresos netos</div><div class="stat-value" style="color:var(--brand-gold)" id="st-neto">₡0</div></div>
+        </div>
       </div>
 
       <!-- Tarjeta recuperación de inversión (solo cuando está activa) -->
@@ -800,41 +850,45 @@
 
     <!-- PÁGINA: DASHBOARD -->
     <div class="page" id="page-dashboard">
-      <div class="section-title">Dashboard</div>
-      <div class="section-sub">Resumen de ventas, ganancias y estado de los trabajos</div>
-
-      <!-- Filtros de período -->
-      <div class="dash-filter-bar">
-        <button class="dash-filter-btn active" data-filtro="mes-actual" onclick="setDashFiltro('mes-actual')">Mes actual</button>
-        <button class="dash-filter-btn" data-filtro="mes-anterior" onclick="setDashFiltro('mes-anterior')">Mes anterior</button>
-        <button class="dash-filter-btn" data-filtro="todos" onclick="setDashFiltro('todos')">Todos</button>
+      <div class="page-hdr">
+        <div class="page-hdr-left">
+          <div class="page-hdr-title">Dashboard</div>
+          <div class="page-hdr-sub">Resumen ejecutivo de ventas, ganancias y estado operativo</div>
+        </div>
+        <div class="page-hdr-actions">
+          <div class="dash-filter-bar" style="margin:0">
+            <button class="dash-filter-btn active" data-filtro="mes-actual" onclick="setDashFiltro('mes-actual')">Mes actual</button>
+            <button class="dash-filter-btn" data-filtro="mes-anterior" onclick="setDashFiltro('mes-anterior')">Mes anterior</button>
+            <button class="dash-filter-btn" data-filtro="todos" onclick="setDashFiltro('todos')">Histórico</button>
+          </div>
+        </div>
       </div>
 
       <!-- KPIs principales -->
       <div class="stats-grid" style="margin-bottom:20px">
         <div class="stat-card">
-          <div class="stat-label">Ventas del período</div>
-          <div class="stat-value accent" id="dash-ventas">₡0</div>
+          <div class="stat-icon stat-icon--accent"><svg viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></div>
+          <div class="stat-body"><div class="stat-label">Ventas del período</div><div class="stat-value accent" id="dash-ventas">₡0</div></div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">Ganancia estimada</div>
-          <div class="stat-value success" id="dash-ganancia">₡0</div>
+          <div class="stat-icon stat-icon--success"><svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+          <div class="stat-body"><div class="stat-label">Ganancia estimada</div><div class="stat-value success" id="dash-ganancia">₡0</div></div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">Total trabajos</div>
-          <div class="stat-value" id="dash-total-lista">0</div>
+          <div class="stat-icon stat-icon--neutral"><svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg></div>
+          <div class="stat-body"><div class="stat-label">Total trabajos</div><div class="stat-value" id="dash-total-lista">0</div></div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">Pendientes de pago</div>
-          <div class="stat-value warn" id="dash-pend-pago">0</div>
+          <div class="stat-icon stat-icon--warn"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+          <div class="stat-body"><div class="stat-label">Pendientes de pago</div><div class="stat-value warn" id="dash-pend-pago">0</div></div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">Por cobrar</div>
-          <div class="stat-value warn" id="dash-monto-cobrar">₡0</div>
+          <div class="stat-icon stat-icon--warn"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
+          <div class="stat-body"><div class="stat-label">Por cobrar</div><div class="stat-value warn" id="dash-monto-cobrar">₡0</div></div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">Entregas urgentes</div>
-          <div class="stat-value danger" id="dash-urgentes">0</div>
+          <div class="stat-icon stat-icon--danger"><svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
+          <div class="stat-body"><div class="stat-label">Entregas urgentes</div><div class="stat-value danger" id="dash-urgentes">0</div></div>
         </div>
       </div>
 
@@ -919,8 +973,12 @@
 
     <!-- PÁGINA: CLIENTES -->
     <div class="page" id="page-clientes">
-      <div class="section-title">Historial de Clientes</div>
-      <div class="section-sub">Gestione su base de clientes y su historial de pedidos</div>
+      <div class="page-hdr">
+        <div class="page-hdr-left">
+          <div class="page-hdr-title">Clientes</div>
+          <div class="page-hdr-sub">Base de clientes y su historial de pedidos</div>
+        </div>
+      </div>
 
       <!-- Formulario -->
       <div class="card">
@@ -1003,8 +1061,12 @@
 
     <!-- PÁGINA: AL DETALLE -->
     <div class="page" id="page-detalle">
-      <div class="section-title">Venta al Detalle</div>
-      <div class="section-sub">Lotes con cliente "Venta" — registrá cada unidad vendida individualmente</div>
+      <div class="page-hdr">
+        <div class="page-hdr-left">
+          <div class="page-hdr-title">Venta al Detalle</div>
+          <div class="page-hdr-sub">Lotes por unidad — registre cada venta individual del inventario</div>
+        </div>
+      </div>
 
       <div class="card" style="padding:14px 18px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
         <div style="display:flex;align-items:center;gap:10px;font-size:.83rem;color:var(--text2)">
@@ -1040,8 +1102,12 @@
 
     <!-- PÁGINA: INVENTARIO -->
     <div class="page" id="page-inventario">
-      <div class="section-title">Inventario de Materiales</div>
-      <div class="section-sub">Gestione su stock de materiales e insumos</div>
+      <div class="page-hdr">
+        <div class="page-hdr-left">
+          <div class="page-hdr-title">Inventario de Materiales</div>
+          <div class="page-hdr-sub">Stock de filamentos e insumos de impresión</div>
+        </div>
+      </div>
       <div class="card">
         <div class="card-title">
           <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -1130,8 +1196,12 @@
 
     <!-- PÁGINA: COSTOS -->
     <div class="page" id="page-costos">
-      <div class="section-title">Gestión de Costos</div>
-      <div class="section-sub">Registro de gastos operativos e inversión inicial</div>
+      <div class="page-hdr">
+        <div class="page-hdr-left">
+          <div class="page-hdr-title">Costos &amp; Gastos</div>
+          <div class="page-hdr-sub">Gastos operativos, inversión inicial y control de pagos</div>
+        </div>
+      </div>
 
       <!-- ── GASTOS OPERATIVOS ─────────────────────────────── -->
       <div class="card" style="margin-bottom:24px">
@@ -1259,8 +1329,12 @@
 
     <!-- PÁGINA: CONFIGURACIÓN -->
     <div class="page" id="page-configuracion">
-      <div class="section-title">Configuración</div>
-      <div class="section-sub">Parámetros de costo, datos de empresa y mi cuenta</div>
+      <div class="page-hdr">
+        <div class="page-hdr-left">
+          <div class="page-hdr-title">Configuración</div>
+          <div class="page-hdr-sub">Parámetros de costo, datos de empresa y mi cuenta</div>
+        </div>
+      </div>
       <div class="firebase-banner">
         <svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
         Conectado a Firebase Firestore — los datos se sincronizan en la nube
@@ -1467,8 +1541,12 @@
 
     <!-- PÁGINA: USUARIOS (solo admin) -->
     <div class="page" id="page-usuarios">
-      <div class="section-title">Gestión de Usuarios</div>
-      <div class="section-sub">Administre los usuarios y sus niveles de acceso</div>
+      <div class="page-hdr">
+        <div class="page-hdr-left">
+          <div class="page-hdr-title">Gestión de Usuarios</div>
+          <div class="page-hdr-sub">Acceso, roles y permisos del equipo</div>
+        </div>
+      </div>
 
       <!-- Crear usuario (admin only) -->
       <div class="card" data-admin-only>

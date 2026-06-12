@@ -114,7 +114,13 @@ table{border-collapse:collapse;width:100%}
   text-transform:uppercase;letter-spacing:.07em;
 }
 
-nav{padding:12px 10px;flex:1}
+nav{padding:10px 10px;flex:1}
+/* Nav groups (ERP sidebar) */
+.nav-group{margin-bottom:4px}
+.nav-group-label{
+  font-size:.575rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;
+  color:var(--sb-text);padding:12px 14px 3px;opacity:.5;user-select:none;
+}
 .nav-item{
   display:flex;align-items:center;gap:10px;
   padding:9px 12px;
@@ -219,12 +225,17 @@ main.main{padding:28px;flex:1}
   display:flex;align-items:center;gap:8px;
 }
 .card-title svg{width:17px;height:17px;stroke:var(--accent);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.section-title{
-  font-size:1.1rem;font-weight:700;
-  color:var(--text);
-  margin-bottom:4px;
-}
+.section-title{font-size:1.1rem;font-weight:700;color:var(--text);margin-bottom:4px}
 .section-sub{font-size:.8rem;color:var(--text2);margin-bottom:20px}
+/* Page header — ERP style */
+.page-hdr{
+  display:flex;align-items:flex-start;justify-content:space-between;
+  gap:16px;margin-bottom:22px;flex-wrap:wrap;
+}
+.page-hdr-left{flex:1;min-width:0}
+.page-hdr-title{font-size:1.3rem;font-weight:700;color:var(--text);line-height:1.2;letter-spacing:-.01em}
+.page-hdr-sub{font-size:.775rem;color:var(--text2);margin-top:3px}
+.page-hdr-actions{display:flex;align-items:center;gap:8px;flex-shrink:0;padding-top:2px}
 
 /* =========================================================
    FORM ELEMENTS
@@ -393,12 +404,29 @@ tbody td{padding:10px 14px;color:var(--text);vertical-align:middle}
   border-radius:var(--radius);
   padding:16px 18px;
   box-shadow:var(--shadow);
+  display:flex;align-items:center;gap:14px;
+  transition:box-shadow .16s,border-color .16s;
 }
-.stat-label{font-size:.72rem;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.03em;margin-bottom:6px}
-.stat-value{font-size:1.5rem;font-weight:700;color:var(--text);font-family:var(--mono)}
+.stat-card:hover{box-shadow:var(--shadow-md);border-color:var(--border-strong)}
+/* stat icon */
+.stat-icon{
+  width:42px;height:42px;border-radius:10px;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.stat-icon svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.stat-icon--accent{background:var(--accent-soft);color:var(--accent)}
+.stat-icon--success{background:var(--success-soft);color:var(--success)}
+.stat-icon--warn{background:rgba(217,119,6,.1);color:var(--warn)}
+.stat-icon--danger{background:var(--danger-soft);color:var(--danger)}
+.stat-icon--gold{background:rgba(244,199,15,.12);color:var(--brand-gold-dark)}
+.stat-icon--neutral{background:var(--surface2);color:var(--text2)}
+.stat-body{flex:1;min-width:0}
+.stat-label{font-size:.7rem;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px}
+.stat-value{font-size:1.45rem;font-weight:700;color:var(--text);font-family:var(--mono)}
 .stat-value.accent{color:var(--accent)}
 .stat-value.success{color:var(--success)}
 .stat-value.warn{color:var(--warn)}
+.stat-value.danger{color:var(--danger)}
 
 /* =========================================================
    FILTER BAR
