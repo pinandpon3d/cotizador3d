@@ -308,26 +308,25 @@ function generarPDFMultiple(items, clienteNombre) {
   vigenciaDate.setDate(vigenciaDate.getDate() + 7);
   const vigencia = vigenciaDate.toLocaleDateString('es-CR', {day:'numeric',month:'short',year:'numeric'});
 
-  const win = window.open('','_blank');
-  if (!win) { toast('Permita ventanas emergentes','error'); return; }
-
   const rowsHtml = items.map(t => {
-    const cant  = Math.max(t.cantidad || 1, 1);
-    const pUnit = t.precio_unitario || ((t.precio_final || 0) / cant);
-    const total = t.precio_final || 0;
+    const cant       = Math.max(t.cantidad || 1, 1);
+    const plas       = Math.max(t.placas   || 1, 1);
+    const totalObj   = cant * plas;
+    const pUnit      = t.precio_unitario || ((t.precio_final || 0) / totalObj);
+    const total      = t.precio_final || 0;
     return `<tr>
       <td>
         <div class="item-name">${escHtml(t.pieza || '—')}</div>
         <div class="item-sub">${escHtml(t.categoria || 'General')}${t.material ? ' · ' + escHtml(t.material) : ''}${multiCliente ? ' · ' + escHtml(t.cliente || '') : ''}</div>
         ${t.notas ? `<div class="item-sub" style="font-style:italic">${escHtml(t.notas)}</div>` : ''}
       </td>
-      <td>${cant}</td>
+      <td>${totalObj}</td>
       <td>&#8353;&thinsp;${(Math.ceil(pUnit)).toLocaleString('es-CR',{minimumFractionDigits:0,maximumFractionDigits:0})}</td>
       <td><strong>&#8353;&thinsp;${(Math.ceil(total)).toLocaleString('es-CR',{minimumFractionDigits:0,maximumFractionDigits:0})}</strong></td>
     </tr>`;
   }).join('');
 
-  win.document.write(`<!DOCTYPE html>
+  const htmlMultiple = `<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
@@ -408,27 +407,14 @@ body{min-height:100vh;padding:20px 0 80px;display:flex;justify-content:center;al
 .doc-footer{padding:16px 48px;border-top:1px solid #EEF3F8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
 .thanks-logo{height:24px;width:auto}
 .footer-rule{width:48px;height:3px;background:linear-gradient(90deg,#16395A,#4A8FCB,#F2C61F);border-radius:2px}
-#dl-overlay{position:fixed;inset:0;background:rgba(238,241,245,.95);display:flex;align-items:center;justify-content:center;z-index:999;font-family:inherit}
-#dl-box{background:#fff;border-radius:14px;padding:36px 44px;text-align:center;box-shadow:0 20px 60px rgba(15,42,69,.18);min-width:260px}
-#dl-icon{font-size:36px;margin-bottom:12px}
-#dl-title{font-size:15px;font-weight:700;color:#133658;margin-bottom:5px}
-#dl-sub{font-size:12px;color:#8CAFD2}
-#dl-track{margin-top:18px;height:5px;background:#E8F0F8;border-radius:99px;overflow:hidden}
-#dl-bar{height:100%;width:0%;background:linear-gradient(90deg,#16395A,#4A8FCB);border-radius:99px;transition:width .4s ease}
+.print-fab{position:fixed;bottom:24px;right:24px;background:#16395A;color:#fff;border:none;border-radius:10px;padding:14px 22px;font-size:14px;font-family:inherit;font-weight:700;cursor:pointer;z-index:100;box-shadow:0 4px 16px rgba(15,42,69,.35)}
 @page{size:letter;margin:0}
 *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}
-@media print{html,body{background:#fff!important;padding:0!important;margin:0!important;display:block!important}.page{width:215.9mm!important;min-height:279.4mm!important;box-shadow:none!important;border-radius:0!important;overflow:visible!important}.header{padding:32px 48px!important}.client-bar{padding:16px 48px!important;grid-template-columns:2fr 1fr 1fr 1fr!important}.body{padding:28px 48px 8px!important}.doc-footer{padding:16px 48px!important}}
+@media print{html,body{background:#fff!important;padding:0!important;margin:0!important;display:block!important}.page{width:215.9mm!important;min-height:279.4mm!important;box-shadow:none!important;border-radius:0!important;overflow:visible!important}.header{padding:32px 48px!important}.client-bar{padding:16px 48px!important;grid-template-columns:2fr 1fr 1fr 1fr!important}.body{padding:28px 48px 8px!important}.doc-footer{padding:16px 48px!important}.print-fab{display:none!important}}
 </style>
 </head>
 <body>
-<div id="dl-overlay">
-  <div id="dl-box">
-    <div id="dl-icon">📄</div>
-    <div id="dl-title">Generando PDF…</div>
-    <div id="dl-sub">Esto tomará unos segundos</div>
-    <div id="dl-track"><div id="dl-bar"></div></div>
-  </div>
-</div>
+<button class="print-fab" onclick="window.print()">🖨️ Guardar / Imprimir PDF</button>
 <div class="page">
 
   <!-- HEADER -->
@@ -528,59 +514,17 @@ body{min-height:100vh;padding:20px 0 80px;display:flex;justify-content:center;al
 
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
-(async function(){
-  const bar=document.getElementById('dl-bar');
-  const title=document.getElementById('dl-title');
-  const sub=document.getElementById('dl-sub');
-  const icon=document.getElementById('dl-icon');
-  const setBar=p=>{if(bar)bar.style.width=p+'%'};
-  try{
-    await document.fonts.ready;
-    setBar(15);
-    await new Promise(r=>setTimeout(r,900));
-    setBar(35);
-    const {jsPDF}=window.jspdf;
-    const pageEl=document.querySelector('.page');
-    pageEl.style.width='794px';
-    pageEl.style.minWidth='794px';
-    pageEl.style.minHeight='1027px';
-    const canvas=await html2canvas(pageEl,{scale:2,useCORS:true,allowTaint:true,backgroundColor:'#ffffff',logging:false,imageTimeout:10000,width:794,height:pageEl.scrollHeight});
-    setBar(75);
-    const pdf=new jsPDF({orientation:'portrait',unit:'mm',format:'letter'});
-    const W=pdf.internal.pageSize.getWidth();
-    const H=pdf.internal.pageSize.getHeight();
-    const imgH=W*canvas.height/canvas.width;
-    if(imgH<=H){
-      pdf.addImage(canvas.toDataURL('image/jpeg',0.98),'JPEG',0,0,W,imgH);
-    } else {
-      const scale=H/imgH;
-      const newW=W*scale;
-      pdf.addImage(canvas.toDataURL('image/jpeg',0.98),'JPEG',(W-newW)/2,0,newW,H);
-    }
-    setBar(95);
-    if(title)title.textContent='¡Listo! Descargando…';
-    if(sub)sub.textContent='';
-    if(icon)icon.textContent='✅';
-    pdf.save('${(nombreArchivo).replace(/[<>:"/\\\\|?*]/g,'_')}.pdf');
-    setBar(100);
-    setTimeout(()=>{window.close();},1500);
-  } catch(err){
-    console.error('PDF error:',err);
-    if(title)title.textContent='Error al generar PDF';
-    if(sub)sub.innerHTML='Abrí el menú del navegador<br>y seleccioná <strong>Imprimir → Guardar como PDF</strong>';
-    if(icon)icon.textContent='⚠️';
-    if(bar)bar.style.background='#dc2626';
-    setBar(100);
-  }
-})();
+document.fonts.ready.then(function(){ setTimeout(function(){ window.print(); }, 400); });
 </script>
 </body>
-</html>`);
-  win.document.close();
-  toast(`Cotización combinada (${items.length} ítems) ✓`, 'success');
+</html>`;
+  const blobM    = new Blob([htmlMultiple], { type: 'text/html; charset=utf-8' });
+  const blobUrlM = URL.createObjectURL(blobM);
+  const winM     = window.open(blobUrlM, '_blank');
+  if (!winM) { URL.revokeObjectURL(blobUrlM); toast('Permita ventanas emergentes para generar el PDF','error'); return; }
+  setTimeout(() => URL.revokeObjectURL(blobUrlM), 10000);
+  toast(`Cotización combinada (${items.length} ítems) — use Ctrl+P para guardar PDF`, 'success');
 }
 
 /* ----------------------------------------------------------
@@ -1613,19 +1557,20 @@ function generarPDF() {
 }
 
 function generarPDFData(t) {
-  const emp         = getEmpresa();
-  const d           = t._desglose || {};
-  const pIVA        = t.pIVA || 0;
-  const antesIVA    = d.antesIVA   || t.precio_final || 0;
-  const ivaVal      = d.ivaVal     || 0;
-  const precioFinal = t.precio_final || 0;
-  const ref         = String(t.id).toUpperCase().slice(0,10);
-  const cantidad    = Math.max(t.cantidad||1,1);
-  const placas      = Math.max(t.placas||1,1);
-  const precioUnit  = t.precio_unitario || (precioFinal / cantidad);
-  const abono       = Number(t.montoAbonado) || 0;
-  const pendiente   = Math.max(precioFinal - abono, 0);
-  const metodo      = t.metodoPago || '';
+  const emp          = getEmpresa();
+  const d            = t._desglose || {};
+  const pIVA         = t.pIVA || d.pIVA || 0;
+  const precioFinal  = t.precio_final || 0;
+  const antesIVATotal = pIVA > 0 ? precioFinal / (1 + pIVA / 100) : 0;
+  const ivaValTotal   = pIVA > 0 ? precioFinal - antesIVATotal : 0;
+  const ref          = String(t.id).toUpperCase().slice(0,10);
+  const cantidad     = Math.max(t.cantidad||1,1);
+  const placas       = Math.max(t.placas||1,1);
+  const totalObjetos = cantidad * placas;
+  const precioUnit   = t.precio_unitario || (precioFinal / totalObjetos);
+  const abono        = Number(t.montoAbonado) || 0;
+  const pendiente    = Math.max(precioFinal - abono, 0);
+  const metodo       = t.metodoPago || '';
 
   const base       = new URL('.', window.location.href).href;
   const mascotaUrl = base + 'img/Mascota-PNG.png';
@@ -1751,17 +1696,12 @@ body{min-height:100vh;padding:20px 0 80px;display:flex;justify-content:center;al
 .thanks-logo{height:24px;width:auto}
 .footer-rule{width:48px;height:3px;
               background:linear-gradient(90deg,#16395A,#4A8FCB,#F2C61F);border-radius:2px}
-/* ── OVERLAY DESCARGA ── */
-#dl-overlay{position:fixed;inset:0;background:rgba(238,241,245,.95);
-  display:flex;align-items:center;justify-content:center;z-index:999;font-family:inherit}
-#dl-box{background:#fff;border-radius:14px;padding:36px 44px;text-align:center;
-  box-shadow:0 20px 60px rgba(15,42,69,.18);min-width:260px}
-#dl-icon{font-size:36px;margin-bottom:12px}
-#dl-title{font-size:15px;font-weight:700;color:#133658;margin-bottom:5px}
-#dl-sub{font-size:12px;color:#8CAFD2}
-#dl-track{margin-top:18px;height:5px;background:#E8F0F8;border-radius:99px;overflow:hidden}
-#dl-bar{height:100%;width:0%;background:linear-gradient(90deg,#16395A,#4A8FCB);
-  border-radius:99px;transition:width .4s ease}
+/* ── BOTÓN IMPRIMIR ── */
+.print-fab{position:fixed;bottom:24px;right:24px;background:#16395A;color:#fff;
+  border:none;border-radius:10px;padding:14px 22px;font-size:14px;font-family:inherit;
+  font-weight:700;cursor:pointer;z-index:100;box-shadow:0 4px 16px rgba(15,42,69,.35);
+  display:flex;align-items:center;gap:8px;letter-spacing:-.01em}
+.print-fab:hover{background:#235A8C}
 @page{size:letter;margin:0}
 *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}
 @media print{
@@ -1776,14 +1716,7 @@ body{min-height:100vh;padding:20px 0 80px;display:flex;justify-content:center;al
 </style>
 </head>
 <body>
-<div id="dl-overlay">
-  <div id="dl-box">
-    <div id="dl-icon">📄</div>
-    <div id="dl-title">Generando PDF…</div>
-    <div id="dl-sub">Esto tomará unos segundos</div>
-    <div id="dl-track"><div id="dl-bar"></div></div>
-  </div>
-</div>
+<button class="print-fab print-btn" onclick="window.print()">🖨️ Guardar / Imprimir PDF</button>
 <div class="page">
 
   <!-- HEADER -->
@@ -1847,7 +1780,7 @@ body{min-height:100vh;padding:20px 0 80px;display:flex;justify-content:center;al
             <div class="item-name">${escHtml(t.pieza || '—')}</div>
             ${t.notas ? `<div class="item-sub" style="font-style:italic">${escHtml(t.notas)}</div>` : ''}
           </td>
-          <td>${cantidad}</td>
+          <td>${totalObjetos}</td>
           <td>&#8353;&thinsp;${(Math.ceil(precioUnit)).toLocaleString('es-CR',{minimumFractionDigits:0,maximumFractionDigits:0})}</td>
           <td><strong>&#8353;&thinsp;${(Math.ceil(precioFinal)).toLocaleString('es-CR',{minimumFractionDigits:0,maximumFractionDigits:0})}</strong></td>
         </tr>
@@ -1858,8 +1791,8 @@ body{min-height:100vh;padding:20px 0 80px;display:flex;justify-content:center;al
     <div class="summary">
       <div class="sum-card">
         ${pIVA > 0 ? `
-        <div class="sum-row"><span class="sum-label">Subtotal (sin IVA)</span><span class="sum-val">&#8353;&thinsp;${(Math.ceil(antesIVA)).toLocaleString('es-CR',{minimumFractionDigits:0,maximumFractionDigits:0})}</span></div>
-        <div class="sum-row"><span class="sum-label">IVA (${pIVA}%)</span><span class="sum-val">&#8353;&thinsp;${(Math.ceil(ivaVal)).toLocaleString('es-CR',{minimumFractionDigits:0,maximumFractionDigits:0})}</span></div>` : ''}
+        <div class="sum-row"><span class="sum-label">Subtotal (sin IVA)</span><span class="sum-val">&#8353;&thinsp;${(Math.ceil(antesIVATotal)).toLocaleString('es-CR',{minimumFractionDigits:0,maximumFractionDigits:0})}</span></div>
+        <div class="sum-row"><span class="sum-label">IVA (${pIVA}%)</span><span class="sum-val">&#8353;&thinsp;${(Math.ceil(ivaValTotal)).toLocaleString('es-CR',{minimumFractionDigits:0,maximumFractionDigits:0})}</span></div>` : ''}
         ${abono > 0 ? `
         <div class="sum-row"><span class="sum-label">Abono recibido</span><span class="sum-val" style="color:#059669">&#8722; &#8353;&thinsp;${(Math.ceil(abono)).toLocaleString('es-CR',{minimumFractionDigits:0,maximumFractionDigits:0})}</span></div>
         <div class="sum-row"><span class="sum-label">Saldo pendiente</span><span class="sum-val">&#8353;&thinsp;${(Math.ceil(pendiente)).toLocaleString('es-CR',{minimumFractionDigits:0,maximumFractionDigits:0})}</span></div>` : ''}
@@ -1913,79 +1846,18 @@ body{min-height:100vh;padding:20px 0 80px;display:flex;justify-content:center;al
 
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
-(async function(){
-  const bar   = document.getElementById('dl-bar');
-  const title = document.getElementById('dl-title');
-  const sub   = document.getElementById('dl-sub');
-  const icon  = document.getElementById('dl-icon');
-  const setBar = p => { if(bar) bar.style.width = p+'%'; };
-  try {
-    await document.fonts.ready;
-    setBar(15);
-    await new Promise(r => setTimeout(r, 900));
-    setBar(35);
-
-    const { jsPDF } = window.jspdf;
-    const pageEl = document.querySelector('.page');
-    // Forzar dimensiones fijas para render correcto
-    pageEl.style.width     = '794px';
-    pageEl.style.minWidth  = '794px';
-    pageEl.style.minHeight = '1027px';
-
-    const canvas = await html2canvas(pageEl, {
-      scale: 2,
-      useCORS: true,
-      allowTaint: true,
-      backgroundColor: '#ffffff',
-      logging: false,
-      imageTimeout: 10000,
-      width:  794,
-      height: pageEl.scrollHeight
-    });
-    setBar(75);
-
-    const pdf = new jsPDF({ orientation:'portrait', unit:'mm', format:'letter' });
-    const W   = pdf.internal.pageSize.getWidth();   // 215.9mm
-    const H   = pdf.internal.pageSize.getHeight();  // 279.4mm
-    const imgH = W * canvas.height / canvas.width;
-
-    if(imgH <= H){
-      // Cabe en una página — alinear arriba
-      pdf.addImage(canvas.toDataURL('image/jpeg',0.98),'JPEG',0,0,W,imgH);
-    } else {
-      // Contenido más alto que la página — escalar para que quepa todo en una hoja
-      const scale  = H / imgH;
-      const newW   = W * scale;
-      pdf.addImage(canvas.toDataURL('image/jpeg',0.98),'JPEG',(W-newW)/2,0,newW,H);
-    }
-    setBar(95);
-    if(title) title.textContent = '¡Listo! Descargando…';
-    if(sub)   sub.textContent   = '';
-    if(icon)  icon.textContent  = '✅';
-    pdf.save('${(nombreArchivo).replace(/[<>:"/\\\\|?*]/g,"_")}.pdf');
-    setBar(100);
-    setTimeout(()=>{ window.close(); }, 1500);
-  } catch(err){
-    console.error('PDF error:',err);
-    if(title) title.textContent = 'Error al generar PDF';
-    if(sub)   sub.innerHTML = 'Abrí el menú del navegador<br>y seleccioná <strong>Imprimir → Guardar como PDF</strong>';
-    if(icon)  icon.textContent = '⚠️';
-    if(bar)   bar.style.background = '#dc2626';
-    setBar(100);
-  }
-})();
+document.fonts.ready.then(function(){ setTimeout(function(){ window.print(); }, 400); });
 </script>
 </body>
 </html>`;
 
-  const win = window.open('','_blank');
-  if (!win) { toast('Permita ventanas emergentes en este sitio','error'); return; }
-  win.document.write(htmlContent);
-  win.document.close();
-  toast('Generando PDF… ✓', 'success');
+  const blob    = new Blob([htmlContent], { type: 'text/html; charset=utf-8' });
+  const blobUrl = URL.createObjectURL(blob);
+  const win     = window.open(blobUrl, '_blank');
+  if (!win) { URL.revokeObjectURL(blobUrl); toast('Permita ventanas emergentes en este sitio para generar el PDF','error'); return; }
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+  toast('Abriendo cotización — use Ctrl+P / Cmd+P para guardar como PDF', 'success');
 
   // Subir a Google Drive si está conectado
   if (typeof _gDriveToken !== 'undefined' && _gDriveToken && _gDriveFolderId) {
@@ -2085,24 +1957,14 @@ body{min-height:100vh;padding:20px 0 80px;display:flex;justify-content:center;al
   .page{box-shadow:none;width:100%;min-height:0}
   @page{size:letter;margin:0!important}
 }
-#loading-overlay{
-  position:fixed;inset:0;background:rgba(10,31,61,.88);
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  gap:18px;z-index:999;color:#fff;font-family:inherit
-}
-.spinner{width:42px;height:42px;border:3px solid rgba(255,255,255,.25);
-  border-top-color:#f4c70f;border-radius:50%;animation:spin .8s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
+.print-fab{position:fixed;bottom:24px;right:24px;background:#133658;color:#fff;border:none;
+  border-radius:10px;padding:14px 22px;font-size:14px;font-family:inherit;font-weight:700;
+  cursor:pointer;z-index:100;box-shadow:0 4px 16px rgba(10,31,61,.35)}
+@media print{.print-fab{display:none!important}}
 </style>
 </head>
 <body>
-
-<div id="loading-overlay">
-  <div class="spinner"></div>
-  <div style="font-size:15px;font-weight:600;letter-spacing:.02em">Generando lista de precios…</div>
-  <div style="font-size:12px;opacity:.6">Preparando PDF</div>
-</div>
-
+<button class="print-fab" onclick="window.print()">🖨️ Guardar / Imprimir PDF</button>
 <div class="page" id="the-page">
 
   <!-- ══ ENCABEZADO ══════════════════════════════════════════ -->
@@ -2186,67 +2048,17 @@ body{min-height:100vh;padding:20px 0 80px;display:flex;justify-content:center;al
   </div>
 </div><!-- /.page -->
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
-(async function(){
-  const ov    = document.getElementById('loading-overlay');
-  const setMsg = (txt,sub) => {
-    ov.innerHTML = \`<div class="spinner"></div>
-      <div style="font-size:15px;font-weight:600">\${txt}</div>
-      <div style="font-size:12px;opacity:.6">\${sub||''}</div>\`;
-  };
-  try {
-    await document.fonts.ready;
-    setMsg('Renderizando…','Procesando diseño');
-    await new Promise(r => setTimeout(r, 700));
-
-    const { jsPDF } = window.jspdf;
-    const pageEl = document.getElementById('the-page');
-    pageEl.style.width    = '794px';
-    pageEl.style.minWidth = '794px';
-
-    const canvas = await html2canvas(pageEl, {
-      scale: 2,
-      useCORS: true,
-      allowTaint: true,
-      backgroundColor: '#ffffff',
-      logging: false,
-      imageTimeout: 10000,
-      width: 794,
-      height: pageEl.scrollHeight
-    });
-
-    setMsg('Generando PDF…','');
-    const pdf = new jsPDF({ orientation:'portrait', unit:'mm', format:'letter' });
-    const W   = pdf.internal.pageSize.getWidth();
-    const H   = pdf.internal.pageSize.getHeight();
-    const imgH = W * canvas.height / canvas.width;
-
-    if (imgH <= H) {
-      pdf.addImage(canvas.toDataURL('image/jpeg', 0.97), 'JPEG', 0, 0, W, imgH);
-    } else {
-      const scale = H / imgH;
-      const sw = W * scale;
-      pdf.addImage(canvas.toDataURL('image/jpeg', 0.97), 'JPEG', (W-sw)/2, 0, sw, H);
-    }
-
-    pdf.save('LISTA DE PRECIOS - Pin&Pon 3D.pdf');
-    ov.innerHTML = '<div style="font-size:36px">✅</div><div style="font-size:15px;font-weight:700;margin-top:8px">¡PDF descargado!</div>';
-    setTimeout(() => window.close(), 1800);
-  } catch(err) {
-    console.error('Error generando PDF:', err);
-    ov.innerHTML = '<div style="font-size:36px">⚠️</div><div style="font-size:14px;margin-top:8px">Error generando PDF<br><span style="font-size:12px;opacity:.7">Intentá imprimir con Ctrl+P</span></div>';
-  }
-})();
+document.fonts.ready.then(function(){ setTimeout(function(){ window.print(); }, 400); });
 </script>
 </body>
 </html>`;
 
-  const win = window.open('', '_blank');
-  if (!win) { toast('Permite ventanas emergentes para descargar el PDF', 'error'); return; }
-  win.document.write(htmlContent);
-  win.document.close();
+  const blobLP    = new Blob([htmlContent], { type: 'text/html; charset=utf-8' });
+  const blobUrlLP = URL.createObjectURL(blobLP);
+  const winLP     = window.open(blobUrlLP, '_blank');
+  if (!winLP) { URL.revokeObjectURL(blobUrlLP); toast('Permita ventanas emergentes para generar el PDF','error'); return; }
+  setTimeout(() => URL.revokeObjectURL(blobUrlLP), 10000);
 }
 
 /* ----------------------------------------------------------
