@@ -25,9 +25,9 @@ function _esDetalle(t) {
 function ingresosLote(t) {
   if (t.estado === 'Cancelado') return 0;
   if (_esDetalle(t)) {
-    const cant = Math.max(t.cantidad || 1, 1);
-    const v    = Math.min(t.unidadesVendidas || 0, cant);
-    return v <= 0 ? 0 : (v / cant) * (t.precio_final || 0);
+    const totalObj = Math.max((t.cantidad || 1) * Math.max(t.placas || 1, 1), 1);
+    const v = Math.min(t.unidadesVendidas || 0, totalObj);
+    return v <= 0 ? 0 : v * (t.precio_unitario || 0);
   }
   return (t.estado === 'Entregado' && (t.estadoPago || 'Pendiente') === 'Pagado')
     ? (t.precio_final || 0) : 0;
@@ -36,9 +36,9 @@ function ingresosLote(t) {
 function gananciaLote(t) {
   if (t.estado === 'Cancelado') return 0;
   if (_esDetalle(t)) {
-    const cant = Math.max(t.cantidad || 1, 1);
-    const v    = Math.min(t.unidadesVendidas || 0, cant);
-    return v <= 0 ? 0 : (v / cant) * ((t.precio_final || 0) - (t.costo_total || 0));
+    const totalObj = Math.max((t.cantidad || 1) * Math.max(t.placas || 1, 1), 1);
+    const v = Math.min(t.unidadesVendidas || 0, totalObj);
+    return v <= 0 ? 0 : v * (t.ganancia_por_objeto || 0);
   }
   return (t.estado === 'Entregado' && (t.estadoPago || 'Pendiente') === 'Pagado')
     ? (t.precio_final || 0) - (t.costo_total || 0) : 0;

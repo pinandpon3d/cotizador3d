@@ -63,6 +63,7 @@ function calcular() {
   const pIVA         = fv('c_iva');
   const placas       = Math.max(fv('c_placas'),   1);
   const cantidad     = Math.max(fv('c_cantidad'), 1);
+  const totalObjetos = cantidad * placas;
 
   const costoG    = fv('cfg_costo_g')    || 8;
   const watts     = fv('cfg_watts')      || 200;
@@ -87,8 +88,8 @@ function calcular() {
   const fallosVal        = subtotal * (pFallos / 100);
   const costoTotalPlacas = subtotal + fallosVal;
 
-  // Paso 3: ÷ cantidad de objetos → costo por objeto
-  const costoUnitario = costoTotalPlacas / cantidad;
+  // Paso 3: ÷ total de objetos (cantidad × placas) → costo por objeto
+  const costoUnitario = costoTotalPlacas / totalObjetos;
 
   // Paso 4-6: modo automático (margen → precio) o modo manual (precio → margen)
   const precioManual = fv('c_precio_manual');
@@ -97,7 +98,7 @@ function calcular() {
   if (precioManual > 0) {
     // Modo manual: el usuario fijó el precio total → calcular margen implícito
     precioTotal      = precioManual;
-    precioRedondeado = precioTotal / cantidad;
+    precioRedondeado = precioTotal / totalObjetos;
     const precioSinIVA = precioRedondeado / (1 + pIVA / 100);
     antesIVA         = precioSinIVA;
     ivaVal           = precioRedondeado - precioSinIVA;
@@ -115,7 +116,7 @@ function calcular() {
     ivaVal           = antesIVA * (pIVA / 100);
     const precioObjeto = antesIVA + ivaVal;
     precioRedondeado = Math.ceil(precioObjeto / 100) * 100;
-    precioTotal      = precioRedondeado * cantidad;
+    precioTotal      = precioRedondeado * totalObjetos;
     margenEfectivo   = pMargen;
     const ind = el('b_modo_precio');
     if (ind) ind.style.display = 'none';
@@ -137,7 +138,7 @@ function calcular() {
   set('b_fallos_val',         fmt(fallosVal));
   set('b_costo_fallos_label', `Costo total (${placas} placa${placas !== 1 ? 's' : ''})`);
   set('b_costo_fallos',       fmt(costoTotalPlacas));
-  set('b_costo_obj_label',    `÷ Objetos (${cantidad})`);
+  set('b_costo_obj_label',    `÷ Objetos (${totalObjetos}${placas > 1 ? ` = ${cantidad}×${placas}` : ''})`);
   set('b_costo_obj',          fmt(costoUnitario));
   set('b_margen_label',       `+ Ganancia (${margenEfectivo.toFixed(1)}%)`);
   set('b_margen_val',         fmt(gananciaObjeto));
@@ -146,11 +147,11 @@ function calcular() {
   set('b_iva_val',            fmt(ivaVal));
   set('b_unitario_label',     `PRECIO POR OBJETO`);
   set('b_unitario',           fmt(precioRedondeado));
-  set('b_total_label',        `PRECIO TOTAL (× ${cantidad} objeto${cantidad !== 1 ? 's' : ''})`);
+  set('b_total_label',        `PRECIO TOTAL (× ${totalObjetos} objeto${totalObjetos !== 1 ? 's' : ''})`);
   set('b_final',              fmt(precioTotal));
 
   return { material, elec, desgaste, mo, dis, postpro, otros,
-           placas, cantidad,
+           placas, cantidad, totalObjetos,
            subtotal, fallosVal, costoTotalPlacas, costoUnitario,
            gananciaObjeto, antesIVA, ivaVal,
            precioRedondeado, precioTotal };
