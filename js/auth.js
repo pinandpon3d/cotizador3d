@@ -240,6 +240,7 @@ async function registrarPrimerAdmin() {
 async function logout() {
   if (!confirm('¿Desea cerrar sesión?')) return;
   try {
+    if (typeof detenerSincronizacion === 'function') detenerSincronizacion();
     await auth.signOut();
     // onAuthStateChanged → mostrarPantallaLogin
   } catch (e) {

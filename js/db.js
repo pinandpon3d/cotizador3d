@@ -137,8 +137,50 @@ async function fbEliminarPerfil(uid) {
 }
 
 /* ----------------------------------------------------------
-   Diagnóstico de conexión
+   Listeners en tiempo real (onSnapshot)
 ---------------------------------------------------------- */
+
+/** Suscribe a cambios en cotizaciones. Retorna función para desuscribir. */
+function fbSuscribirTrabajos(onData) {
+  return db.collection('cotizaciones').onSnapshot(snap => {
+    const arr = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+    arr.sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
+    onData(arr);
+  }, err => console.error('onSnapshot cotizaciones:', err));
+}
+
+/** Suscribe a cambios en gastos. Retorna función para desuscribir. */
+function fbSuscribirGastos(onData) {
+  return db.collection('gastos').onSnapshot(snap => {
+    const arr = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+    arr.sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
+    onData(arr);
+  }, err => console.error('onSnapshot gastos:', err));
+}
+
+/** Suscribe a cambios en filamentos. Retorna función para desuscribir. */
+function fbSuscribirFilamentos(onData) {
+  return db.collection('filamentos').onSnapshot(snap => {
+    onData(snap.docs.map(d => ({ ...d.data(), id: d.id })));
+  }, err => console.error('onSnapshot filamentos:', err));
+}
+
+/** Suscribe a cambios en inversión inicial. Retorna función para desuscribir. */
+function fbSuscribirInversion(onData) {
+  return db.collection('settings').doc('inversion').onSnapshot(snap => {
+    onData(snap.exists ? snap.data() : { activa: false, items: [] });
+  }, err => console.error('onSnapshot inversion:', err));
+}
+
+/** Suscribe a cambios en clientes. Retorna función para desuscribir. */
+function fbSuscribirClientes(onData) {
+  return db.collection('clientes').onSnapshot(snap => {
+    const arr = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+    arr.sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
+    onData(arr);
+  }, err => console.error('onSnapshot clientes:', err));
+}
+
 
 /** Verifica conectividad y actualiza el indicador de estado. */
 async function testFirebase() {

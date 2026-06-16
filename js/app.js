@@ -180,24 +180,56 @@ function guardarCotizacion() {
 }
 
 /* ----------------------------------------------------------
+   Sincronización en tiempo real — onSnapshot listeners
+---------------------------------------------------------- */
+let _unsubs = [];
+
+function iniciarSincronizacion() {
+  detenerSincronizacion();
+
+  _unsubs.push(fbSuscribirTrabajos(data => {
+    trabajos = data;
+    try { localStorage.setItem('trabajos3d', JSON.stringify(trabajos)); } catch(e) {}
+    if (typeof renderTrabajos === 'function') renderTrabajos();
+  }));
+
+  _unsubs.push(fbSuscribirGastos(data => {
+    gastos = data;
+    if (typeof renderTrabajos === 'function') renderTrabajos();
+  }));
+
+  _unsubs.push(fbSuscribirFilamentos(data => {
+    filamentos = data;
+    try { localStorage.setItem('filamentos3d', JSON.stringify(filamentos)); } catch(e) {}
+    if (typeof renderInventario === 'function') renderInventario();
+    if (typeof poblarSelectMateriales === 'function') poblarSelectMateriales();
+    if (typeof poblarSelectFilamento === 'function') poblarSelectFilamento();
+  }));
+
+  _unsubs.push(fbSuscribirInversion(data => {
+    inversion = data;
+    if (typeof actualizarDashboardInversion === 'function') actualizarDashboardInversion();
+    if (typeof renderInversion === 'function') renderInversion();
+    if (typeof renderTrabajos === 'function') renderTrabajos();
+  }));
+
+  _unsubs.push(fbSuscribirClientes(data => {
+    clientes = data;
+    try { localStorage.setItem('clientes3d', JSON.stringify(clientes)); } catch(e) {}
+    if (typeof renderClientes === 'function') renderClientes();
+  }));
+}
+
+function detenerSincronizacion() {
+  _unsubs.forEach(fn => { try { fn(); } catch(e) {} });
+  _unsubs = [];
+}
+
+/* ----------------------------------------------------------
    Cotizaciones — Cargar
 ---------------------------------------------------------- */
-async function cargarTrabajos() {
-  try {
-    [trabajos, gastos, inversion] = await Promise.all([
-      fbCargarTrabajos(),
-      fbCargarGastos(),
-      fbCargarInversion()
-    ]);
-    try { localStorage.setItem('trabajos3d', JSON.stringify(trabajos)); } catch(e){}
-  } catch(e) {
-    console.error('Error cargando trabajos:', e);
-    try {
-      const l = localStorage.getItem('trabajos3d');
-      trabajos = l ? JSON.parse(l) : [];
-      toast('Cargado desde caché local', 'info');
-    } catch(e2) { trabajos = []; }
-  }
+function cargarTrabajos() {
+  // Los datos llegan en tiempo real vía onSnapshot; solo re-renderizar
   renderTrabajos();
 }
 
@@ -1040,8 +1072,8 @@ async function _fetchFilamentos() {
   }
 }
 
-async function cargarInventario() {
-  await _fetchFilamentos();
+function cargarInventario() {
+  // Los datos llegan en tiempo real vía onSnapshot; solo re-renderizar
   renderInventario();
   poblarSelectMateriales();
 }
@@ -1308,15 +1340,7 @@ async function eliminarFilamento(id) {
 /* ----------------------------------------------------------
    Clientes
 ---------------------------------------------------------- */
-async function cargarClientes() {
-  try {
-    clientes = await fbCargarClientes();
-    try { localStorage.setItem('clientes3d',JSON.stringify(clientes)); } catch(e){}
-  } catch(e) {
-    console.error('Error cargando clientes:', e);
-    try { const l=localStorage.getItem('clientes3d'); clientes=l?JSON.parse(l):[]; }
-    catch(e2) { clientes=[]; }
-  }
+function cargarClientes() {
   renderClientes(clientes);
 }
 
@@ -1591,16 +1615,7 @@ async function guardarVenta() {
 /* ----------------------------------------------------------
    Dashboard
 ---------------------------------------------------------- */
-async function cargarDashboard() {
-  try {
-    // Usar datos ya cargados si existen, sino recargar
-    if (!trabajos.length) {
-      trabajos = await fbCargarTrabajos();
-    }
-  } catch(e) {
-    console.error('Error cargando dashboard:', e);
-    toast('No se pudo cargar el dashboard','error');
-  }
+function cargarDashboard() {
   setDashFiltro(_dashFiltro);
 }
 
@@ -2765,11 +2780,13 @@ function calHoy() {
 
 function onAuthSuccess() {
   testFirebase();
+  // Cargar caché local inmediatamente para UI instantánea
   try { const l=localStorage.getItem('trabajos3d');   if(l) trabajos=JSON.parse(l);   } catch(e){}
   try { const l=localStorage.getItem('filamentos3d'); if(l) filamentos=JSON.parse(l); } catch(e){}
   try { const l=localStorage.getItem('clientes3d');   if(l) clientes=JSON.parse(l);  } catch(e){}
   navTo('dashboard');
   cargarConfiguracion();
+  iniciarSincronizacion(); // Sincronización en tiempo real
 }
 
 /* ----------------------------------------------------------
