@@ -126,6 +126,7 @@ function guardarCotizacion() {
     placas:       fv('c_placas'),
     categoria:    el('c_categoria').value,
     material:     el('c_material')?.value.trim() || '',
+    filamento_id: el('c_filamento_id')?.value || '',
     notas:        el('c_notas').value,
     gramos:       fv('c_gramos'),    horas_imp: fv('c_horas_imp'),
     horas_mo:     fv('c_horas_mo'),  horas_dis: fv('c_horas_dis'),
@@ -148,6 +149,7 @@ function guardarCotizacion() {
     montoPendiente: Math.max(0, precioFinal - montoAbonado),
     fechaPago:     '',
     materialesAdicionales: materialesAdicionalesCotizacion.map(m => ({...m})),
+    inventarioDescontado: editingId ? (trabajos.find(t=>t.id===editingId)?.inventarioDescontado || false) : false,
     _desglose: desglose
   };
 
@@ -164,11 +166,12 @@ function guardarCotizacion() {
   if (idx >= 0) trabajos[idx] = data; else trabajos.unshift(data);
   try { localStorage.setItem('trabajos3d', JSON.stringify(trabajos.map(t => { const {_desglose,...c}=t; return c; }))); } catch(e){}
 
-  fbGuardarCotizacion(data)
-    .then(() => {})
-    .catch(e => { console.error('Firebase error al guardar:', e); });
-
   const wasEditing = !!editingId;
+  fbGuardarCotizacion(data)
+    .then(() => {
+      if (!wasEditing && esVenta && data.filamento_id) descontarInventario(data);
+    })
+    .catch(e => { console.error('Firebase error al guardar:', e); });
   if (editingId) {
     editingId = null; el('edit-banner').style.display = 'none';
   }
@@ -204,11 +207,16 @@ async function cargarTrabajos() {
 async function cambiarEstado(id, estado, selectEl) {
   const ahora = new Date().toISOString();
   const t = trabajos.find(t=>t.id===id);
-  if (t) { t.estado = estado; t.fechaActualizacionEstado = ahora; }
+  if (!t) return;
+  const estadoAnterior = t.estado;
+  t.estado = estado; t.fechaActualizacionEstado = ahora;
   const ec = (typeof ESTADO_COLOR !== 'undefined' ? ESTADO_COLOR[estado] : null) || 'badge-gray';
   if (selectEl) selectEl.className = 'badge ' + ec + ' estado-select';
   try {
     await fbActualizarEstado(id, estado);
+    if (estado === 'Entregado' && estadoAnterior !== 'Entregado' && !t.inventarioDescontado) {
+      await descontarInventario(t);
+    }
     toast('Estado actualizado correctamente ✓', 'success');
     renderTrabajos();
   } catch(e) {
@@ -237,6 +245,66 @@ async function eliminarTrabajo(id) {
 }
 
 function pdfTrabajo(id) { const t=trabajos.find(t=>t.id===id); if(t) generarPDFData(t); }
+
+/* ----------------------------------------------------------
+   Inventario — Descuento automático al entregar
+---------------------------------------------------------- */
+async function descontarInventario(t) {
+  if (t.inventarioDescontado) return;
+  const ops = [];
+
+  if (t.filamento_id && t.gramos > 0) {
+    const gramsToDeduct = (t.gramos || 0) * Math.max(t.placas || 1, 1);
+    const filIdx = filamentos.findIndex(f => f.id === t.filamento_id);
+    if (filIdx !== -1) {
+      const fil = filamentos[filIdx];
+      const pesoRollo = fil.peso_rollo || 1000;
+      const totalGrams = (fil.disponibles || 0) * pesoRollo;
+      const newDisponibles = parseFloat((Math.max(0, totalGrams - gramsToDeduct) / pesoRollo).toFixed(4));
+      ops.push(
+        db.collection('filamentos').doc(t.filamento_id).update({ disponibles: newDisponibles })
+          .then(() => { filamentos[filIdx].disponibles = newDisponibles; })
+      );
+    }
+  }
+
+  if (t.materialesAdicionales && t.materialesAdicionales.length > 0) {
+    t.materialesAdicionales.forEach(mat => {
+      if (!mat.id) return;
+      const filIdx = filamentos.findIndex(f => f.id === mat.id);
+      if (filIdx === -1) return;
+      const fil = filamentos[filIdx];
+      const esFilamento = (fil.categoria || 'Filamento') === 'Filamento';
+      if (esFilamento) {
+        const pesoRollo = fil.peso_rollo || 1000;
+        const totalGrams = (fil.disponibles || 0) * pesoRollo;
+        const newDisponibles = parseFloat((Math.max(0, totalGrams - (mat.cantidad || 0)) / pesoRollo).toFixed(4));
+        ops.push(
+          db.collection('filamentos').doc(mat.id).update({ disponibles: newDisponibles })
+            .then(() => { filamentos[filIdx].disponibles = newDisponibles; })
+        );
+      } else {
+        const newStock = Math.max(0, (fil.stock || 0) - (mat.cantidad || 0));
+        ops.push(
+          db.collection('filamentos').doc(mat.id).update({ stock: newStock })
+            .then(() => { filamentos[filIdx].stock = newStock; })
+        );
+      }
+    });
+  }
+
+  if (ops.length === 0) return;
+  try {
+    await Promise.all(ops);
+    await db.collection('cotizaciones').doc(t.id).update({ inventarioDescontado: true });
+    const idx = trabajos.findIndex(w => w.id === t.id);
+    if (idx !== -1) trabajos[idx].inventarioDescontado = true;
+    if (typeof renderInventario === 'function') renderInventario();
+    toast('Inventario actualizado ✓', 'success');
+  } catch(e) {
+    console.error('Error actualizando inventario:', e);
+  }
+}
 
 /* ----------------------------------------------------------
    Selección múltiple — Cotización combinada
@@ -538,6 +606,7 @@ function nuevaCotizacion() {
   renderMaterialesListaCotizacion();
   cargarFilamentosYPoblar();
   ['c_pieza','c_cliente','c_notas','c_material'].forEach(f => { if(el(f)) el(f).value = ''; });
+  if (el('c_filamento_id')) el('c_filamento_id').value = '';
   const nums = {
     c_cantidad:1, c_placas:1, c_gramos:0, c_horas_imp:0, c_horas_mo:0,
     c_horas_dis:0, c_costo_dis:0, c_postpro:0, c_otros:0,
@@ -723,6 +792,8 @@ function editarEnCotizador(id) {
   sv('c_fecha',        t.fecha       || today());
   sv('c_fecha_entrega',t.fechaEntrega|| '');
   sv('c_material',     t.material    || '');
+  poblarSelectFilamento();
+  if (el('c_filamento_id')) el('c_filamento_id').value = t.filamento_id || '';
   sv('c_cantidad',     t.cantidad    || 1);
   sv('c_placas',       t.placas      || 1);
   sv('c_notas',        t.notas       || '');
@@ -925,6 +996,24 @@ async function cargarInventario() {
 async function cargarFilamentosYPoblar() {
   await _fetchFilamentos();
   poblarSelectMateriales();
+  poblarSelectFilamento();
+}
+
+function poblarSelectFilamento() {
+  const sel = el('c_filamento_id'); if (!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">— Sin vincular (no descontar) —</option>';
+  [...filamentos]
+    .filter(m => (m.categoria || 'Filamento') === 'Filamento')
+    .sort((a,b) => getMaterialNombre(a).localeCompare(getMaterialNombre(b)))
+    .forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m.id;
+      const stock = getMaterialStock(m);
+      opt.textContent = `${getMaterialNombre(m)} — ${Math.round(stock)}g disponibles`;
+      if (m.id === cur) opt.selected = true;
+      sel.appendChild(opt);
+    });
 }
 
 function editarFilamento(id) {
