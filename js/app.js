@@ -216,6 +216,8 @@ async function cambiarEstado(id, estado, selectEl) {
     await fbActualizarEstado(id, estado);
     if (estado === 'Entregado' && estadoAnterior !== 'Entregado' && !t.inventarioDescontado) {
       await descontarInventario(t);
+    } else if (estado !== 'Entregado' && estadoAnterior === 'Entregado' && t.inventarioDescontado) {
+      await revertirInventario(t);
     }
     toast('Estado actualizado correctamente ✓', 'success');
     renderTrabajos();
@@ -301,6 +303,59 @@ async function descontarInventario(t) {
   } catch(e) {
     console.error('Error actualizando inventario:', e);
     toast('Error al actualizar inventario', 'error');
+  }
+}
+
+async function revertirInventario(t) {
+  if (!t.inventarioDescontado) return;
+  const ops      = [];
+  const inmemory = [];
+
+  if (t.filamento_id && t.gramos > 0) {
+    const gramsToAdd = (t.gramos || 0) * Math.max(t.placas || 1, 1);
+    const filIdx = filamentos.findIndex(f => f.id === t.filamento_id);
+    if (filIdx !== -1) {
+      const fil = filamentos[filIdx];
+      const pesoRollo = fil.peso_rollo || 1000;
+      const newDisponibles = parseFloat(((fil.disponibles || 0) + gramsToAdd / pesoRollo).toFixed(4));
+      ops.push(db.collection('filamentos').doc(t.filamento_id).update({ disponibles: newDisponibles }));
+      inmemory.push(() => { filamentos[filIdx].disponibles = newDisponibles; });
+    }
+  }
+
+  if (t.materialesAdicionales && t.materialesAdicionales.length > 0) {
+    t.materialesAdicionales.forEach(mat => {
+      if (!mat.id) return;
+      const filIdx = filamentos.findIndex(f => f.id === mat.id);
+      if (filIdx === -1) return;
+      const fil = filamentos[filIdx];
+      const esFilamento = (fil.categoria || 'Filamento') === 'Filamento';
+      if (esFilamento) {
+        const pesoRollo = fil.peso_rollo || 1000;
+        const newDisponibles = parseFloat(((fil.disponibles || 0) + (mat.cantidad || 0) / pesoRollo).toFixed(4));
+        ops.push(db.collection('filamentos').doc(mat.id).update({ disponibles: newDisponibles }));
+        inmemory.push(() => { filamentos[filIdx].disponibles = newDisponibles; });
+      } else {
+        const newStock = (fil.stock || 0) + (mat.cantidad || 0);
+        ops.push(db.collection('filamentos').doc(mat.id).update({ stock: newStock }));
+        inmemory.push(() => { filamentos[filIdx].stock = newStock; });
+      }
+    });
+  }
+
+  try {
+    if (ops.length > 0) await Promise.all(ops);
+    inmemory.forEach(fn => fn());
+    await db.collection('cotizaciones').doc(t.id).update({ inventarioDescontado: false });
+    const idx = trabajos.findIndex(w => w.id === t.id);
+    if (idx !== -1) trabajos[idx].inventarioDescontado = false;
+    if (ops.length > 0) {
+      if (typeof renderInventario === 'function') renderInventario();
+      toast('Inventario devuelto al stock ✓', 'success');
+    }
+  } catch(e) {
+    console.error('Error revirtiendo inventario:', e);
+    toast('Error al revertir inventario', 'error');
   }
 }
 
