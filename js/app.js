@@ -251,7 +251,8 @@ function pdfTrabajo(id) { const t=trabajos.find(t=>t.id===id); if(t) generarPDFD
 ---------------------------------------------------------- */
 async function descontarInventario(t) {
   if (t.inventarioDescontado) return;
-  const ops = [];
+  const ops      = [];
+  const inmemory = [];
 
   if (t.filamento_id && t.gramos > 0) {
     const gramsToDeduct = (t.gramos || 0) * Math.max(t.placas || 1, 1);
@@ -261,10 +262,8 @@ async function descontarInventario(t) {
       const pesoRollo = fil.peso_rollo || 1000;
       const totalGrams = (fil.disponibles || 0) * pesoRollo;
       const newDisponibles = parseFloat((Math.max(0, totalGrams - gramsToDeduct) / pesoRollo).toFixed(4));
-      ops.push(
-        db.collection('filamentos').doc(t.filamento_id).update({ disponibles: newDisponibles })
-          .then(() => { filamentos[filIdx].disponibles = newDisponibles; })
-      );
+      ops.push(db.collection('filamentos').doc(t.filamento_id).update({ disponibles: newDisponibles }));
+      inmemory.push(() => { filamentos[filIdx].disponibles = newDisponibles; });
     }
   }
 
@@ -279,30 +278,29 @@ async function descontarInventario(t) {
         const pesoRollo = fil.peso_rollo || 1000;
         const totalGrams = (fil.disponibles || 0) * pesoRollo;
         const newDisponibles = parseFloat((Math.max(0, totalGrams - (mat.cantidad || 0)) / pesoRollo).toFixed(4));
-        ops.push(
-          db.collection('filamentos').doc(mat.id).update({ disponibles: newDisponibles })
-            .then(() => { filamentos[filIdx].disponibles = newDisponibles; })
-        );
+        ops.push(db.collection('filamentos').doc(mat.id).update({ disponibles: newDisponibles }));
+        inmemory.push(() => { filamentos[filIdx].disponibles = newDisponibles; });
       } else {
         const newStock = Math.max(0, (fil.stock || 0) - (mat.cantidad || 0));
-        ops.push(
-          db.collection('filamentos').doc(mat.id).update({ stock: newStock })
-            .then(() => { filamentos[filIdx].stock = newStock; })
-        );
+        ops.push(db.collection('filamentos').doc(mat.id).update({ stock: newStock }));
+        inmemory.push(() => { filamentos[filIdx].stock = newStock; });
       }
     });
   }
 
-  if (ops.length === 0) return;
   try {
-    await Promise.all(ops);
+    if (ops.length > 0) await Promise.all(ops);
+    inmemory.forEach(fn => fn());
     await db.collection('cotizaciones').doc(t.id).update({ inventarioDescontado: true });
     const idx = trabajos.findIndex(w => w.id === t.id);
     if (idx !== -1) trabajos[idx].inventarioDescontado = true;
-    if (typeof renderInventario === 'function') renderInventario();
-    toast('Inventario actualizado ✓', 'success');
+    if (ops.length > 0) {
+      if (typeof renderInventario === 'function') renderInventario();
+      toast('Inventario actualizado ✓', 'success');
+    }
   } catch(e) {
     console.error('Error actualizando inventario:', e);
+    toast('Error al actualizar inventario', 'error');
   }
 }
 
@@ -2457,6 +2455,7 @@ async function guardarEditarItemInversion() {
   if (!id || !descripcion || !monto) { toast('Completa descripción y monto', 'error'); return; }
   const item = (inversion.items || []).find(i => i.id === id);
   if (!item) return;
+  const orig = { descripcion: item.descripcion, categoria: item.categoria, monto: item.monto };
   item.descripcion = descripcion;
   item.categoria   = categoria;
   item.monto       = monto;
@@ -2468,6 +2467,7 @@ async function guardarEditarItemInversion() {
     if (typeof renderTrabajos === 'function') renderTrabajos();
     toast('Item actualizado ✓', 'success');
   } catch(e) {
+    Object.assign(item, orig);
     toast('Error guardando cambios', 'error');
   }
 }
