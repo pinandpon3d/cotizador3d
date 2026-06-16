@@ -195,6 +195,8 @@ nav{padding:10px 10px;flex:1}
 .topbar-actions{display:flex;align-items:center;gap:8px}
 .hamburger{
   display:none;
+  min-width:44px;min-height:44px;
+  align-items:center;justify-content:center;
   padding:6px;border-radius:var(--radius-xs);
   color:var(--text2);
   transition:var(--transition);
@@ -569,7 +571,7 @@ tbody td{padding:10px 14px;color:var(--text);vertical-align:middle}
 }
 @media (max-width:480px){
   .form-grid{grid-template-columns:1fr}
-  .stats-grid{grid-template-columns:1fr 1fr}
+  .stats-grid{grid-template-columns:1fr}
 }
 
 /* =========================================================
@@ -712,12 +714,12 @@ tbody td{padding:10px 14px;color:var(--text);vertical-align:middle}
   #cl-search { width: 100% !important; min-width: 0 }
   .card-title { flex-wrap: wrap }
 
-  /* ── Targets táctiles más grandes ── */
-  .btn { min-height: 40px }
-  .nav-item { padding: 11px 12px }
+  /* ── Targets táctiles más grandes (mínimo 44px recomendado WCAG) ── */
+  .btn { min-height: 44px }
+  .nav-item { padding: 11px 12px; min-height: 44px }
   .form-group input,
   .form-group select,
-  .form-group textarea { min-height: 42px }
+  .form-group textarea { min-height: 44px }
 
   /* ── Tipografía ── */
   .section-title { font-size: 1rem }
@@ -755,8 +757,13 @@ tbody td{padding:10px 14px;color:var(--text);vertical-align:middle}
   .cfg-tabs { flex-direction: column }
   .cfg-tab-btn { justify-content: flex-start; width: 100%; border-radius: calc(var(--radius-sm) - 2px) }
 
-  /* ── Stats: 2 col en portrait ── */
-  .stats-grid { grid-template-columns: 1fr 1fr }
+  /* ── Stats: 1 col en portrait (evita overflow en valores largos) ── */
+  .stats-grid { grid-template-columns: 1fr }
+  .stat-value { font-size: 1.2rem }
+  .btn { min-height: 44px }
+  .form-group input,
+  .form-group select,
+  .form-group textarea { min-height: 44px }
 
   /* ── Breakdown más compacto ── */
   .breakdown { font-size: .78rem }
@@ -781,6 +788,14 @@ tbody td{padding:10px 14px;color:var(--text);vertical-align:middle}
 
   /* ── Modal venta: padding reducido ── */
   .mv-info { flex-direction: column; gap: 6px }
+
+  /* ── Grids dentro de modales: forzar 1 col ── */
+  .modal .form-grid-2,
+  .modal .form-grid-3 { grid-template-columns: 1fr }
+  .modal [style*="grid-template-columns"] { grid-template-columns: 1fr !important }
+
+  /* ── stat-label un poco más visible en mobile ── */
+  .stat-label { font-size: .72rem }
 }
 
 /* =========================================================
@@ -1746,7 +1761,7 @@ tbody td{padding:10px 14px;color:var(--text);vertical-align:middle}
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
   width: fit-content;
-  min-width: 260px;
+  min-width: min(260px, 100%);
 }
 
 /* =====================================================
