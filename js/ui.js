@@ -180,7 +180,7 @@ function renderTrabajos() {
     .filter(g => g.pagado).reduce((s, g) => s + (g.monto || 0), 0);
   const invPagada       = ((typeof inversion !== 'undefined' ? inversion.items : null) || [])
     .filter(i => i.pagado).reduce((s, i) => s + (i.monto || 0), 0);
-  const neto            = ganancias - gastosPagados - invPagada;
+  const neto            = ingresos - gastosPagados - invPagada;
   const pendPago   = trabajos.filter(t => ESTADOS_POR_COBRAR.includes(t.estado) && (t.estadoPago||'Pendiente') !== 'Pagado').length;
   const porCobrar  = trabajos
     .filter(t => ESTADOS_POR_COBRAR.includes(t.estado))
