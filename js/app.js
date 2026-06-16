@@ -2345,6 +2345,44 @@ async function eliminarItemInversion(id) {
   }
 }
 
+function abrirEditarItemInversion(id) {
+  const item = (inversion.items || []).find(i => i.id === id);
+  if (!item) return;
+  el('einv-id').value          = id;
+  el('einv-descripcion').value = item.descripcion || '';
+  el('einv-categoria').value   = item.categoria   || 'Otro';
+  el('einv-monto').value       = item.monto       || 0;
+  el('modal-editar-inv').style.display = 'flex';
+  setTimeout(() => el('einv-descripcion')?.focus(), 50);
+}
+
+function cerrarEditarItemInversion() {
+  el('modal-editar-inv').style.display = 'none';
+}
+
+async function guardarEditarItemInversion() {
+  const id          = el('einv-id')?.value;
+  const descripcion = (el('einv-descripcion')?.value || '').trim();
+  const categoria   = el('einv-categoria')?.value || 'Otro';
+  const monto       = parseFloat(el('einv-monto')?.value || 0);
+  if (!id || !descripcion || !monto) { toast('Completa descripción y monto', 'error'); return; }
+  const item = (inversion.items || []).find(i => i.id === id);
+  if (!item) return;
+  item.descripcion = descripcion;
+  item.categoria   = categoria;
+  item.monto       = monto;
+  try {
+    await fbGuardarInversion(inversion);
+    cerrarEditarItemInversion();
+    renderInversion();
+    actualizarDashboardInversion();
+    if (typeof renderTrabajos === 'function') renderTrabajos();
+    toast('Item actualizado ✓', 'success');
+  } catch(e) {
+    toast('Error guardando cambios', 'error');
+  }
+}
+
 function actualizarDashboardInversion() {
   const activa = inversion.activa && (inversion.items?.length > 0);
   const totalInv   = activa ? (inversion.items || []).reduce((s, i) => s + (i.monto || 0), 0) : 0;
