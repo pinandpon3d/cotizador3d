@@ -905,8 +905,10 @@ tbody td{padding:10px 14px;color:var(--text);vertical-align:middle}
 ========================================================= */
 .badge-blue{background:rgba(26,96,166,.1);color:#1a60a6}
 .badge-darkgreen{background:rgba(4,120,87,.12);color:#047857}
+.badge-venta{background:rgba(124,58,237,.1);color:#7c3aed}
 [data-theme="dark"] .badge-blue{background:rgba(65,133,198,.15);color:#b5d3f0}
 [data-theme="dark"] .badge-darkgreen{background:rgba(16,185,129,.12);color:#34d399}
+[data-theme="dark"] .badge-venta{background:rgba(167,139,250,.15);color:#c4b5fd}
 
 /* =========================================================
    MODAL

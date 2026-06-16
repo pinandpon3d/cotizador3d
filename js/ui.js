@@ -111,6 +111,7 @@ const ESTADO_COLOR = {
   'En impresión': 'badge-accent',
   'Post-proceso': 'badge-warn',
   'Listo':        'badge-success',
+  'Venta':        'badge-venta',
   'Entregado':    'badge-darkgreen',
   'Cancelado':    'badge-danger'
 };
@@ -258,7 +259,7 @@ function renderTrabajos() {
       <td class="td-mono"><strong style="${ganClass}">${fmt(ganObj)}</strong></td>
       <td>
         <select class="badge ${ec} estado-select" onchange="cambiarEstado('${t.id}',this.value,this)">
-          ${['Cotizado','Aprobado','En impresión','Post-proceso','Listo','Entregado','Cancelado']
+          ${['Cotizado','Aprobado','En impresión','Post-proceso','Listo','Venta','Entregado','Cancelado']
             .map(s=>`<option value="${s}"${t.estado===s?' selected':''}>${s}</option>`).join('')}
         </select>
         <div style="font-size:.6rem;color:var(--text3);margin-top:2px">${fechaAct}</div>
@@ -498,7 +499,7 @@ function renderDashboard(filtro = 'mes-actual') {
   }
 
   const countByEstado = {};
-  ['Cotizado','Aprobado','En impresión','Post-proceso','Listo','Entregado','Cancelado']
+  ['Cotizado','Aprobado','En impresión','Post-proceso','Listo','Venta','Entregado','Cancelado']
     .forEach(e => { countByEstado[e] = lista.filter(t => t.estado === e).length; });
 
   // Material más usado
@@ -575,8 +576,8 @@ function _renderCharts(lista, countByEstado, anio, mes) {
   const estadoColors = {
     'Cotizado':    '#b5d3f0', 'Aprobado':     '#1a60a6',
     'En impresión':'#4185c6', 'Post-proceso': '#f4c70f',
-    'Listo':       '#133658', 'Entregado':    '#059669',
-    'Cancelado':   '#dc2626'
+    'Listo':       '#133658', 'Venta':        '#7c3aed',
+    'Entregado':   '#059669', 'Cancelado':    '#dc2626'
   };
 
   // — Gráfico 1: Donut de estados —
@@ -1082,7 +1083,7 @@ const _CAL_DIAS_S = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
 function _calEstadoCls(estado) {
   const m = { 'Cotizado':'cal-cotizado','Aprobado':'cal-aprobado',
     'En impresión':'cal-impresion','Post-proceso':'cal-postproceso',
-    'Listo':'cal-listo','Entregado':'cal-entregado','Cancelado':'cal-cancelado' };
+    'Listo':'cal-listo','Venta':'cal-listo','Entregado':'cal-entregado','Cancelado':'cal-cancelado' };
   return m[estado] || 'cal-cotizado';
 }
 

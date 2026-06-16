@@ -138,7 +138,7 @@ function guardarCotizacion() {
     ganancia_por_objeto:  desglose.gananciaObjeto,
     estado: editingId
       ? (trabajos.find(t=>t.id===editingId)?.estado || 'Cotizado')
-      : 'Cotizado',
+      : (el('c_categoria').value === 'Venta al Detalle' ? 'Venta' : 'Cotizado'),
     fechaActualizacionEstado: editingId
       ? (trabajos.find(t=>t.id===editingId)?.fechaActualizacionEstado || new Date().toISOString())
       : new Date().toISOString(),
@@ -1389,10 +1389,10 @@ async function guardarVenta() {
     trabajos[idx].fechaActualizacionEstado = new Date().toISOString();
   }
   if (yaNoAgotado && idx >= 0) {
-    trabajos[idx].estado         = 'Aprobado';
+    trabajos[idx].estado         = 'Venta';
     trabajos[idx].estadoPago     = 'Pendiente';
     trabajos[idx].montoAbonado   = 0;
-    trabajos[idx].montoPendiente = trabajos[idx].precio_final || 0;
+    trabajos[idx].montoPendiente = 0;
     trabajos[idx].fechaActualizacionEstado = new Date().toISOString();
   }
 
@@ -1412,8 +1412,8 @@ async function guardarVenta() {
       });
     } else if (yaNoAgotado) {
       Object.assign(updateData, {
-        estado: 'Aprobado', estadoPago: 'Pendiente',
-        montoAbonado: 0, montoPendiente: t.precio_final || 0,
+        estado: 'Venta', estadoPago: 'Pendiente',
+        montoAbonado: 0, montoPendiente: 0,
         fechaActualizacionEstado: new Date().toISOString()
       });
     }
