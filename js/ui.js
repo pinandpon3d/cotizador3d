@@ -204,14 +204,14 @@ function renderTrabajos() {
 
   const hoy = new Date().toISOString().split('T')[0];
 
-  // Estadísticas — conteos globales, financieros sobre la lista visible
+  // Estadísticas — siempre globales (la lista visible oculta Entregado+Pagado por diseño)
   const ESTADOS_ACTIVOS     = ['Aprobado', 'En impresión', 'Post-proceso', 'Listo'];
   const ESTADOS_POR_COBRAR  = [...ESTADOS_ACTIVOS, 'Entregado'];
   const total      = trabajos.length;
   const aprobados  = trabajos.filter(t => t.estado === 'Aprobado').length;
   const entregados = trabajos.filter(t => t.estado === 'Entregado').length;
-  const ingresos        = list.reduce((s,t) => s + ingresosLote(t), 0);
-  const ganancias       = list.reduce((s,t) => s + gananciaLote(t), 0);
+  const ingresos        = trabajos.reduce((s,t) => s + ingresosLote(t), 0);
+  const ganancias       = trabajos.reduce((s,t) => s + gananciaLote(t), 0);
   const gastosPagados   = (typeof gastos !== 'undefined' ? gastos : [])
     .filter(g => g.pagado).reduce((s, g) => s + (g.monto || 0), 0);
   const invPagada       = ((typeof inversion !== 'undefined' ? inversion.items : null) || [])
