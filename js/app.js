@@ -104,7 +104,7 @@ function calcEstadoPago(precioFinal, montoAbonado) {
 /* ----------------------------------------------------------
    Cotizaciones — Guardar
 ---------------------------------------------------------- */
-function guardarCotizacion() {
+async function guardarCotizacion() {
   const pieza   = el('c_pieza').value.trim();
   const cliente = el('c_cliente').value.trim();
   if (!pieza)   { toast('Ingrese el nombre de la pieza',  'error'); return; }
@@ -163,21 +163,31 @@ function guardarCotizacion() {
     data.historialVentas  = existing?.historialVentas  || [];
   }
 
-  const idx = trabajos.findIndex(t => t.id === id);
+  const wasEditing = !!editingId;
+  const idx        = trabajos.findIndex(t => t.id === id);
+  const anterior   = idx >= 0 ? trabajos[idx] : null;
+
+  // Actualización optimista local
   if (idx >= 0) trabajos[idx] = data; else trabajos.unshift(data);
   try { localStorage.setItem('trabajos3d', JSON.stringify(trabajos.map(t => { const {_desglose,...c}=t; return c; }))); } catch(e){}
+  if (typeof renderTrabajos === 'function') renderTrabajos();
 
-  const wasEditing = !!editingId;
-  fbGuardarCotizacion(data)
-    .then(() => {
-      if (!wasEditing && esVenta && data.filamento_id) descontarInventario(data);
-    })
-    .catch(e => { console.error('Firebase error al guardar:', e); });
-  if (editingId) {
-    editingId = null; el('edit-banner').style.display = 'none';
+  try {
+    await fbGuardarCotizacion(data);
+    if (!wasEditing && esVenta && data.filamento_id) await descontarInventario(data);
+    if (editingId) {
+      editingId = null; el('edit-banner').style.display = 'none';
+    }
+    mostrarPostGuardado(pieza, wasEditing);
+    nuevaCotizacion();
+  } catch(e) {
+    console.error('Firebase error al guardar:', e);
+    // Revertir actualización optimista: la cotización no quedó guardada
+    if (idx >= 0) trabajos[idx] = anterior; else trabajos = trabajos.filter(t => t.id !== id);
+    try { localStorage.setItem('trabajos3d', JSON.stringify(trabajos.map(t => { const {_desglose,...c}=t; return c; }))); } catch(e2){}
+    if (typeof renderTrabajos === 'function') renderTrabajos();
+    toast('No se pudo guardar en Firebase. Revise su conexión e intente de nuevo.', 'error');
   }
-  mostrarPostGuardado(pieza, wasEditing);
-  nuevaCotizacion();
 }
 
 /* ----------------------------------------------------------
