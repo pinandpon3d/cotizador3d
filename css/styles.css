@@ -1965,3 +1965,81 @@ tbody td{padding:10px 14px;color:var(--text);vertical-align:middle}
   .cal-day-hdr{font-size:.6rem;padding:6px 2px}
   .cal-prox-grid{grid-template-columns:1fr}
 }
+
+/* ----------------------------------------------------------
+   Skeleton loader — filas de carga en Trabajos
+---------------------------------------------------------- */
+@keyframes skeleton-shine {
+  0%   { background-position: -200px 0; }
+  100% { background-position: calc(200px + 100%) 0; }
+}
+tr.skeleton-row td {
+  background: linear-gradient(90deg, var(--surface2) 25%, var(--surface3,#e8e8e8) 50%, var(--surface2) 75%);
+  background-size: 400px 100%;
+  animation: skeleton-shine 1.4s ease infinite;
+  height: 36px;
+  border-radius: 4px;
+  pointer-events: none;
+}
+
+/* ----------------------------------------------------------
+   Nav badge — conteo de pendientes
+---------------------------------------------------------- */
+.nav-badge {
+  display: none;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--danger, #ef4444);
+  color: #fff;
+  font-size: .65rem;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+  margin-left: auto;
+}
+.nav-badge.visible { display: inline-block; }
+
+/* ----------------------------------------------------------
+   Confirm modal — ícono
+---------------------------------------------------------- */
+.confirm-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  color: var(--danger);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 14px;
+}
+
+/* ----------------------------------------------------------
+   Modal "Usar como base" — lista de cotizaciones
+---------------------------------------------------------- */
+.base-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  transition: background .15s;
+}
+.base-item:last-child { border-bottom: none; }
+.base-item:hover { background: var(--surface2); }
+.base-item-info { min-width: 0; }
+.base-item-pieza {
+  font-weight: 600;
+  font-size: .9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.base-item-sub {
+  font-size: .75rem;
+  color: var(--text2);
+  margin-top: 2px;
+}

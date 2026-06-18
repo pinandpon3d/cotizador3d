@@ -13,6 +13,7 @@
    Estado global
 ---------------------------------------------------------- */
 let trabajos   = [];
+let trabajosListos = false;
 let filamentos = [];
 let clientes   = [];
 let editingId  = null;
@@ -189,6 +190,7 @@ function iniciarSincronizacion() {
 
   _unsubs.push(fbSuscribirTrabajos(data => {
     trabajos = data;
+    trabajosListos = true;
     try { localStorage.setItem('trabajos3d', JSON.stringify(trabajos)); } catch(e) {}
     if (typeof renderTrabajos === 'function') renderTrabajos();
   }));
@@ -265,17 +267,18 @@ async function cambiarEstado(id, estado, selectEl) {
 async function eliminarTrabajo(id) {
   const t      = trabajos.find(t=>t.id===id);
   const nombre = t ? `"${t.pieza}" de ${t.cliente}` : 'este trabajo';
-  if (!confirm(`¿Seguro que deseas eliminar ${nombre}?\n\nEsta acción no se puede deshacer.`)) return;
-  trabajos = trabajos.filter(t=>t.id!==id);
-  try { localStorage.setItem('trabajos3d', JSON.stringify(trabajos)); } catch(e){}
-  try {
-    await fbEliminarCotizacion(id);
-    toast('Trabajo eliminado correctamente ✓', 'success');
-  } catch(e) {
-    console.error('Error eliminando:', e);
-    toast('No se pudo eliminar el registro', 'error');
-  }
-  renderTrabajos();
+  showConfirm('¿Eliminar trabajo?', `¿Seguro que deseas eliminar ${nombre}? Esta acción no se puede deshacer.`, async () => {
+    trabajos = trabajos.filter(t=>t.id!==id);
+    try { localStorage.setItem('trabajos3d', JSON.stringify(trabajos)); } catch(e){}
+    try {
+      await fbEliminarCotizacion(id);
+      toast('Trabajo eliminado correctamente ✓', 'success');
+    } catch(e) {
+      console.error('Error eliminando:', e);
+      toast('No se pudo eliminar el registro', 'error');
+    }
+    renderTrabajos();
+  });
 }
 
 function pdfTrabajo(id) { const t=trabajos.find(t=>t.id===id); if(t) generarPDFData(t); }
@@ -1328,13 +1331,14 @@ function calcularTotalMaterialesAdicionales() {
   return materialesAdicionalesCotizacion.reduce((s,m)=>s+m.costo, 0) + (_matPreviewCosto || 0);
 }
 
-async function eliminarFilamento(id) {
-  if (!confirm('¿Eliminar este filamento?')) return;
-  filamentos=filamentos.filter(f=>f.id!==id);
-  try { localStorage.setItem('filamentos3d',JSON.stringify(filamentos)); } catch(e){}
-  try { await fbEliminarFilamento(id); toast('Filamento eliminado ✓','success'); }
-  catch(e) { console.error(e); toast('No se pudo eliminar el filamento', 'error'); }
-  renderInventario();
+function eliminarFilamento(id) {
+  showConfirm('¿Eliminar filamento?', '¿Seguro que deseas eliminar este filamento? Esta acción no se puede deshacer.', async () => {
+    filamentos=filamentos.filter(f=>f.id!==id);
+    try { localStorage.setItem('filamentos3d',JSON.stringify(filamentos)); } catch(e){}
+    try { await fbEliminarFilamento(id); toast('Filamento eliminado ✓','success'); }
+    catch(e) { console.error(e); toast('No se pudo eliminar el filamento', 'error'); }
+    renderInventario();
+  });
 }
 
 /* ----------------------------------------------------------
@@ -1409,19 +1413,20 @@ function cancelarEditCliente() {
   if(el('cl-cancel-edit'))    el('cl-cancel-edit').style.display='none';
 }
 
-async function eliminarCliente(id) {
+function eliminarCliente(id) {
   const c      = clientes.find(c=>c.id===id);
   const nombre = c ? `"${c.nombre}"` : 'este cliente';
-  if (!confirm(`¿Seguro que deseas eliminar el cliente ${nombre}?\n\nEsta acción no se puede deshacer.`)) return;
-  clientes = clientes.filter(c=>c.id!==id);
-  try { localStorage.setItem('clientes3d',JSON.stringify(clientes)); } catch(e){}
-  try {
-    await fbEliminarCliente(id);
-    toast('Cliente eliminado correctamente ✓','success');
-  } catch(e) {
-    console.error(e); toast('No se pudo eliminar el cliente','error');
-  }
-  renderClientes(clientes);
+  showConfirm('¿Eliminar cliente?', `¿Seguro que deseas eliminar el cliente ${nombre}? Esta acción no se puede deshacer.`, async () => {
+    clientes = clientes.filter(c=>c.id!==id);
+    try { localStorage.setItem('clientes3d',JSON.stringify(clientes)); } catch(e){}
+    try {
+      await fbEliminarCliente(id);
+      toast('Cliente eliminado correctamente ✓','success');
+    } catch(e) {
+      console.error(e); toast('No se pudo eliminar el cliente','error');
+    }
+    renderClientes(clientes);
+  });
 }
 
 /* ----------------------------------------------------------
@@ -2412,16 +2417,17 @@ async function guardarGasto() {
   }
 }
 
-async function eliminarGasto(id) {
-  if (!confirm('¿Eliminar este gasto?')) return;
-  try {
-    await fbEliminarGasto(id);
-    gastos = gastos.filter(g => g.id !== id);
-    renderCostos();
-    toast('Gasto eliminado', 'success');
-  } catch(e) {
-    toast('Error eliminando gasto', 'error');
-  }
+function eliminarGasto(id) {
+  showConfirm('¿Eliminar gasto?', '¿Seguro que deseas eliminar este gasto? Esta acción no se puede deshacer.', async () => {
+    try {
+      await fbEliminarGasto(id);
+      gastos = gastos.filter(g => g.id !== id);
+      renderCostos();
+      toast('Gasto eliminado', 'success');
+    } catch(e) {
+      toast('Error eliminando gasto', 'error');
+    }
+  });
 }
 
 async function toggleGastoPagado(id) {
@@ -2489,17 +2495,18 @@ async function guardarItemInversion() {
   }
 }
 
-async function eliminarItemInversion(id) {
-  if (!confirm('¿Eliminar este item de inversión?')) return;
-  inversion.items = (inversion.items || []).filter(i => i.id !== id);
-  try {
-    await fbGuardarInversion(inversion);
-    renderInversion();
-    actualizarDashboardInversion();
-    toast('Item eliminado', 'success');
-  } catch(e) {
-    toast('Error eliminando item', 'error');
-  }
+function eliminarItemInversion(id) {
+  showConfirm('¿Eliminar item?', '¿Seguro que deseas eliminar este item de inversión? Esta acción no se puede deshacer.', async () => {
+    inversion.items = (inversion.items || []).filter(i => i.id !== id);
+    try {
+      await fbGuardarInversion(inversion);
+      renderInversion();
+      actualizarDashboardInversion();
+      toast('Item eliminado', 'success');
+    } catch(e) {
+      toast('Error eliminando item', 'error');
+    }
+  });
 }
 
 function abrirEditarItemInversion(id) {
@@ -2642,16 +2649,17 @@ async function agregarCategoriaPago() {
   } catch(e) { toast('Error guardando', 'error'); }
 }
 
-async function eliminarCategoriaPago(idx) {
+function eliminarCategoriaPago(idx) {
   if (idx === 0 || idx === categoriasPago.length - 1) return; // no eliminar primera/última
   const nombre = categoriasPago[idx];
-  if (!confirm(`¿Eliminar la categoría "${nombre}"?`)) return;
-  categoriasPago.splice(idx, 1);
-  try {
-    await fbGuardarCategoriasPago(categoriasPago);
-    actualizarFiltrosPago();
-    toast(`Categoría eliminada ✓`, 'success');
-  } catch(e) { toast('Error eliminando', 'error'); }
+  showConfirm('¿Eliminar categoría?', `¿Seguro que deseas eliminar la categoría "${nombre}"?`, async () => {
+    categoriasPago.splice(idx, 1);
+    try {
+      await fbGuardarCategoriasPago(categoriasPago);
+      actualizarFiltrosPago();
+      toast(`Categoría eliminada ✓`, 'success');
+    } catch(e) { toast('Error eliminando', 'error'); }
+  });
 }
 
 function getPagoClass(estado) {
@@ -2880,4 +2888,73 @@ async function exportarTodosCSV() {
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 
   toast('ZIP descargado con 5 archivos CSV ✓', 'success', 4000);
+}
+
+/* ----------------------------------------------------------
+   Badge de trabajos pendientes en la navegación
+---------------------------------------------------------- */
+function actualizarBadgeNav() {
+  const PENDIENTES = ['Aprobado', 'En impresión', 'Post-proceso', 'Listo'];
+  const count = trabajos.filter(t => PENDIENTES.includes(t.estado)).length;
+  const badge = el('badge-trabajos');
+  if (!badge) return;
+  if (count > 0) {
+    badge.textContent = count > 99 ? '99+' : count;
+    badge.classList.add('visible');
+  } else {
+    badge.textContent = '';
+    badge.classList.remove('visible');
+  }
+}
+
+/* ----------------------------------------------------------
+   Modal "Usar como base" — copiar parámetros de cotización anterior
+---------------------------------------------------------- */
+function abrirModalBase() {
+  const lista = el('base-lista');
+  if (!lista) return;
+  const recientes = [...trabajos]
+    .sort((a, b) => String(b.id).localeCompare(String(a.id)))
+    .slice(0, 30);
+  if (!recientes.length) {
+    lista.innerHTML = '<p style="text-align:center;color:var(--text3);padding:24px">Sin cotizaciones anteriores</p>';
+  } else {
+    lista.innerHTML = recientes.map(t => `
+      <div class="base-item" onclick="usarComoBase('${t.id}')">
+        <div class="base-item-info">
+          <div class="base-item-pieza">${escHtml(t.pieza || '—')}</div>
+          <div class="base-item-sub">${escHtml(t.cliente || '—')} · ${t.fecha || '—'} · ${fmt(t.precio_final || 0)}</div>
+        </div>
+      </div>`).join('');
+  }
+  el('modal-base').style.display = 'flex';
+}
+
+function cerrarModalBase() {
+  const m = el('modal-base');
+  if (m) m.style.display = 'none';
+}
+
+function usarComoBase(id) {
+  const t = trabajos.find(t => t.id === id);
+  if (!t) return;
+  cerrarModalBase();
+  const campos = {
+    c_gramos:    t.gramos    || 0,
+    c_horas_imp: t.horas_imp || 0,
+    c_horas_mo:  t.horas_mo  || 0,
+    c_horas_dis: t.horas_dis || 0,
+    c_costo_dis: t.costo_dis || 0,
+    c_postpro:   t.postpro   || 0,
+    c_otros:     t.otros     || 0,
+    c_fallos:    t.pFallos   || 5,
+    c_margen:    t.pMargen   || 35,
+    c_iva:       t.pIVA      || 0,
+    c_cantidad:  t.cantidad  || 1,
+    c_placas:    t.placas    || 1,
+  };
+  Object.entries(campos).forEach(([k, v]) => { if (el(k)) el(k).value = v; });
+  if (t.material && el('c_material')) el('c_material').value = t.material;
+  calcular();
+  toast(`Parámetros copiados de "${t.pieza}"`, 'success');
 }

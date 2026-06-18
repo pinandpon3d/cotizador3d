@@ -67,6 +67,31 @@ function toast(msg, type = 'info', dur = 3500) {
 }
 
 /* ----------------------------------------------------------
+   Modal de confirmación — reemplaza confirm() del navegador
+---------------------------------------------------------- */
+let _confirmCallback = null;
+
+function showConfirm(title, msg, onConfirm, okLabel) {
+  el('confirm-title').textContent = title;
+  el('confirm-msg').textContent   = msg;
+  const okBtn = el('confirm-ok-btn');
+  if (okBtn) okBtn.textContent = okLabel || 'Eliminar';
+  _confirmCallback = onConfirm;
+  el('modal-confirm').style.display = 'flex';
+}
+
+function closeConfirm() {
+  el('modal-confirm').style.display = 'none';
+  _confirmCallback = null;
+}
+
+function confirmAction() {
+  const cb = _confirmCallback;
+  closeConfirm();
+  if (typeof cb === 'function') cb();
+}
+
+/* ----------------------------------------------------------
    Tema claro / oscuro
 ---------------------------------------------------------- */
 
@@ -146,6 +171,17 @@ function toggleMostrarEntregados() {
 }
 
 function renderTrabajos() {
+  if (typeof trabajosListos !== 'undefined' && !trabajosListos && trabajos.length === 0) {
+    const tbodySk = el('trabajos-tbody');
+    if (tbodySk) {
+      const skRow = '<td></td>'.repeat(12);
+      tbodySk.innerHTML = Array(5).fill(`<tr class="skeleton-row">${skRow}</tr>`).join('');
+      if (el('trabajos-table')) el('trabajos-table').style.display = 'table';
+      if (el('trabajos-empty')) el('trabajos-empty').style.display = 'none';
+    }
+    return;
+  }
+
   const search  = el('tr-search')?.value.toLowerCase()  || '';
   const estadoF = el('tr-estado')?.value                || '';
   const catF    = el('tr-categoria')?.value             || '';
@@ -205,6 +241,7 @@ function renderTrabajos() {
   set('st-por-cobrar',         fmt(porCobrar));
   set('st-neto',               fmt(neto));
   if (typeof actualizarDashboardInversion === 'function') actualizarDashboardInversion();
+  if (typeof actualizarBadgeNav === 'function') actualizarBadgeNav();
 
   // Vista kanban: delegar renderizado y salir
   if (typeof _trabajosVista !== 'undefined' && _trabajosVista === 'kanban') {
