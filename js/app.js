@@ -956,7 +956,7 @@ function exportarCSV() {
   const rows = list.map(t => {
     const ganObj = t.ganancia_por_objeto != null
       ? t.ganancia_por_objeto
-      : ((t.precio_final||0) - (t.costo_total||0)) / Math.max(t.cantidad||1,1);
+      : ((t.precio_final||0) - (t.costo_total||0)) / _totalUnidadesDetalle(t);
     const pendiente = t.montoPendiente != null
       ? t.montoPendiente
       : Math.max(0,(t.precio_final||0)-(t.montoAbonado||0));
@@ -1447,7 +1447,7 @@ async function cargarVentaDetalle() {
     // Auto-corregir agotados: los que tienen todas las unidades vendidas
     // y todavía no están marcados como Entregado + Pagado
     const agotados = lotes.filter(l =>
-      (l.unidadesVendidas || 0) >= Math.max(l.cantidad || 1, 1) &&
+      (l.unidadesVendidas || 0) >= _totalUnidadesDetalle(l) &&
       (l.estado !== 'Entregado' || l.estadoPago !== 'Pagado')
     );
 
@@ -1481,7 +1481,7 @@ function abrirModalVenta(id, tipo = 'venta') {
   if (!t) return;
   const esDevolucion = tipo === 'devolucion';
   const vendidas     = t.unidadesVendidas || 0;
-  const disponibles  = Math.max((t.cantidad || 1) - vendidas, 0);
+  const disponibles  = Math.max(_totalUnidadesDetalle(t) - vendidas, 0);
   const maxUnidades  = esDevolucion ? vendidas : disponibles;
   if (maxUnidades <= 0) {
     toast(esDevolucion ? 'No hay unidades vendidas que devolver' : 'No hay unidades disponibles', 'error');
@@ -1520,7 +1520,7 @@ async function guardarVenta() {
 
   const esDevolucion = tipo === 'devolucion';
   const vendidas     = t.unidadesVendidas || 0;
-  const disponibles  = Math.max((t.cantidad || 1) - vendidas, 0);
+  const disponibles  = Math.max(_totalUnidadesDetalle(t) - vendidas, 0);
 
   if (esDevolucion) {
     if (cantidad < 1 || cantidad > vendidas) {
@@ -1547,7 +1547,7 @@ async function guardarVenta() {
     trabajos[idx].historialVentas  = [...(trabajos[idx].historialVentas || []), entrada];
   }
 
-  const totalUnidades = t.cantidad || 1;
+  const totalUnidades = _totalUnidadesDetalle(t);
   const nuevasVendidas = trabajos[idx]?.unidadesVendidas || 0;
   const ahoraAgotado  = !esDevolucion && nuevasVendidas >= totalUnidades;
   const yaNoAgotado   = esDevolucion && prevEstado === 'Entregado' && nuevasVendidas < totalUnidades;
@@ -2036,7 +2036,7 @@ function generarListaPrecios() {
   const lotes = trabajos.filter(l =>
     l.categoria === 'Venta al Detalle' &&
     l.estado !== 'Cancelado' &&
-    (l.unidadesVendidas || 0) < Math.max(l.cantidad || 1, 1)
+    (l.unidadesVendidas || 0) < _totalUnidadesDetalle(l)
   );
 
   if (!lotes.length) {
@@ -2063,7 +2063,7 @@ function generarListaPrecios() {
 
   // Filas de la tabla
   const rowsHtml = lotes.map((l, i) => {
-    const total      = Math.max(l.cantidad || 1, 1);
+    const total      = _totalUnidadesDetalle(l);
     const vendidas   = Math.min(l.unidadesVendidas || 0, total);
     const disponibles = total - vendidas;
     const precio     = l.precio_unitario || 0;

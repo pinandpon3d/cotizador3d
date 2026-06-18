@@ -15,8 +15,8 @@
    - ventaDetalle: contabilizar proporcionalmente según unidades vendidas
    - resto: contabilizar solo cuando estado === 'Entregado'
 ---------------------------------------------------------- */
-function _unidadesVendidas(t) {
-  return Math.min(t.unidadesVendidas || 0, Math.max(t.cantidad || 1, 1));
+function _totalUnidadesDetalle(t) {
+  return Math.max((t.cantidad || 1) * Math.max(t.placas || 1, 1), 1);
 }
 function _esDetalle(t) {
   return t.ventaDetalle === true || t.categoria === 'Venta al Detalle';
@@ -25,7 +25,7 @@ function _esDetalle(t) {
 function ingresosLote(t) {
   if (t.estado === 'Cancelado') return 0;
   if (_esDetalle(t)) {
-    const totalObj = Math.max((t.cantidad || 1) * Math.max(t.placas || 1, 1), 1);
+    const totalObj = _totalUnidadesDetalle(t);
     const v = Math.min(t.unidadesVendidas || 0, totalObj);
     return v <= 0 ? 0 : v * (t.precio_unitario || 0);
   }
@@ -36,7 +36,7 @@ function ingresosLote(t) {
 function gananciaLote(t) {
   if (t.estado === 'Cancelado') return 0;
   if (_esDetalle(t)) {
-    const totalObj = Math.max((t.cantidad || 1) * Math.max(t.placas || 1, 1), 1);
+    const totalObj = _totalUnidadesDetalle(t);
     const v = Math.min(t.unidadesVendidas || 0, totalObj);
     return v <= 0 ? 0 : v * (t.ganancia_por_objeto || 0);
   }
@@ -222,7 +222,7 @@ function renderTrabajos() {
     .filter(t => ESTADOS_POR_COBRAR.includes(t.estado))
     .reduce((s, t) => {
       if (_esDetalle(t)) {
-        const cant = Math.max(t.cantidad || 1, 1);
+        const cant = _totalUnidadesDetalle(t);
         const v    = Math.min(t.unidadesVendidas || 0, cant);
         return s + ((cant - v) / cant) * (t.precio_final || 0);
       }
@@ -259,7 +259,7 @@ function renderTrabajos() {
     const pcls      = pagoClass(t.estadoPago||'Pendiente');
     const ganObj    = t.ganancia_por_objeto != null
                     ? t.ganancia_por_objeto
-                    : ((t.precio_final||0) - (t.costo_total||0)) / Math.max(t.cantidad||1, 1);
+                    : ((t.precio_final||0) - (t.costo_total||0)) / _totalUnidadesDetalle(t);
     const ganClass  = ganObj >= 0 ? 'color:var(--success)' : 'color:var(--danger)';
     const fechaAct  = t.fechaActualizacionEstado
                     ? t.fechaActualizacionEstado.split('T')[0]
@@ -465,7 +465,7 @@ function _ingresosDetallePorMes(a, m) {
   return trabajos
     .filter(t => _esDetalle(t) && t.estado !== 'Cancelado')
     .reduce((s, t) => {
-      const cant  = Math.max(t.cantidad || 1, 1);
+      const cant  = _totalUnidadesDetalle(t);
       const pUnit = t.precio_unitario || ((t.precio_final || 0) / cant);
       const nets  = (t.historialVentas || [])
         .filter(v => { const d = new Date(v.fecha); return d.getFullYear() === a && d.getMonth() === m; })
@@ -478,7 +478,7 @@ function _gananciaDetallePorMes(a, m) {
   return trabajos
     .filter(t => _esDetalle(t) && t.estado !== 'Cancelado')
     .reduce((s, t) => {
-      const cant   = Math.max(t.cantidad || 1, 1);
+      const cant   = _totalUnidadesDetalle(t);
       const pUnit  = t.precio_unitario || ((t.precio_final || 0) / cant);
       const cUnit  = (t.costo_total || 0) / cant;
       const nets   = (t.historialVentas || [])
@@ -563,7 +563,7 @@ function renderDashboard(filtro = 'mes-actual') {
     .filter(t => ESTADOS_POR_COBRAR_DASH.includes(t.estado))
     .reduce((s, t) => {
       if (_esDetalle(t)) {
-        const cant = Math.max(t.cantidad || 1, 1);
+        const cant = _totalUnidadesDetalle(t);
         const v    = Math.min(t.unidadesVendidas || 0, cant);
         return s + ((cant - v) / cant) * (t.precio_final || 0);
       }
@@ -764,7 +764,7 @@ function renderVentaDetalle(lotes) {
   // Ocultar cancelados y agotados
   const activos = (lotes || []).filter(l =>
     l.estado !== 'Cancelado' &&
-    (l.unidadesVendidas || 0) < Math.max(l.cantidad || 1, 1)
+    (l.unidadesVendidas || 0) < _totalUnidadesDetalle(l)
   );
 
   if (!activos.length) {
@@ -775,7 +775,7 @@ function renderVentaDetalle(lotes) {
   if (emptyEl) emptyEl.style.display = 'none';
 
   grid.innerHTML = activos.map(l => {
-    const total      = Math.max(l.cantidad || 1, 1);
+    const total      = _totalUnidadesDetalle(l);
     const vendidas   = Math.min(l.unidadesVendidas || 0, total);
     const disponibles = total - vendidas;
     const pct        = Math.round((vendidas / total) * 100);
