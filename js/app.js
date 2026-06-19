@@ -104,7 +104,10 @@ function calcEstadoPago(precioFinal, montoAbonado) {
 /* ----------------------------------------------------------
    Cotizaciones — Guardar
 ---------------------------------------------------------- */
+let _guardandoCotizacion = false;
+
 async function guardarCotizacion() {
+  if (_guardandoCotizacion) return; // evita doble envío mientras se guarda
   const pieza   = el('c_pieza').value.trim();
   const cliente = el('c_cliente').value.trim();
   if (!pieza)   { toast('Ingrese el nombre de la pieza',  'error'); return; }
@@ -115,9 +118,10 @@ async function guardarCotizacion() {
   _matPreviewCosto = 0;
   const desglose     = calcular();
   _matPreviewCosto = savedPreview;
-  const id           = editingId || genId();
-  const precioFinal  = desglose.precioTotal;
-  const montoAbonado = fv('c_monto_abonado') || 0;
+  const id              = editingId || genId();
+  const precioFinal     = desglose.precioTotal;
+  const montoAbonado    = fv('c_monto_abonado') || 0;
+  const precioManualVal = fv('c_precio_manual') || 0;
 
   const data = {
     id, pieza, cliente,
@@ -151,6 +155,8 @@ async function guardarCotizacion() {
     fechaPago:     '',
     materialesAdicionales: materialesAdicionalesCotizacion.map(m => ({...m})),
     inventarioDescontado: editingId ? (trabajos.find(t=>t.id===editingId)?.inventarioDescontado || false) : false,
+    precioManualActivo: precioManualVal > 0,
+    precioManualValor:  precioManualVal > 0 ? precioManualVal : 0,
     _desglose: desglose
   };
 
@@ -172,6 +178,10 @@ async function guardarCotizacion() {
   try { localStorage.setItem('trabajos3d', JSON.stringify(trabajos.map(t => { const {_desglose,...c}=t; return c; }))); } catch(e){}
   if (typeof renderTrabajos === 'function') renderTrabajos();
 
+  _guardandoCotizacion = true;
+  const btnGuardar = el('btn-guardar-cotizacion');
+  if (btnGuardar) btnGuardar.disabled = true;
+
   try {
     await fbGuardarCotizacion(data);
     if (!wasEditing && esVenta && data.filamento_id) await descontarInventario(data);
@@ -186,7 +196,10 @@ async function guardarCotizacion() {
     if (idx >= 0) trabajos[idx] = anterior; else trabajos = trabajos.filter(t => t.id !== id);
     try { localStorage.setItem('trabajos3d', JSON.stringify(trabajos.map(t => { const {_desglose,...c}=t; return c; }))); } catch(e2){}
     if (typeof renderTrabajos === 'function') renderTrabajos();
-    toast('No se pudo guardar en Firebase. Revise su conexión e intente de nuevo.', 'error');
+    toast(`No se pudo guardar: ${e?.message || 'error desconocido'}`, 'error');
+  } finally {
+    _guardandoCotizacion = false;
+    if (btnGuardar) btnGuardar.disabled = false;
   }
 }
 
@@ -703,7 +716,7 @@ function nuevaCotizacion() {
   _matPreviewCosto = 0;
   renderMaterialesListaCotizacion();
   cargarFilamentosYPoblar();
-  ['c_pieza','c_cliente','c_notas','c_material'].forEach(f => { if(el(f)) el(f).value = ''; });
+  ['c_pieza','c_cliente','c_notas','c_material','c_precio_manual'].forEach(f => { if(el(f)) el(f).value = ''; });
   if (el('c_filamento_id')) el('c_filamento_id').value = '';
   const nums = {
     c_cantidad:1, c_placas:1, c_gramos:0, c_horas_imp:0, c_horas_mo:0,
@@ -907,7 +920,7 @@ function editarEnCotizador(id) {
   sv('c_fallos',        t.pFallos   ?? 5);
   sv('c_margen',        t.pMargen   ?? 35);
   sv('c_iva',           t.pIVA      ?? 0);
-  sv('c_precio_manual', '');
+  sv('c_precio_manual', t.precioManualActivo ? t.precioManualValor : '');
   sv('c_monto_abonado', t.montoAbonado || 0);
   if (el('c_metodo_pago')) el('c_metodo_pago').value = t.metodoPago || 'Efectivo';
 
