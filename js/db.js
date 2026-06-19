@@ -41,10 +41,11 @@ async function fbCargarTrabajos() {
   return arr;
 }
 
-/** Guarda o actualiza una cotización (excluye _desglose temporal). */
+/** Guarda o actualiza una cotización (excluye _desglose temporal).
+ *  Usa merge para no borrar campos que se escriben aparte (ej. abonos). */
 async function fbGuardarCotizacion(data) {
   const { _desglose, ...clean } = data;
-  await db.collection('cotizaciones').doc(String(data.id)).set(clean);
+  await db.collection('cotizaciones').doc(String(data.id)).set(clean, { merge: true });
 }
 
 /** Actualiza el estado y registra la fecha de actualización. */
