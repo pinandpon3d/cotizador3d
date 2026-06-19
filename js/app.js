@@ -2443,14 +2443,14 @@ async function guardarGasto() {
   const notas       = (el('g_notas')?.value || '').trim();
   if (!descripcion || !monto) { toast('Completa descripción y monto', 'error'); return; }
   const data = { id: genId(), descripcion, categoria, monto, fecha, notas };
+  gastos.unshift(data);
+  resetFormGasto();
+  renderCostos();
   _guardandoGasto = true;
   const btnGuardar = el('btn-guardar-gasto');
   if (btnGuardar) btnGuardar.disabled = true;
   try {
     await fbGuardarGasto(data);
-    gastos.unshift(data);
-    resetFormGasto();
-    renderCostos();
     toast('Gasto registrado ✓', 'success');
   } catch(e) {
     toast('Error guardando gasto', 'error');
