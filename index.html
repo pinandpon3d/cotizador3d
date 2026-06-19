@@ -1273,7 +1273,7 @@
           <div class="form-group" style="grid-column:span 2"><label>Notas</label><textarea id="inv_notas" rows="2" placeholder="Notas adicionales…"></textarea></div>
         </div>
         <div class="btn-group" style="margin-top:14px">
-          <button class="btn btn-primary" onclick="guardarMaterial()">
+          <button class="btn btn-primary" id="btn-guardar-material" onclick="guardarMaterial()">
             <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             <span>Guardar material</span>
           </button>
@@ -1343,7 +1343,7 @@
             <input type="text" id="g_notas" placeholder="Marca, proveedor, etc.">
           </div>
           <div class="form-group" style="align-self:end">
-            <button class="btn btn-primary" onclick="guardarGasto()">+ Agregar gasto</button>
+            <button class="btn btn-primary" id="btn-guardar-gasto" onclick="guardarGasto()">+ Agregar gasto</button>
           </div>
         </div>
 
@@ -1403,7 +1403,7 @@
             <input type="number" id="inv_monto" placeholder="0" min="0" step="1000">
           </div>
           <div class="form-group" style="align-self:end">
-            <button class="btn btn-primary" onclick="guardarItemInversion()">+ Agregar</button>
+            <button class="btn btn-primary" id="btn-guardar-item-inversion" onclick="guardarItemInversion()">+ Agregar</button>
           </div>
         </div>
 

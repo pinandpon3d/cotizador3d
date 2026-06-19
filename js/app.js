@@ -1178,7 +1178,10 @@ function setTipoMaterial(tipo) {
 function toggleInventarioTipo() { setTipoMaterial(_invTipoActual); } // alias legacy
 
 // ─── Save material ────────────────────────────────────────
+let _guardandoMaterial = false;
+
 async function guardarMaterial() {
+  if (_guardandoMaterial) return; // evita doble envío mientras se guarda
   const esFilamento = _invTipoActual === 'Filamento';
   const categoria   = esFilamento ? 'Filamento' : (el('inv_categoria_custom')?.value.trim() || 'Otro');
   const editId = el('inv-edit-id')?.textContent?.trim() || '';
@@ -1211,10 +1214,18 @@ async function guardarMaterial() {
   const idx = filamentos.findIndex(f => f.id === id);
   if (idx >= 0) filamentos[idx] = data; else filamentos.push(data);
   try { localStorage.setItem('filamentos3d', JSON.stringify(filamentos)); } catch(e){}
+  _guardandoMaterial = true;
+  const btnGuardar = el('btn-guardar-material');
+  if (btnGuardar) btnGuardar.disabled = true;
   try {
     await fbGuardarFilamento(data);
     toast(editId ? 'Material actualizado ✓' : 'Material agregado ✓', 'success');
-  } catch(e) { console.error(e); toast('No se pudo guardar el material','error'); }
+  } catch(e) {
+    console.error(e); toast('No se pudo guardar el material','error');
+  } finally {
+    _guardandoMaterial = false;
+    if (btnGuardar) btnGuardar.disabled = false;
+  }
   cancelarEditMaterial();
   limpiarFormMaterial();
   renderInventario();
@@ -2421,14 +2432,20 @@ function resetFormGasto() {
   el('g_fecha')       && (el('g_fecha').value = hoy);
 }
 
+let _guardandoGasto = false;
+
 async function guardarGasto() {
+  if (_guardandoGasto) return; // evita doble envío mientras se guarda
   const descripcion = (el('g_descripcion')?.value || '').trim();
   const categoria   = el('g_categoria')?.value || 'Otro';
   const monto       = parseFloat(el('g_monto')?.value || 0);
   const fecha       = el('g_fecha')?.value || new Date().toISOString().split('T')[0];
   const notas       = (el('g_notas')?.value || '').trim();
   if (!descripcion || !monto) { toast('Completa descripción y monto', 'error'); return; }
-  const data = { id: Date.now().toString(), descripcion, categoria, monto, fecha, notas };
+  const data = { id: genId(), descripcion, categoria, monto, fecha, notas };
+  _guardandoGasto = true;
+  const btnGuardar = el('btn-guardar-gasto');
+  if (btnGuardar) btnGuardar.disabled = true;
   try {
     await fbGuardarGasto(data);
     gastos.unshift(data);
@@ -2437,6 +2454,9 @@ async function guardarGasto() {
     toast('Gasto registrado ✓', 'success');
   } catch(e) {
     toast('Error guardando gasto', 'error');
+  } finally {
+    _guardandoGasto = false;
+    if (btnGuardar) btnGuardar.disabled = false;
   }
 }
 
@@ -2498,14 +2518,20 @@ async function toggleInversionActiva() {
   }
 }
 
+let _guardandoItemInversion = false;
+
 async function guardarItemInversion() {
+  if (_guardandoItemInversion) return; // evita doble envío mientras se guarda
   const descripcion = (el('inv_descripcion')?.value || '').trim();
   const categoria   = el('invitem_categoria')?.value || 'Otro';
   const monto       = parseFloat(el('inv_monto')?.value || 0);
   if (!descripcion || !monto) { toast('Completa descripción y monto', 'error'); return; }
-  const item = { id: Date.now().toString(), descripcion, categoria, monto };
+  const item = { id: genId(), descripcion, categoria, monto };
   if (!inversion.items) inversion.items = [];
   inversion.items.push(item);
+  _guardandoItemInversion = true;
+  const btnGuardar = el('btn-guardar-item-inversion');
+  if (btnGuardar) btnGuardar.disabled = true;
   try {
     await fbGuardarInversion(inversion);
     el('inv_descripcion').value = '';
@@ -2515,6 +2541,9 @@ async function guardarItemInversion() {
     toast('Item de inversión agregado ✓', 'success');
   } catch(e) {
     toast('Error guardando inversión', 'error');
+  } finally {
+    _guardandoItemInversion = false;
+    if (btnGuardar) btnGuardar.disabled = false;
   }
 }
 
