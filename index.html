@@ -1310,8 +1310,15 @@
 
       <!-- ── GASTOS OPERATIVOS ─────────────────────────────── -->
       <div class="card" style="margin-bottom:24px">
-        <div class="card-title">📋 Gastos Operativos</div>
-        <div class="card-sub" style="margin-bottom:16px">Filamentos, electricidad, herramientas y otros gastos del negocio</div>
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <div class="card-title">📋 Gastos Operativos</div>
+            <div class="card-sub" style="margin-bottom:16px">Filamentos, electricidad, herramientas y otros gastos del negocio</div>
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="detectarDuplicadosGastos()" title="Busca gastos con misma descripción, monto y fecha">
+            🔍 Revisar duplicados
+          </button>
+        </div>
 
         <!-- Formulario agregar gasto -->
         <div class="costos-form">
@@ -1376,9 +1383,14 @@
             <div class="card-title">🎯 Inversión Inicial</div>
             <div class="card-sub">Equipos, muebles y costos de arranque del negocio</div>
           </div>
-          <button id="inv-toggle-btn" class="btn btn-secondary btn-sm" onclick="toggleInversionActiva()">
-            🙈 Oculto del dashboard
-          </button>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-secondary btn-sm" onclick="detectarDuplicadosInversion()" title="Busca items con misma descripción y monto">
+              🔍 Revisar duplicados
+            </button>
+            <button id="inv-toggle-btn" class="btn btn-secondary btn-sm" onclick="toggleInversionActiva()">
+              🙈 Oculto del dashboard
+            </button>
+          </div>
         </div>
 
         <!-- Formulario agregar item -->

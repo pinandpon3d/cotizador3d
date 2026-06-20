@@ -2473,6 +2473,52 @@ function eliminarGasto(id) {
   });
 }
 
+/**
+ * Detecta gastos repetidos (misma descripción, monto y fecha) — secuela del
+ * bug de doble guardado ya corregido, cuyas copias viejas siguen en Firestore.
+ * Conserva el más antiguo de cada grupo y elimina el resto, previa confirmación.
+ */
+function detectarDuplicadosGastos() {
+  const grupos = {};
+  gastos.forEach(g => {
+    const key = `${(g.descripcion||'').trim().toLowerCase()}|${g.monto||0}|${g.fecha||''}`;
+    (grupos[key] = grupos[key] || []).push(g);
+  });
+  const duplicados = Object.values(grupos).filter(grupo => grupo.length > 1);
+  if (!duplicados.length) {
+    toast('No se encontraron gastos duplicados ✓', 'success');
+    return;
+  }
+  let sobrantes = 0, monto = 0;
+  duplicados.forEach(grupo => {
+    const ordenado = [...grupo].sort((a, b) => String(a.id).localeCompare(String(b.id)));
+    ordenado.slice(1).forEach(g => { sobrantes++; monto += (g.monto || 0); });
+  });
+  showConfirm(
+    '¿Eliminar gastos duplicados?',
+    `Se encontraron ${duplicados.length} grupo(s) con ${sobrantes} registro(s) repetido(s) (misma descripción, monto y fecha) por un total de ${fmt(monto)}. Se conservará el más antiguo de cada grupo. Esta acción no se puede deshacer.`,
+    async () => {
+      let eliminados = 0;
+      for (const grupo of duplicados) {
+        const ordenado = [...grupo].sort((a, b) => String(a.id).localeCompare(String(b.id)));
+        for (const g of ordenado.slice(1)) {
+          try { await fbEliminarGasto(g.id); eliminados++; } catch(e) { console.error(e); }
+        }
+      }
+      const idsEliminados = new Set();
+      duplicados.forEach(grupo => {
+        const ordenado = [...grupo].sort((a, b) => String(a.id).localeCompare(String(b.id)));
+        ordenado.slice(1).forEach(g => idsEliminados.add(g.id));
+      });
+      gastos = gastos.filter(g => !idsEliminados.has(g.id));
+      renderCostos();
+      if (typeof renderTrabajos === 'function') renderTrabajos();
+      toast(`${eliminados} gasto(s) duplicado(s) eliminado(s) ✓`, 'success');
+    },
+    'Eliminar duplicados'
+  );
+}
+
 async function toggleGastoPagado(id) {
   const idx = gastos.findIndex(g => g.id === id);
   if (idx < 0) return;
@@ -2559,6 +2605,52 @@ function eliminarItemInversion(id) {
       toast('Error eliminando item', 'error');
     }
   });
+}
+
+/**
+ * Detecta items de inversión repetidos (misma descripción, monto y categoría) —
+ * secuela del bug de doble guardado ya corregido. Conserva el más antiguo de
+ * cada grupo y elimina el resto, previa confirmación.
+ */
+function detectarDuplicadosInversion() {
+  const items = inversion.items || [];
+  const grupos = {};
+  items.forEach(i => {
+    const key = `${(i.descripcion||'').trim().toLowerCase()}|${i.monto||0}|${i.categoria||''}`;
+    (grupos[key] = grupos[key] || []).push(i);
+  });
+  const duplicados = Object.values(grupos).filter(grupo => grupo.length > 1);
+  if (!duplicados.length) {
+    toast('No se encontraron items de inversión duplicados ✓', 'success');
+    return;
+  }
+  let sobrantes = 0, monto = 0;
+  duplicados.forEach(grupo => {
+    const ordenado = [...grupo].sort((a, b) => String(a.id).localeCompare(String(b.id)));
+    ordenado.slice(1).forEach(i => { sobrantes++; monto += (i.monto || 0); });
+  });
+  showConfirm(
+    '¿Eliminar items duplicados?',
+    `Se encontraron ${duplicados.length} grupo(s) con ${sobrantes} item(s) repetido(s) (misma descripción, monto y categoría) por un total de ${fmt(monto)}. Se conservará el más antiguo de cada grupo. Esta acción no se puede deshacer.`,
+    async () => {
+      const idsAEliminar = new Set();
+      duplicados.forEach(grupo => {
+        const ordenado = [...grupo].sort((a, b) => String(a.id).localeCompare(String(b.id)));
+        ordenado.slice(1).forEach(i => idsAEliminar.add(i.id));
+      });
+      inversion.items = items.filter(i => !idsAEliminar.has(i.id));
+      try {
+        await fbGuardarInversion(inversion);
+        renderInversion();
+        actualizarDashboardInversion();
+        if (typeof renderTrabajos === 'function') renderTrabajos();
+        toast(`${idsAEliminar.size} item(s) duplicado(s) eliminado(s) ✓`, 'success');
+      } catch(e) {
+        toast('Error eliminando duplicados', 'error');
+      }
+    },
+    'Eliminar duplicados'
+  );
 }
 
 function abrirEditarItemInversion(id) {
