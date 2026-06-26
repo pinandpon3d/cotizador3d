@@ -475,6 +475,14 @@
         Clientes
       </div>
     </div>
+    <!-- ── MARKETING ── -->
+    <div class="nav-group" id="navg-marketing">
+      <div class="nav-group-label">Marketing</div>
+      <div class="nav-item" data-page="catalogo" onclick="navTo('catalogo')">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+        Catálogo de Productos
+      </div>
+    </div>
     <!-- ── ADMINISTRACIÓN ── -->
     <div class="nav-group" id="navg-admin">
       <div class="nav-group-label">Admin</div>
@@ -1295,6 +1303,146 @@
         <div id="inv-empty" class="empty-state" style="display:none">
           <svg viewBox="0 0 24 24"><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
           <p>No hay materiales en el inventario</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- PÁGINA: CATÁLOGO DE PRODUCTOS -->
+    <div class="page" id="page-catalogo">
+      <div class="page-hdr">
+        <div class="page-hdr-left">
+          <div class="page-hdr-title">Catálogo de Productos</div>
+          <div class="page-hdr-sub">Diseñe su catálogo con fotos y descárguelo en PDF para compartir con clientes</div>
+        </div>
+        <div class="page-hdr-actions">
+          <button class="btn btn-primary" onclick="generarCatalogoPDF()">
+            <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <span>Descargar PDF</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Portada y contraportada -->
+      <div class="card">
+        <div class="card-title">
+          <svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+          Portada y Contraportada del PDF
+        </div>
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label>Texto superior (portada)</label>
+            <input type="text" id="cat_cover_kicker" placeholder="Impresión 3D · Costa Rica">
+          </div>
+          <div class="form-group">
+            <label>Título principal</label>
+            <input type="text" id="cat_cover_title" placeholder="Catálogo de Productos">
+          </div>
+          <div class="form-group">
+            <label>Edición</label>
+            <input type="text" id="cat_cover_edition" placeholder="Edición 2026 · Volumen 01">
+          </div>
+          <div class="form-group">
+            <label>Contacto (portada)</label>
+            <input type="text" id="cat_cover_contact" placeholder="@pinandpon3d · WhatsApp 8411-3321">
+          </div>
+          <div class="form-group" style="grid-column:span 2">
+            <label>Frase final (portada)</label>
+            <input type="text" id="cat_cover_tag" placeholder="Hecho a tu medida · Calidad garantizada">
+          </div>
+          <div class="form-group">
+            <label>Título (contraportada)</label>
+            <input type="text" id="cat_back_title" placeholder="¿Tienes una idea? La imprimimos">
+          </div>
+          <div class="form-group">
+            <label>WhatsApp (contraportada)</label>
+            <input type="text" id="cat_back_wa" placeholder="8411-3321">
+          </div>
+          <div class="form-group" style="grid-column:span 2">
+            <label>Texto (contraportada)</label>
+            <textarea id="cat_back_text" rows="2" placeholder="Cuéntanos qué necesitas…"></textarea>
+          </div>
+          <div class="form-group">
+            <label>Instagram (contraportada)</label>
+            <input type="text" id="cat_back_ig" placeholder="@pinandpon3d">
+          </div>
+        </div>
+        <div class="btn-group" style="margin-top:14px">
+          <button class="btn btn-primary" onclick="guardarConfigCatalogo()">
+            <svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+            <span>Guardar configuración</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Formulario de producto -->
+      <div class="card">
+        <div class="card-title">
+          <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Agregar / Editar Producto
+        </div>
+        <span id="cat-edit-id" style="display:none"></span>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Nombre del producto *</label>
+            <input type="text" id="cat_p_nombre" placeholder="Ej: Maceta geométrica">
+          </div>
+          <div class="form-group">
+            <label>Categoría</label>
+            <input type="text" id="cat_p_categoria" list="cat-categorias-list" placeholder="Ej: Decoración &amp; Hogar">
+            <datalist id="cat-categorias-list"></datalist>
+          </div>
+          <div class="form-group">
+            <label>Material</label>
+            <input type="text" id="cat_p_material" placeholder="Ej: PLA, Resina…">
+          </div>
+          <div class="form-group">
+            <label>Precio (₡)</label>
+            <input type="number" id="cat_p_precio" value="0" min="0" step="100">
+          </div>
+          <div class="form-group" style="grid-column:span 2">
+            <label>Descripción</label>
+            <textarea id="cat_p_descripcion" rows="2" placeholder="Descripción breve para el catálogo…"></textarea>
+          </div>
+          <div class="form-group" style="grid-column:span 2">
+            <label>Imagen del producto</label>
+            <div class="cat-img-upload">
+              <div class="cat-img-preview-wrap">
+                <img id="cat_p_imagen_preview" alt="" style="display:none">
+                <svg id="cat_p_imagen_placeholder" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="1.5">
+                  <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>
+                </svg>
+              </div>
+              <div class="btn-group">
+                <input type="file" id="cat_p_imagen_input" accept="image/*" onchange="manejarImagenCatalogo(this)" style="max-width:220px">
+                <button type="button" class="btn btn-ghost btn-sm" id="cat_p_imagen_quitar" style="display:none" onclick="quitarImagenCatalogo()">✕ Quitar imagen</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="btn-group" style="margin-top:14px">
+          <button class="btn btn-primary" onclick="guardarProductoCatalogo()">
+            <svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+            <span>Guardar producto</span>
+          </button>
+          <button class="btn btn-ghost" id="cat-cancel-edit" style="display:none" onclick="cancelarEditProductoCatalogo()">Cancelar edición</button>
+        </div>
+      </div>
+
+      <!-- Grid de productos -->
+      <div class="card">
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+          <span style="display:flex;align-items:center;gap:8px">
+            <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            Productos en el Catálogo
+          </span>
+          <select id="cat-filter-categoria" onchange="renderCatalogoProductos()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:.8125rem;background:var(--surface2);color:var(--text1)">
+            <option value="">Todas las categorías</option>
+          </select>
+        </div>
+        <div id="catalogo-grid" class="catalogo-grid"></div>
+        <div id="catalogo-empty" class="empty-state" style="display:none">
+          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+          <p>Aún no hay productos en el catálogo</p>
         </div>
       </div>
     </div>

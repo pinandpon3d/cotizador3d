@@ -786,6 +786,9 @@ tbody td{padding:10px 14px;color:var(--text);vertical-align:middle}
   /* ── Vista al detalle: 1 col ── */
   .detalle-grid { grid-template-columns: 1fr }
 
+  /* ── Catálogo de productos: 1 col ── */
+  .catalogo-grid { grid-template-columns: 1fr }
+
   /* ── Modal venta: padding reducido ── */
   .mv-info { flex-direction: column; gap: 6px }
 
@@ -1182,6 +1185,55 @@ tbody td{padding:10px 14px;color:var(--text);vertical-align:middle}
 }
 .mv-pieza{font-weight:700;font-size:.9rem;color:var(--text1)}
 .mv-disp{font-size:.8rem;color:var(--text2)}
+
+/* ================================================================
+   CATÁLOGO DE PRODUCTOS — editor + grid de tarjetas
+================================================================ */
+.catalogo-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
+  gap:16px;
+}
+.cat-card{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:14px;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+  transition:box-shadow .18s;
+}
+.cat-card:hover{box-shadow:0 4px 18px rgba(26,96,166,.10)}
+.cat-card-img{
+  width:100%;
+  height:140px;
+  object-fit:cover;
+  background:var(--surface2);
+  display:block;
+}
+.cat-card-noimg{
+  width:100%;height:140px;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--surface2);
+  color:var(--text3);
+}
+.cat-card-noimg svg{width:32px;height:32px;stroke:currentColor;fill:none;stroke-width:1.5}
+.cat-card-body{padding:12px 14px;display:flex;flex-direction:column;gap:6px;flex:1}
+.cat-card-cat{font-size:.68rem;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.03em}
+.cat-card-nombre{font-size:.875rem;font-weight:700;color:var(--text);line-height:1.25}
+.cat-card-desc{font-size:.75rem;color:var(--text2);line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.cat-card-foot{display:flex;align-items:center;justify-content:space-between;margin-top:auto;padding-top:6px}
+.cat-card-precio{font-size:.95rem;font-weight:800;color:var(--accent)}
+
+/* Subida de imagen */
+.cat-img-upload{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.cat-img-preview-wrap{
+  width:96px;height:96px;border-radius:10px;overflow:hidden;
+  background:var(--surface2);border:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.cat-img-preview-wrap img{width:100%;height:100%;object-fit:cover}
+.cat-img-preview-wrap svg{width:28px;height:28px;stroke:var(--text3);fill:none;stroke-width:1.5}
 .mv-disp strong{color:var(--accent);font-weight:700}
 
 /* =========================================================

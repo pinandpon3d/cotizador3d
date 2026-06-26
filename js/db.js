@@ -279,3 +279,46 @@ async function fbCargarCategoriasPago() {
 async function fbGuardarCategoriasPago(categorias) {
   await db.collection('settings').doc('pagos').set({ categorias });
 }
+
+/* ----------------------------------------------------------
+   Catálogo de Productos (con imágenes) + configuración
+   de portada/contraportada para el PDF exportable
+---------------------------------------------------------- */
+
+/** Carga todos los productos del catálogo. */
+async function fbCargarCatalogoProductos() {
+  const snap = await db.collection('catalogoProductos').get();
+  const arr = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+  arr.sort((a, b) => (a.orden || 0) - (b.orden || 0));
+  return arr;
+}
+
+/** Guarda o actualiza un producto del catálogo. */
+async function fbGuardarCatalogoProducto(data) {
+  await db.collection('catalogoProductos').doc(String(data.id)).set(data);
+}
+
+/** Elimina un producto del catálogo. */
+async function fbEliminarCatalogoProducto(id) {
+  await db.collection('catalogoProductos').doc(String(id)).delete();
+}
+
+/** Suscribe a cambios en los productos del catálogo. Retorna función para desuscribir. */
+function fbSuscribirCatalogoProductos(onData) {
+  return db.collection('catalogoProductos').onSnapshot(snap => {
+    const arr = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+    arr.sort((a, b) => (a.orden || 0) - (b.orden || 0));
+    onData(arr);
+  }, err => console.error('onSnapshot catalogoProductos:', err));
+}
+
+/** Persiste la configuración de portada/contraportada del catálogo. */
+async function fbGuardarCatalogoConfig(data) {
+  await db.collection('settings').doc('catalogo').set(data);
+}
+
+/** Lee la configuración de portada/contraportada del catálogo. */
+async function fbCargarCatalogoConfig() {
+  const snap = await db.collection('settings').doc('catalogo').get();
+  return snap.exists ? snap.data() : null;
+}

@@ -25,6 +25,9 @@ let seleccionados  = new Set();   // IDs seleccionados para cotización combinad
 let _trabajosVista = 'tabla';     // 'tabla' | 'kanban'
 let _calYear  = new Date().getFullYear();
 let _calMonth = new Date().getMonth();  // 0-indexed
+let catalogoProductos   = [];
+let catalogoConfig      = {};
+let _catImagenPendiente = null;   // null = sin cambios; '' = imagen quitada; dataURL = nueva imagen
 
 /* ----------------------------------------------------------
    Navegación
@@ -39,7 +42,8 @@ const PAGE_LABELS = {
   clientes:     'Clientes',
   detalle:      'Al Detalle',
   costos:       'Costos',
-  calendario:   'Calendario'
+  calendario:   'Calendario',
+  catalogo:     'Catálogo de Productos'
 };
 
 /* ─── TABS DE CONFIGURACIÓN ─── */
@@ -84,6 +88,7 @@ function navTo(page) {
   if (page === 'detalle')       cargarVentaDetalle();
   if (page === 'costos')        cargarCostos();
   if (page === 'calendario')    cargarCalendario();
+  if (page === 'catalogo')      cargarCatalogo();
   closeSidebar();
 }
 
@@ -242,6 +247,13 @@ function iniciarSincronizacion() {
     clientes = data;
     try { localStorage.setItem('clientes3d', JSON.stringify(clientes)); } catch(e) {}
     if (typeof renderClientes === 'function') renderClientes();
+  }));
+
+  _unsubs.push(fbSuscribirCatalogoProductos(data => {
+    catalogoProductos = data;
+    try { localStorage.setItem('catalogoProductos3d', JSON.stringify(catalogoProductos)); } catch(e) {}
+    if (typeof renderCatalogoProductos     === 'function') renderCatalogoProductos();
+    if (typeof cargarCategoriasCatalogo    === 'function') cargarCategoriasCatalogo();
   }));
 }
 
@@ -1464,6 +1476,357 @@ function eliminarCliente(id) {
 }
 
 /* ----------------------------------------------------------
+   Catálogo de Productos — configuración, CRUD e imágenes
+---------------------------------------------------------- */
+const CATALOGO_DEFAULTS = {
+  cover_kicker:  'Impresión 3D · Costa Rica',
+  cover_title:   'Catálogo de Productos',
+  cover_edition: 'Edición 2026 · Volumen 01',
+  cover_contact: '@pinandpon3d · WhatsApp 8411-3321',
+  cover_tag:     'Hecho a tu medida · Calidad garantizada',
+  back_title:    '¿Tienes una idea? La imprimimos',
+  back_text:     'Cuéntanos qué necesitas y lo convertimos en una pieza única, impresa con cuidado y entregada a tiempo.',
+  back_wa:       '8411-3321',
+  back_ig:       '@pinandpon3d'
+};
+
+function cargarCatalogo() {
+  const cfg = { ...CATALOGO_DEFAULTS, ...catalogoConfig };
+  Object.keys(CATALOGO_DEFAULTS).forEach(k => {
+    const e = el('cat_' + k);
+    if (e && document.activeElement !== e) e.value = cfg[k];
+  });
+  cargarCategoriasCatalogo();
+  renderCatalogoProductos();
+}
+
+async function guardarConfigCatalogo() {
+  const data = {};
+  Object.keys(CATALOGO_DEFAULTS).forEach(k => { data[k] = el('cat_' + k)?.value.trim() || ''; });
+  catalogoConfig = data;
+  try { localStorage.setItem('catalogoConfig3d', JSON.stringify(data)); } catch(e){}
+  try {
+    await fbGuardarCatalogoConfig(data);
+    toast('Configuración del catálogo guardada ✓','success');
+  } catch(e) {
+    console.error(e); toast('No se pudo guardar la configuración del catálogo','error');
+  }
+}
+
+/** Redimensiona y comprime una imagen en el navegador (canvas → JPEG) antes de guardarla. */
+function comprimirImagen(file, maxLado = 900, calidadInicial = 0.78) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = reject;
+      img.onload = () => {
+        let width = img.width, height = img.height;
+        if (width > maxLado || height > maxLado) {
+          if (width >= height) { height = Math.round(height * maxLado / width); width = maxLado; }
+          else                 { width  = Math.round(width  * maxLado / height); height = maxLado; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        let calidad = calidadInicial;
+        let out = canvas.toDataURL('image/jpeg', calidad);
+        while (out.length > 700000 && calidad > 0.35) {
+          calidad -= 0.12;
+          out = canvas.toDataURL('image/jpeg', calidad);
+        }
+        resolve(out);
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function manejarImagenCatalogo(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) { toast('Seleccione un archivo de imagen válido','error'); input.value=''; return; }
+  comprimirImagen(file)
+    .then(dataUrl => { _catImagenPendiente = dataUrl; mostrarPreviewImagenCatalogo(dataUrl); })
+    .catch(() => toast('No se pudo procesar la imagen','error'));
+}
+
+function quitarImagenCatalogo() {
+  _catImagenPendiente = '';
+  mostrarPreviewImagenCatalogo('');
+  const inp = el('cat_p_imagen_input'); if (inp) inp.value = '';
+}
+
+function mostrarPreviewImagenCatalogo(dataUrl) {
+  const img    = el('cat_p_imagen_preview');
+  const ph     = el('cat_p_imagen_placeholder');
+  const quitar = el('cat_p_imagen_quitar');
+  if (dataUrl) {
+    if (img) { img.src = dataUrl; img.style.display = 'block'; }
+    if (ph)    ph.style.display = 'none';
+    if (quitar) quitar.style.display = 'inline-flex';
+  } else {
+    if (img) { img.src = ''; img.style.display = 'none'; }
+    if (ph)    ph.style.display = 'block';
+    if (quitar) quitar.style.display = 'none';
+  }
+}
+
+function cargarCategoriasCatalogo() {
+  const cats = [...new Set(catalogoProductos.map(p => p.categoria).filter(Boolean))];
+  const dl = el('cat-categorias-list');
+  if (dl) dl.innerHTML = cats.map(c => `<option value="${escHtml(c)}">`).join('');
+  const sel = el('cat-filter-categoria');
+  if (sel) {
+    const prev = sel.value;
+    sel.innerHTML = '<option value="">Todas las categorías</option>' +
+      cats.map(c => `<option value="${escHtml(c)}">${escHtml(c)}</option>`).join('');
+    if (cats.includes(prev)) sel.value = prev;
+  }
+}
+
+async function guardarProductoCatalogo() {
+  const nombre = el('cat_p_nombre')?.value.trim();
+  if (!nombre) { toast('Ingrese el nombre del producto','error'); return; }
+
+  const editId = el('cat-edit-id')?.textContent?.trim();
+  const old    = catalogoProductos.find(p => p.id === editId);
+  const imagen = _catImagenPendiente !== null ? _catImagenPendiente : (old?.imagen || '');
+
+  const id = editId || genId();
+  const data = {
+    id, nombre,
+    categoria:   el('cat_p_categoria')?.value.trim()   || 'General',
+    material:    el('cat_p_material')?.value.trim()    || '',
+    precio:      fv('cat_p_precio'),
+    descripcion: el('cat_p_descripcion')?.value.trim() || '',
+    imagen,
+    orden: old?.orden ?? Date.now()
+  };
+
+  const idx = catalogoProductos.findIndex(p => p.id === id);
+  if (idx >= 0) catalogoProductos[idx] = data; else catalogoProductos.push(data);
+  try { localStorage.setItem('catalogoProductos3d', JSON.stringify(catalogoProductos)); } catch(e){}
+
+  try {
+    await fbGuardarCatalogoProducto(data);
+    toast(editId ? 'Producto actualizado ✓' : 'Producto agregado al catálogo ✓','success');
+  } catch(e) {
+    console.error(e); toast('No se pudo guardar el producto','error');
+  }
+  cancelarEditProductoCatalogo();
+  cargarCategoriasCatalogo();
+  renderCatalogoProductos();
+}
+
+function editarProductoCatalogo(id) {
+  const p = catalogoProductos.find(p => p.id === id); if (!p) return;
+  const sv = (k,v) => { const e = el(k); if (e) e.value = v ?? ''; };
+  sv('cat_p_nombre',      p.nombre);
+  sv('cat_p_categoria',   p.categoria);
+  sv('cat_p_material',    p.material);
+  sv('cat_p_precio',      p.precio);
+  sv('cat_p_descripcion', p.descripcion);
+  el('cat-edit-id').textContent = id;
+  el('cat-edit-id').style.display = 'inline';
+  el('cat-cancel-edit').style.display = 'inline-flex';
+  _catImagenPendiente = null;
+  mostrarPreviewImagenCatalogo(p.imagen || '');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function cancelarEditProductoCatalogo() {
+  ['cat_p_nombre','cat_p_categoria','cat_p_material','cat_p_descripcion']
+    .forEach(f => { if (el(f)) el(f).value = ''; });
+  if (el('cat_p_precio')) el('cat_p_precio').value = 0;
+  if (el('cat-edit-id'))     { el('cat-edit-id').textContent=''; el('cat-edit-id').style.display='none'; }
+  if (el('cat-cancel-edit'))   el('cat-cancel-edit').style.display='none';
+  const inp = el('cat_p_imagen_input'); if (inp) inp.value = '';
+  _catImagenPendiente = null;
+  mostrarPreviewImagenCatalogo('');
+}
+
+function eliminarProductoCatalogo(id) {
+  const p = catalogoProductos.find(p => p.id === id);
+  const nombre = p ? `"${p.nombre}"` : 'este producto';
+  showConfirm('¿Eliminar producto?', `¿Seguro que deseas eliminar ${nombre} del catálogo? Esta acción no se puede deshacer.`, async () => {
+    catalogoProductos = catalogoProductos.filter(p => p.id !== id);
+    try { localStorage.setItem('catalogoProductos3d', JSON.stringify(catalogoProductos)); } catch(e){}
+    try {
+      await fbEliminarCatalogoProducto(id);
+      toast('Producto eliminado ✓','success');
+    } catch(e) {
+      console.error(e); toast('No se pudo eliminar el producto','error');
+    }
+    cargarCategoriasCatalogo();
+    renderCatalogoProductos();
+  });
+}
+
+function generarCatalogoPDF() {
+  if (!catalogoProductos.length) { toast('Agregue al menos un producto al catálogo','error'); return; }
+  toast('Generando catálogo…', 'info');
+
+  const cfg = { ...CATALOGO_DEFAULTS, ...catalogoConfig };
+  const base = new URL('.', window.location.href).href;
+  const logoUrl = base + 'img/Nombre-PNG.png';
+
+  // Agrupar por categoría (orden de primera aparición) y paginar de 6 en 6
+  const porCategoria = new Map();
+  catalogoProductos.forEach(p => {
+    const cat = p.categoria || 'General';
+    if (!porCategoria.has(cat)) porCategoria.set(cat, []);
+    porCategoria.get(cat).push(p);
+  });
+
+  const categorias = [...porCategoria.keys()];
+  const paginas = [];
+  categorias.forEach((cat, ci) => {
+    const items = porCategoria.get(cat);
+    for (let i = 0; i < items.length; i += 6) {
+      paginas.push({ categoria: cat, catIndex: ci + 1, items: items.slice(i, i + 6) });
+    }
+  });
+  paginas.forEach((pg, i) => { pg.pageNo = i + 1; pg.pageTotal = paginas.length; });
+
+  const precioFmt = n => '₡' + Math.ceil(n || 0).toLocaleString('es-CR');
+
+  const itemHtml = (p, idx) => `
+    <div class="pp-item">
+      ${p.imagen ? `<img class="pp-item-img" src="${p.imagen}" alt="">` : `<div class="pp-item-noimg">Sin imagen</div>`}
+      <div class="pp-item-row">
+        <span class="pp-item-num">${idx + 1}</span>
+        <span class="pp-item-mat">${escHtml(p.material || '')}</span>
+        <span class="pp-item-price">${precioFmt(p.precio)}</span>
+      </div>
+      <div class="pp-item-name">${escHtml(p.nombre || '')}</div>
+      ${p.descripcion ? `<div class="pp-item-desc">${escHtml(p.descripcion)}</div>` : ''}
+    </div>`;
+
+  const paginaHtml = pg => `
+    <div class="pp-page">
+      <div class="pp-prod-page">
+        <div class="pp-prod-hdr">
+          <div>
+            <div class="pp-prod-eyebrow">Categoría ${String(pg.catIndex).padStart(2,'0')}</div>
+            <div class="pp-prod-cat">${escHtml(pg.categoria)}</div>
+          </div>
+          <div class="pp-prod-pageno">${pg.pageNo} / ${pg.pageTotal}</div>
+        </div>
+        <div class="pp-grid">
+          ${pg.items.map(itemHtml).join('')}
+        </div>
+        <div class="pp-prod-foot">Pin&amp;Pon 3D — Impresión 3D Personalizada · Pedidos por WhatsApp ${escHtml(cfg.back_wa)}</div>
+      </div>
+    </div>`;
+
+  const coverHtml = `
+    <div class="pp-page">
+      <div class="pp-cover">
+        <div class="pp-cover-frame"></div>
+        <div class="pp-cover-kicker">${escHtml(cfg.cover_kicker)}</div>
+        <img class="pp-logo" src="${logoUrl}" alt="Pin&amp;Pon 3D">
+        <h1>${escHtml(cfg.cover_title)}</h1>
+        <div class="pp-cover-edition">${escHtml(cfg.cover_edition)}</div>
+        <div class="pp-cover-contact">${escHtml(cfg.cover_contact)}</div>
+        <div class="pp-cover-tag">${escHtml(cfg.cover_tag)}</div>
+      </div>
+    </div>`;
+
+  const backHtml = `
+    <div class="pp-page">
+      <div class="pp-back">
+        <div class="pp-back-kicker">Hagamos tu proyecto</div>
+        <h2>${escHtml(cfg.back_title)}</h2>
+        <p>${escHtml(cfg.back_text)}</p>
+        <div class="pp-back-contact">
+          <span>💬 WhatsApp ${escHtml(cfg.back_wa)}</span>
+          <span>📷 ${escHtml(cfg.back_ig)}</span>
+        </div>
+        <div class="pp-back-word">Pin<b>&amp;</b>Pon 3D</div>
+      </div>
+    </div>`;
+
+  const htmlContent = `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Catálogo de Productos — Pin&amp;Pon 3D</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700&family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500&family=Nunito:wght@400;700;800;900&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#ECEEF3;font-family:"Nunito",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+body{min-height:100vh;padding:24px 0 80px;display:flex;flex-direction:column;align-items:center;gap:24px}
+.pp-page{width:794px;height:1123px;background:#fff;position:relative;overflow:hidden;box-shadow:0 20px 60px -16px rgba(15,42,69,.22),0 4px 16px rgba(15,42,69,.1);flex-shrink:0}
+@page{size:A4;margin:0}
+@media screen and (max-width:820px){body{padding:0;gap:0}.pp-page{box-shadow:none;width:100%;height:auto;min-height:100vh}}
+@media print{html,body{background:#fff;padding:0;margin:0;gap:0}.pp-page{box-shadow:none;width:100%;height:100vh;page-break-after:always}.pp-page:last-child{page-break-after:auto}.print-fab{display:none!important}}
+
+.print-fab{position:fixed;bottom:24px;right:24px;background:#16335B;color:#fff;border:none;border-radius:10px;padding:14px 22px;font-size:14px;font-family:"Nunito",sans-serif;font-weight:800;cursor:pointer;z-index:100;box-shadow:0 4px 16px rgba(10,31,61,.35)}
+.print-fab:hover{background:#1f4576}
+
+/* Portada */
+.pp-cover{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;height:100%;padding:60px;position:relative;background:#fff}
+.pp-cover-frame{position:absolute;inset:36px;border:2px solid #16335B}
+.pp-cover-frame::before{content:'';position:absolute;inset:14px;border:1px solid #F2C40F}
+.pp-cover-kicker{font-family:"Baloo 2",sans-serif;font-weight:700;letter-spacing:.18em;text-transform:uppercase;font-size:13px;color:#F2C40F;background:#16335B;padding:8px 22px;border-radius:30px;margin-bottom:28px}
+.pp-cover img.pp-logo{width:140px;margin-bottom:24px}
+.pp-cover h1{font-family:"Cormorant Garamond",serif;font-weight:700;font-size:56px;color:#16335B;line-height:1.05;margin-bottom:18px}
+.pp-cover-edition{font-family:"Baloo 2",sans-serif;font-weight:600;font-size:15px;color:#16335B;letter-spacing:.04em;margin-bottom:50px}
+.pp-cover-contact{font-family:"Nunito",sans-serif;font-weight:700;font-size:14px;color:#16335B;margin-bottom:10px}
+.pp-cover-tag{font-family:"Cormorant Garamond",serif;font-style:italic;font-weight:500;font-size:18px;color:#5b6f86}
+
+/* Página de productos */
+.pp-prod-page{display:flex;flex-direction:column;height:100%;padding:48px 52px}
+.pp-prod-hdr{display:flex;justify-content:space-between;align-items:baseline;border-bottom:3px solid #F2C40F;padding-bottom:16px;margin-bottom:28px}
+.pp-prod-eyebrow{font-family:"Baloo 2",sans-serif;font-weight:700;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#F2C40F}
+.pp-prod-cat{font-family:"Cormorant Garamond",serif;font-weight:700;font-size:30px;color:#16335B;margin-top:4px}
+.pp-prod-pageno{font-family:"Nunito",sans-serif;font-weight:800;font-size:13px;color:#9aa7b7}
+.pp-grid{flex:1;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:repeat(3,1fr);gap:20px 28px}
+.pp-item{display:flex;flex-direction:column;border-bottom:1px solid #e7e9ee;padding-bottom:10px;overflow:hidden}
+.pp-item-img{width:100%;height:170px;border-radius:8px;object-fit:cover;background:#F5F6FA;margin-bottom:10px}
+.pp-item-noimg{width:100%;height:170px;border-radius:8px;background:#F5F6FA;margin-bottom:10px;display:flex;align-items:center;justify-content:center;color:#c3cad4;font-size:11px;font-family:"Nunito",sans-serif}
+.pp-item-row{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.pp-item-num{font-family:"Baloo 2",sans-serif;font-weight:700;font-size:11px;color:#fff;background:#16335B;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.pp-item-mat{font-family:"Nunito",sans-serif;font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:#8a96a6;flex:1}
+.pp-item-price{font-family:"Baloo 2",sans-serif;font-weight:700;font-size:15px;color:#16335B}
+.pp-item-name{font-family:"Cormorant Garamond",serif;font-weight:600;font-size:17px;color:#16335B;margin-bottom:3px}
+.pp-item-desc{font-family:"Nunito",sans-serif;font-size:11px;color:#6b7686;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.pp-prod-foot{margin-top:18px;padding-top:14px;border-top:1px solid #e7e9ee;text-align:center;font-family:"Nunito",sans-serif;font-size:10px;color:#9aa7b7}
+
+/* Contraportada */
+.pp-back{height:100%;background:#16335B;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:70px}
+.pp-back-kicker{font-family:"Baloo 2",sans-serif;font-weight:700;letter-spacing:.18em;text-transform:uppercase;font-size:13px;color:#F2C40F;margin-bottom:22px}
+.pp-back h2{font-family:"Cormorant Garamond",serif;font-weight:700;font-size:40px;line-height:1.15;margin-bottom:18px;max-width:520px}
+.pp-back p{font-family:"Nunito",sans-serif;font-size:15px;color:rgba(255,255,255,.78);max-width:480px;line-height:1.6;margin-bottom:40px}
+.pp-back-contact{display:flex;gap:32px;margin-bottom:60px;font-family:"Nunito",sans-serif;font-weight:700;font-size:15px}
+.pp-back-word{font-family:"Cormorant Garamond",serif;font-weight:700;font-size:22px;letter-spacing:.02em}
+.pp-back-word b{color:#F2C40F}
+</style>
+</head>
+<body>
+<button class="print-fab" onclick="window.print()">🖨️ Descargar / Imprimir PDF</button>
+${coverHtml}
+${paginas.map(paginaHtml).join('')}
+${backHtml}
+<script>
+document.fonts.ready.then(function(){ setTimeout(function(){ window.print(); }, 400); });
+</script>
+</body>
+</html>`;
+
+  const blobCat    = new Blob([htmlContent], { type: 'text/html; charset=utf-8' });
+  const blobUrlCat = URL.createObjectURL(blobCat);
+  const winCat     = window.open(blobUrlCat, '_blank');
+  if (!winCat) { URL.revokeObjectURL(blobUrlCat); toast('Permita ventanas emergentes para generar el PDF','error'); return; }
+  setTimeout(() => URL.revokeObjectURL(blobUrlCat), 10000);
+}
+
+/* ----------------------------------------------------------
    Venta al Detalle
 ---------------------------------------------------------- */
 
@@ -1703,6 +2066,11 @@ async function cargarConfiguracion() {
       ['emp_nombre','emp_email','emp_tel','emp_web','emp_cedula','emp_nota']
         .forEach(f=>{ if(emp[f]!==undefined&&el(f)) el(f).value=emp[f]; });
       localStorage.setItem('emp3d',JSON.stringify(emp));
+    }
+    const catCfg = await fbCargarCatalogoConfig();
+    if (catCfg) {
+      catalogoConfig = catCfg;
+      localStorage.setItem('catalogoConfig3d', JSON.stringify(catCfg));
     }
     calcCfg(); calcular();
     toast('Configuración cargada desde Firebase ✓','success');
@@ -2936,6 +3304,8 @@ function onAuthSuccess() {
   try { const l=localStorage.getItem('trabajos3d');   if(l) trabajos=JSON.parse(l);   } catch(e){}
   try { const l=localStorage.getItem('filamentos3d'); if(l) filamentos=JSON.parse(l); } catch(e){}
   try { const l=localStorage.getItem('clientes3d');   if(l) clientes=JSON.parse(l);  } catch(e){}
+  try { const l=localStorage.getItem('catalogoProductos3d'); if(l) catalogoProductos=JSON.parse(l); } catch(e){}
+  try { const l=localStorage.getItem('catalogoConfig3d');    if(l) catalogoConfig=JSON.parse(l);    } catch(e){}
   navTo('dashboard');
   cargarConfiguracion();
   iniciarSincronizacion(); // Sincronización en tiempo real

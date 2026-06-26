@@ -458,6 +458,52 @@ function renderClientes(lista) {
 }
 
 /* ----------------------------------------------------------
+   Catálogo de Productos
+---------------------------------------------------------- */
+
+function renderCatalogoProductos() {
+  const grid  = el('catalogo-grid');
+  const empty = el('catalogo-empty');
+  if (!grid) return;
+
+  const filtroCat = el('cat-filter-categoria')?.value || '';
+  const lista = (typeof catalogoProductos !== 'undefined' ? catalogoProductos : [])
+    .filter(p => !filtroCat || p.categoria === filtroCat);
+
+  empty.style.display = lista.length ? 'none' : 'block';
+  grid.style.display  = lista.length ? 'grid' : 'none';
+
+  grid.innerHTML = lista.map(p => `
+    <div class="cat-card">
+      ${p.imagen
+        ? `<img class="cat-card-img" src="${p.imagen}" alt="${escHtml(p.nombre||'')}">`
+        : `<div class="cat-card-noimg"><svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></div>`}
+      <div class="cat-card-body">
+        <span class="cat-card-cat">${escHtml(p.categoria||'General')}</span>
+        <div class="cat-card-nombre">${escHtml(p.nombre||'')}</div>
+        ${p.descripcion ? `<div class="cat-card-desc">${escHtml(p.descripcion)}</div>` : ''}
+        <div class="cat-card-foot">
+          <span class="cat-card-precio">${fmt(p.precio||0)}</span>
+          <div class="td-actions">
+            <button class="btn btn-ghost btn-icon btn-sm" title="Editar" onclick='editarProductoCatalogo("${p.id}")'>
+              <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+            </button>
+            <button class="btn btn-danger btn-icon btn-sm" title="Eliminar" onclick='eliminarProductoCatalogo("${p.id}")'>
+              <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
+                <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+/* ----------------------------------------------------------
    Helpers: ingresos / ganancia de detalle por fecha real de venta
    (para filtros mensuales del Dashboard)
 ---------------------------------------------------------- */
