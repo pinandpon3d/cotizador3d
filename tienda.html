@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Tienda · Pin&amp;Pon 3D</title>
 <link rel="icon" type="image/png" href="img/Logo oficial PNG.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -30,12 +30,17 @@
   --radius:  12px;
   --shadow:  0 2px 12px rgba(0,0,0,.08);
 }
+html { -webkit-text-size-adjust: 100%; }
 body {
   font-family: 'Inter', system-ui, sans-serif;
   background: var(--bg);
   color: var(--text1);
   min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent;
 }
+button, a, input { -webkit-tap-highlight-color: transparent; }
+img { max-width: 100%; }
 
 /* ========================
    HEADER
@@ -51,11 +56,28 @@ body {
 .store-header-inner {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 0 20px;
+  padding: 0 16px;
   display: flex;
   align-items: center;
   gap: 16px;
   height: 64px;
+  padding-left: max(16px, env(safe-area-inset-left));
+  padding-right: max(16px, env(safe-area-inset-right));
+}
+@media (max-width: 640px) {
+  .store-header-inner {
+    flex-wrap: wrap;
+    height: auto;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    row-gap: 8px;
+  }
+  .store-logo-name { display: none; }
+  .store-logo img { height: 30px; }
+  .store-search-wrap { order: 3; max-width: 100%; flex-basis: 100%; }
+  .store-cart-btn { padding: 8px 12px; font-size: 0; gap: 0; }
+  .store-cart-btn svg { flex-shrink: 0; }
+  .store-cart-btn #hdr-cart-lbl { font-size: .8rem; margin-left: 2px; }
 }
 .store-logo {
   display: flex;
@@ -90,7 +112,7 @@ body {
   padding: 10px 14px 10px 40px;
   border: 1.5px solid var(--border);
   border-radius: 8px;
-  font-size: .9rem;
+  font-size: 16px;
   background: var(--bg);
   color: var(--text1);
   transition: border-color .15s, box-shadow .15s;
@@ -148,6 +170,11 @@ body {
 }
 .store-hero h1 { font-size: 1.8rem; font-weight: 800; margin-bottom: 8px; }
 .store-hero p  { font-size: 1rem; opacity: .85; }
+@media (max-width: 640px) {
+  .store-hero { padding: 24px 16px; }
+  .store-hero h1 { font-size: 1.3rem; }
+  .store-hero p  { font-size: .85rem; }
+}
 
 /* ========================
    LAYOUT
@@ -162,10 +189,19 @@ body {
   align-items: start;
 }
 @media (max-width: 860px) {
-  .store-body { grid-template-columns: 1fr; }
-  .store-sidebar { display: flex; flex-wrap: wrap; gap: 8px; background: none; border: none; padding: 0; box-shadow: none; }
+  .store-body { grid-template-columns: 1fr; padding: 18px 16px 40px; gap: 16px; }
+  .store-sidebar {
+    display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 8px;
+    background: none; border: none; padding: 0 2px 4px; box-shadow: none;
+    position: static; -webkit-overflow-scrolling: touch; scrollbar-width: none;
+  }
+  .store-sidebar::-webkit-scrollbar { display: none; }
   .sidebar-title { display: none; }
-  .cat-item { border-radius: 20px !important; border: 1.5px solid var(--border) !important; border-left: 1.5px solid var(--border) !important; padding: 6px 14px !important; }
+  .cat-item {
+    border-radius: 20px !important; border: 1.5px solid var(--border) !important;
+    border-left: 1.5px solid var(--border) !important; padding: 7px 14px !important;
+    flex-shrink: 0; white-space: nowrap;
+  }
   .cat-item.active { border-color: var(--accent) !important; }
   .cat-count { display: none; }
 }
@@ -244,6 +280,11 @@ body {
 }
 @media (max-width: 500px) {
   .products-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .prod-body { padding: 10px 10px 12px; }
+  .prod-nombre { font-size: .87rem; }
+  .prod-precio { font-size: 1.1rem; }
+  .btn-agregar { padding: 9px 8px; font-size: .78rem; }
+  .qty-btn { width: 34px; height: 34px; }
 }
 
 /* ========================
@@ -471,7 +512,7 @@ body {
 }
 .drawer-close:hover { background: #e2e8f0; }
 
-.drawer-body { flex: 1; overflow-y: auto; padding: 6px 0; }
+.drawer-body { flex: 1; overflow-y: auto; padding: 6px 0; -webkit-overflow-scrolling: touch; }
 .drawer-empty {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 12px; padding: 60px 24px; text-align: center; color: var(--text3);
@@ -532,7 +573,7 @@ body {
 /* Footer del drawer */
 .drawer-footer {
   border-top: 1px solid var(--border);
-  padding: 18px 20px 24px;
+  padding: 18px 20px calc(24px + env(safe-area-inset-bottom));
 }
 .drawer-subtotal {
   display: flex; justify-content: space-between; align-items: baseline;
@@ -547,7 +588,7 @@ body {
   margin-bottom: 10px;
   border: 1px solid var(--border);
   border-radius: 10px;
-  font-size: .88rem;
+  font-size: 16px;
   font-family: inherit;
   background: var(--bg);
   color: var(--text1);
