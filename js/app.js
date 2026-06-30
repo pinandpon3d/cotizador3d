@@ -2077,6 +2077,20 @@ async function guardarVenta() {
 
 let detalleVista = 'lotes';
 
+function setDetalleVista(vista) {
+  detalleVista = vista;
+  const lv = document.getElementById('detalle-vista-lotes');
+  const ov = document.getElementById('detalle-vista-pedidos');
+  const bl = document.getElementById('btn-vista-lotes');
+  const bo = document.getElementById('btn-vista-pedidos');
+
+  if (lv) lv.style.display = vista === 'lotes'   ? 'block' : 'none';
+  if (ov) ov.style.display = vista === 'pedidos' ? 'block' : 'none';
+  if (bl) bl.classList.toggle('active', vista === 'lotes');
+  if (bo) bo.classList.toggle('active', vista === 'pedidos');
+
+  if (vista === 'pedidos') renderPedidosOnline();
+}
 
 /* ----------------------------------------------------------
    Pedidos Online (generados desde tienda.html)
