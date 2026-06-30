@@ -173,6 +173,7 @@ async function guardarCotizacion() {
     data.unidadesVendidas = existing?.unidadesVendidas || 0;
     data.historialVentas  = existing?.historialVentas  || [];
   }
+  if (esVenta && !editingId) await _registrarEnCatalogoSiFalta(data);
 
   const wasEditing = !!editingId;
   const idx        = trabajos.findIndex(t => t.id === id);
@@ -1585,6 +1586,30 @@ function cargarCategoriasCatalogo() {
       cats.map(c => `<option value="${escHtml(c)}">${escHtml(c)}</option>`).join('');
     if (cats.includes(prev)) sel.value = prev;
   }
+}
+
+/** Si una nueva venta al detalle no coincide con ningún producto del
+ *  catálogo (por nombre), la registra automáticamente para que aparezca
+ *  en el Catálogo de Productos y pueda editarse / agregarle foto. */
+async function _registrarEnCatalogoSiFalta(t) {
+  const norm = s => (s || '').trim().toLowerCase();
+  const yaExiste = catalogoProductos.some(p => norm(p.nombre) === norm(t.pieza));
+  if (yaExiste) return;
+
+  const totalUnidades = Math.max((t.cantidad || 1) * Math.max(t.placas || 1, 1), 1);
+  const data = {
+    id: genId(),
+    nombre: t.pieza,
+    categoria: 'Venta al Detalle',
+    material: t.material || '',
+    precio: totalUnidades > 0 ? Math.round((t.precio_final || 0) / totalUnidades) : 0,
+    descripcion: t.notas || '',
+    imagen: '',
+    orden: Date.now()
+  };
+  catalogoProductos.push(data);
+  try { localStorage.setItem('catalogoProductos3d', JSON.stringify(catalogoProductos)); } catch(e){}
+  try { await fbGuardarCatalogoProducto(data); } catch(e) { console.error('No se pudo registrar en catálogo:', e); }
 }
 
 async function guardarProductoCatalogo() {

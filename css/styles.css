@@ -1540,6 +1540,15 @@ tbody td{padding:10px 14px;color:var(--text);vertical-align:middle}
   background: var(--surface);
   color: var(--text);
 }
+.vista-btn.vista-btn-label {
+  width: auto;
+  height: auto;
+  padding: 6px 12px;
+  gap: 6px;
+  font-size: .78rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
 
 /* =========================================================
    KANBAN BOARD
