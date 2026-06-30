@@ -188,14 +188,115 @@ img { max-width: 100%; }
 /* ========================
    HERO BANNER
 ======================== */
+/* ========================
+   HERO BANNER
+======================== */
 .store-hero {
-  background: linear-gradient(135deg, #1a60a6 0%, #0d3b6e 100%);
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, #0d3b6e 0%, #1a60a6 45%, #1e78c8 100%);
   color: #fff;
-  padding: clamp(28px, 5vw, 52px) 20px;
+  padding: clamp(36px, 6vw, 72px) 24px clamp(32px, 5vw, 64px);
   text-align: center;
 }
-.store-hero h1 { font-size: clamp(1.25rem, 4vw + .5rem, 2.1rem); font-weight: 800; margin-bottom: 8px; }
-.store-hero p  { font-size: clamp(.85rem, 2vw + .3rem, 1.1rem); opacity: .85; }
+/* líneas decorativas de fondo */
+.store-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% -10%, rgba(255,255,255,.10) 0%, transparent 70%),
+    radial-gradient(circle 320px at 10% 110%, rgba(30,120,200,.35) 0%, transparent 70%),
+    radial-gradient(circle 280px at 90% -20%, rgba(255,255,255,.08) 0%, transparent 70%);
+  pointer-events: none;
+}
+/* cuadrícula sutil */
+.store-hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.04) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+}
+.hero-inner {
+  position: relative;
+  z-index: 1;
+  max-width: 680px;
+  margin: 0 auto;
+}
+.hero-logo-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: clamp(60px, 8vw, 88px);
+  height: clamp(60px, 8vw, 88px);
+  background: rgba(255,255,255,.13);
+  border: 2px solid rgba(255,255,255,.22);
+  border-radius: 22px;
+  margin-bottom: 18px;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 8px 32px rgba(0,0,0,.18);
+}
+.hero-logo-wrap svg { width: 52%; height: 52%; }
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255,255,255,.15);
+  border: 1px solid rgba(255,255,255,.25);
+  border-radius: 100px;
+  padding: 5px 14px;
+  font-size: clamp(.68rem, 1.2vw, .78rem);
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  margin-bottom: 14px;
+  backdrop-filter: blur(4px);
+}
+.hero-badge span { width: 6px; height: 6px; background: #4ade80; border-radius: 50%; flex-shrink: 0; animation: heroPulse 2s ease-in-out infinite; }
+@keyframes heroPulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(1.4)} }
+.hero-title {
+  font-size: clamp(1.6rem, 4.5vw, 2.8rem);
+  font-weight: 900;
+  letter-spacing: -.02em;
+  line-height: 1.1;
+  margin-bottom: 12px;
+  text-shadow: 0 2px 16px rgba(0,0,0,.18);
+}
+.hero-title .amp { color: #F2C61F; font-style: italic; }
+.hero-sub {
+  font-size: clamp(.85rem, 1.8vw, 1.05rem);
+  opacity: .85;
+  line-height: 1.55;
+  margin-bottom: clamp(20px, 3vw, 32px);
+  max-width: 480px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.hero-chips {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.hero-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: rgba(255,255,255,.12);
+  border: 1px solid rgba(255,255,255,.2);
+  border-radius: 100px;
+  padding: 7px 16px;
+  font-size: clamp(.75rem, 1.3vw, .85rem);
+  font-weight: 600;
+  backdrop-filter: blur(4px);
+  white-space: nowrap;
+}
+.hero-chip svg { opacity: .85; flex-shrink: 0; }
 
 /* ========================
    LAYOUT
@@ -812,8 +913,35 @@ img { max-width: 100%; }
 
 <!-- HERO -->
 <div class="store-hero">
-  <h1 id="hero-nombre">🖨️ Tienda Pin&amp;Pon 3D</h1>
-  <p>Productos impresos en 3D · Calidad garantizada · Pedido por WhatsApp</p>
+  <div class="hero-inner">
+    <div class="hero-logo-wrap">
+      <!-- ícono impresora 3D -->
+      <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="8" y="28" width="48" height="22" rx="4" fill="rgba(255,255,255,.18)" stroke="rgba(255,255,255,.7)" stroke-width="2.5"/>
+        <rect x="18" y="10" width="28" height="18" rx="3" fill="rgba(255,255,255,.12)" stroke="rgba(255,255,255,.6)" stroke-width="2.5"/>
+        <rect x="24" y="34" width="16" height="10" rx="2" fill="rgba(255,255,255,.25)"/>
+        <circle cx="46" cy="38" r="3" fill="#4ade80"/>
+        <line x1="32" y1="28" x2="32" y2="44" stroke="rgba(255,255,255,.5)" stroke-width="2" stroke-dasharray="2 3"/>
+      </svg>
+    </div>
+    <div class="hero-badge"><span></span> Tienda en línea</div>
+    <h1 class="hero-title" id="hero-nombre">Pin<span class="amp">&amp;</span>Pon 3D</h1>
+    <p class="hero-sub">Impresiones 3D de alta calidad hechas a pedido.<br>Hacé tu orden directamente por WhatsApp.</p>
+    <div class="hero-chips">
+      <div class="hero-chip">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        Calidad garantizada
+      </div>
+      <div class="hero-chip">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Entrega rápida
+      </div>
+      <div class="hero-chip">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        Pedido por WhatsApp
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- BODY -->
@@ -975,7 +1103,13 @@ async function cargarTienda() {
       nombreEmpresa = emp.emp_nombre || 'Pin&Pon 3D';
       waNumero      = (emp.emp_tel || '').replace(/\D/g, '');
       document.title = `Tienda · ${nombreEmpresa}`;
-      document.getElementById('hero-nombre').textContent = `🖨️ ${nombreEmpresa}`;
+      const heroNombre = document.getElementById('hero-nombre');
+      if (heroNombre) {
+        const parts = (nombreEmpresa || 'Pin&Pon 3D').split('&');
+        heroNombre.innerHTML = parts.length === 2
+          ? `${esc(parts[0])}<span class="amp">&amp;</span>${esc(parts[1])}`
+          : esc(nombreEmpresa);
+      }
       document.getElementById('footer-nombre').textContent = nombreEmpresa;
       if (emp.emp_tel || emp.emp_web) {
         document.getElementById('footer-contacto').textContent =
