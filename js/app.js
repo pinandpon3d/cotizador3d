@@ -2247,6 +2247,30 @@ function setDetalleVista(vista) {
 /* ----------------------------------------------------------
    Pedidos Online (generados desde tienda.html)
 ---------------------------------------------------------- */
+
+/** Busca el precio oficial vigente de un producto por nombre, en el
+ *  catálogo administrado. Los pedidos online se escriben desde una
+ *  página pública sin autenticación, así que el precio que viaja en
+ *  el pedido NO debe usarse a ciegas: siempre se recalcula contra el
+ *  catálogo real al momento de aprobar/mostrar el pedido. Retorna
+ *  null si el producto ya no existe en el catálogo. */
+function _precioOficialPorNombre(nombre) {
+  const norm = s => (s || '').trim().toLowerCase();
+  const p = catalogoProductos.find(p => norm(p.nombre) === norm(nombre));
+  return p ? (p.precio || 0) : null;
+}
+
+/** Compara los precios declarados en un pedido contra el catálogo real
+ *  y devuelve los ítems cuyo precio no coincide (incluye el precio
+ *  oficial para mostrarlo/usarlo). */
+function _detectarDiscrepanciasPedido(pedido) {
+  return (pedido.items || []).reduce((acc, it) => {
+    const oficial = _precioOficialPorNombre(it.nombre);
+    if (oficial !== null && oficial !== it.precio) acc.push({ ...it, precioOficial: oficial });
+    return acc;
+  }, []);
+}
+
 function actualizarBadgePedidosOnline() {
   const badge = document.getElementById('pedidos-pend-badge');
   if (!badge) return;
@@ -2272,11 +2296,15 @@ function renderPedidosOnline() {
   cont.innerHTML = pedidosOnline.map(p => {
     const fecha = p.fecha ? new Date(p.fecha).toLocaleString('es-CR', { dateStyle: 'medium', timeStyle: 'short' }) : '—';
     const aprobado = p.estado === 'Aprobado';
-    const itemsHtml = (p.items || []).map(it => `
+    const discrepancias = _detectarDiscrepanciasPedido(p);
+    const itemsHtml = (p.items || []).map(it => {
+      const disc = discrepancias.find(d => d.nombre === it.nombre);
+      return `
       <div class="pedido-item-row">
         <span>${escHtml(it.nombre)}${it.porEncargo ? ' <em class="pedido-encargo-tag">por encargo</em>' : ''} × ${it.cantidad}</span>
-        <span>₡${(it.cantidad * it.precio).toLocaleString('es-CR')}</span>
-      </div>`).join('');
+        <span>${disc ? `<span style="color:var(--danger);font-weight:700" title="El precio enviado no coincide con el del catálogo (₡${disc.precioOficial.toLocaleString('es-CR')})">⚠ ₡${(it.cantidad * it.precio).toLocaleString('es-CR')}</span>` : `₡${(it.cantidad * it.precio).toLocaleString('es-CR')}`}</span>
+      </div>`;
+    }).join('');
 
     return `
       <div class="card pedido-online-card">
@@ -2287,6 +2315,7 @@ function renderPedidosOnline() {
           </div>
           <span class="badge ${aprobado ? 'badge-success' : 'badge-warn'}">${aprobado ? 'Aprobado' : 'Pendiente'}</span>
         </div>
+        ${discrepancias.length && !aprobado ? `<div style="background:#fef2f2;color:var(--danger);border:1px solid var(--danger);border-radius:6px;padding:8px 10px;font-size:.8125rem;margin:8px 0">⚠ Precio(s) distinto(s) al catálogo actual. Se usará el precio oficial del catálogo al aprobar.</div>` : ''}
         <div class="pedido-online-items">${itemsHtml}</div>
         <div class="pedido-online-footer">
           <span class="pedido-online-total">Total: ₡${(p.total || 0).toLocaleString('es-CR')}</span>
@@ -2301,10 +2330,28 @@ function renderPedidosOnline() {
   }).join('');
 }
 
-/** Aprueba un pedido online: descuenta del stock disponible (sumando a la
- *  venta del lote correspondiente) o, si no hay suficiente stock, crea una
- *  cotización nueva con categoría "Venta en Línea" para producirlo. */
-async function aprobarPedidoOnline(id) {
+/** Aprueba un pedido online, pidiendo confirmación extra si algún precio
+ *  declarado no coincide con el catálogo (posible manipulación desde el
+ *  navegador del cliente, ya que la tienda es pública y sin login). */
+function aprobarPedidoOnline(id) {
+  const pedido = pedidosOnline.find(p => p.id === id);
+  if (!pedido || pedido.estado === 'Aprobado') return;
+
+  const discrepancias = _detectarDiscrepanciasPedido(pedido);
+  if (discrepancias.length) {
+    const detalle = discrepancias.map(d => `• ${d.nombre}: enviado ₡${d.precio.toLocaleString('es-CR')}, catálogo ₡${d.precioOficial.toLocaleString('es-CR')}`).join('\n');
+    showConfirm(
+      '⚠ Precios distintos al catálogo',
+      `Este pedido tiene precios que no coinciden con el catálogo actual:\n${detalle}\n\nSe aprobará usando el precio oficial del catálogo. ¿Continuar?`,
+      () => _procesarAprobacionPedido(id),
+      'Aprobar con precio del catálogo'
+    );
+    return;
+  }
+  _procesarAprobacionPedido(id);
+}
+
+async function _procesarAprobacionPedido(id) {
   const pedido = pedidosOnline.find(p => p.id === id);
   if (!pedido || pedido.estado === 'Aprobado') return;
 
@@ -2316,6 +2363,8 @@ async function aprobarPedidoOnline(id) {
 
   for (const item of (pedido.items || [])) {
     let restante = item.cantidad;
+    const oficial = _precioOficialPorNombre(item.nombre);
+    const precioConfiable = oficial !== null ? oficial : item.precio;
 
     // Lotes activos con ese nombre, ordenados por fecha (más antiguos primero)
     const lotes = trabajos
@@ -2362,7 +2411,7 @@ async function aprobarPedidoOnline(id) {
 
     // Si quedó cantidad sin cubrir por stock, se crea una cotización para producirla
     if (restante > 0) {
-      const precioFinal = restante * item.precio;
+      const precioFinal = restante * precioConfiable;
       const nueva = {
         id: genId(),
         pieza: item.nombre,
@@ -2376,7 +2425,7 @@ async function aprobarPedidoOnline(id) {
         notas: `Pedido online de ${pedido.cliente || 'cliente'} — generado automáticamente al aprobar (sin stock suficiente).`,
         costo_total: 0,
         precio_final: precioFinal,
-        precio_unitario: item.precio,
+        precio_unitario: precioConfiable,
         ganancia_por_objeto: 0,
         estado: 'Venta',
         fechaActualizacionEstado: new Date().toISOString(),
