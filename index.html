@@ -1425,8 +1425,15 @@
           </div>
           <div class="form-group">
             <label>Categoría</label>
-            <input type="text" id="cat_p_categoria" list="cat-categorias-list" placeholder="Ej: Decoración &amp; Hogar">
-            <datalist id="cat-categorias-list"></datalist>
+            <div style="display:flex;gap:6px">
+              <select id="cat_p_categoria" style="flex:1"></select>
+              <button type="button" class="btn btn-ghost btn-sm" onclick="mostrarNuevaCategoriaCatalogo()" title="Nueva categoría">+</button>
+            </div>
+            <div id="cat-nueva-categoria-row" style="display:none;gap:6px;margin-top:6px">
+              <input type="text" id="cat_nueva_categoria_input" placeholder="Nombre de la nueva categoría" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();agregarCategoriaCatalogo();}">
+              <button type="button" class="btn btn-primary btn-sm" onclick="agregarCategoriaCatalogo()">Agregar</button>
+              <button type="button" class="btn btn-ghost btn-sm" onclick="cancelarNuevaCategoriaCatalogo()">✕</button>
+            </div>
           </div>
           <div class="form-group">
             <label>Material</label>

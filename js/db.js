@@ -324,6 +324,30 @@ async function fbCargarCatalogoConfig() {
 }
 
 /* ----------------------------------------------------------
+   Categorías del Catálogo de Productos
+   (lista administrable; alimenta el selector del Catálogo y
+   las categorías que se muestran en la tienda online)
+---------------------------------------------------------- */
+
+/** Persiste la lista de categorías del catálogo. */
+async function fbGuardarCategoriasCatalogo(categorias) {
+  await db.collection('settings').doc('categoriasCatalogo').set({ lista: categorias });
+}
+
+/** Lee la lista de categorías del catálogo. */
+async function fbCargarCategoriasCatalogo() {
+  const snap = await db.collection('settings').doc('categoriasCatalogo').get();
+  return snap.exists ? (snap.data().lista || []) : [];
+}
+
+/** Suscribe a cambios en la lista de categorías del catálogo. */
+function fbSuscribirCategoriasCatalogo(onData) {
+  return db.collection('settings').doc('categoriasCatalogo').onSnapshot(snap => {
+    onData(snap.exists ? (snap.data().lista || []) : []);
+  }, err => console.error('onSnapshot categoriasCatalogo:', err));
+}
+
+/* ----------------------------------------------------------
    Pedidos Online (generados desde tienda.html)
    Colección: pedidosOnline
    Campos: id, fecha, cliente, telefono, items[], total,
