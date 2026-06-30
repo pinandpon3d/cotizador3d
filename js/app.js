@@ -1742,6 +1742,61 @@ async function sincronizarCatalogoDesdeVentas() {
   toast(`${faltantes.length} producto(s) agregado(s) al catálogo ✓`, 'success');
 }
 
+/** Reglas de clasificación automática: categoría → palabras clave que se
+ *  buscan (sin distinguir mayúsculas/acentos) en el nombre del producto.
+ *  Se evalúan en orden; la primera que coincide gana. */
+const _REGLAS_CATEGORIAS_AUTO = [
+  { categoria: 'Amigurumis (Crochet)', claves: ['crochet'] },
+  { categoria: 'Pokémon',              claves: ['charmander', 'squirtle', 'ditto', 'pokemon', 'pokémon'] },
+  { categoria: 'Perros Globo',         claves: ['perro globo'] },
+  { categoria: 'Figuras Articuladas',  claves: ['articulado', 'articulada', 'articulados', 'articuladas'] },
+  { categoria: 'Llaveros',             claves: ['llavero', 'llaveros'] },
+  { categoria: 'Clickers / Fidget Toys', claves: ['clicker'] },
+  { categoria: 'Macetas & Hogar',      claves: ['maceta', 'platito'] },
+  { categoria: 'Animales & Figuras',   claves: ['dino', 'abeja', 'jirafa', 'pantera', 'pulpito', 'pulpo'] }
+];
+
+/** Quita acentos para comparar nombres sin distinguir tildes. */
+function _sinAcentos(s) {
+  return (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
+
+/** Crea las categorías sugeridas (si no existen) y reclasifica los
+ *  productos actuales del catálogo según su nombre, usando reglas de
+ *  palabras clave. No modifica productos que ya tengan asignada una
+ *  categoría distinta de "General" o "Venta al Detalle". */
+async function clasificarCategoriasAutomaticamente() {
+  const nuevasCategorias = [..._REGLAS_CATEGORIAS_AUTO.map(r => r.categoria)];
+  let categoriasCreadas = 0;
+  nuevasCategorias.forEach(c => {
+    if (!categoriasProductos.some(x => x.toLowerCase() === c.toLowerCase())) {
+      categoriasProductos.push(c);
+      categoriasCreadas++;
+    }
+  });
+  if (categoriasCreadas) await _persistirCategoriasCatalogo();
+  else cargarCategoriasCatalogo();
+
+  let reclasificados = 0;
+  for (const p of catalogoProductos) {
+    const sinCategoriaReal = !p.categoria || ['general', 'venta al detalle'].includes(p.categoria.toLowerCase());
+    if (!sinCategoriaReal) continue;
+
+    const nombreNorm = _sinAcentos(p.nombre).toLowerCase();
+    const regla = _REGLAS_CATEGORIAS_AUTO.find(r => r.claves.some(k => nombreNorm.includes(_sinAcentos(k).toLowerCase())));
+    if (!regla) continue;
+
+    p.categoria = regla.categoria;
+    try { await fbGuardarCatalogoProducto(p); reclasificados++; } catch(e) { console.error(e); }
+  }
+
+  if (reclasificados) {
+    try { localStorage.setItem('catalogoProductos3d', JSON.stringify(catalogoProductos)); } catch(e) {}
+  }
+  if (typeof renderCatalogoProductos === 'function') renderCatalogoProductos();
+  toast(`${categoriasCreadas} categoría(s) creada(s), ${reclasificados} producto(s) reclasificado(s) ✓`, 'success');
+}
+
 async function guardarProductoCatalogo() {
   const nombre = el('cat_p_nombre')?.value.trim();
   if (!nombre) { toast('Ingrese el nombre del producto','error'); return; }
