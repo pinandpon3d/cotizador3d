@@ -92,6 +92,34 @@ function confirmAction() {
 }
 
 /* ----------------------------------------------------------
+   Modal de texto — reemplaza prompt() del navegador, que no
+   funciona en apps instaladas como PWA (modo standalone) en
+   muchos celulares.
+---------------------------------------------------------- */
+let _promptCallback = null;
+
+function showPrompt(title, valorInicial, onConfirm) {
+  el('prompt-title').textContent = title;
+  const input = el('prompt-input');
+  if (input) input.value = valorInicial || '';
+  _promptCallback = onConfirm;
+  el('modal-prompt').style.display = 'flex';
+  if (input) setTimeout(() => { input.focus(); input.select(); }, 50);
+}
+
+function closePrompt() {
+  el('modal-prompt').style.display = 'none';
+  _promptCallback = null;
+}
+
+function promptAction() {
+  const cb = _promptCallback;
+  const valor = el('prompt-input')?.value ?? '';
+  closePrompt();
+  if (typeof cb === 'function') cb(valor);
+}
+
+/* ----------------------------------------------------------
    Tema claro / oscuro
 ---------------------------------------------------------- */
 

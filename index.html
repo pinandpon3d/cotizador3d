@@ -380,6 +380,21 @@
 </div>
 
 <!-- =====================================================
+     MODAL: PROMPT (reemplaza window.prompt, que no
+     funciona en PWA / modo standalone en celular)
+====================================================== -->
+<div class="modal-overlay" id="modal-prompt" style="display:none" onclick="if(event.target===this)closePrompt()">
+  <div class="modal" style="max-width:360px;width:100%;padding:24px">
+    <div style="font-weight:700;font-size:1.05rem;margin-bottom:12px" id="prompt-title">Editar</div>
+    <input type="text" id="prompt-input" style="width:100%" onkeydown="if(event.key==='Enter'){event.preventDefault();promptAction();}else if(event.key==='Escape'){closePrompt();}">
+    <div class="btn-group" style="justify-content:flex-end;margin-top:16px">
+      <button class="btn btn-ghost" onclick="closePrompt()">Cancelar</button>
+      <button class="btn btn-primary" onclick="promptAction()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- =====================================================
      MODAL: USAR COTIZACIÓN COMO BASE
 ====================================================== -->
 <div class="modal-overlay" id="modal-base" style="display:none" onclick="if(event.target===this)cerrarModalBase()">

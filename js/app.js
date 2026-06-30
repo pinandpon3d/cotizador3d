@@ -1657,27 +1657,29 @@ async function crearCategoriaCatalogo() {
 
 /** Renombra una categoría existente (prompt simple) y actualiza los
  *  productos que la tuvieran asignada. */
-async function editarCategoriaCatalogo(nombreActual) {
-  const nuevo = (prompt('Nuevo nombre de la categoría:', nombreActual) || '').trim();
-  if (!nuevo || nuevo === nombreActual) return;
+function editarCategoriaCatalogo(nombreActual) {
+  showPrompt('Nuevo nombre de la categoría', nombreActual, async (valor) => {
+    const nuevo = (valor || '').trim();
+    if (!nuevo || nuevo === nombreActual) return;
 
-  if (categoriasProductos.some(c => c.toLowerCase() === nuevo.toLowerCase())) {
-    toast('Ya existe una categoría con ese nombre', 'warn');
-    return;
-  }
+    if (categoriasProductos.some(c => c.toLowerCase() === nuevo.toLowerCase())) {
+      toast('Ya existe una categoría con ese nombre', 'warn');
+      return;
+    }
 
-  const idx = categoriasProductos.findIndex(c => c === nombreActual);
-  if (idx >= 0) categoriasProductos[idx] = nuevo;
-  await _persistirCategoriasCatalogo();
+    const idx = categoriasProductos.findIndex(c => c === nombreActual);
+    if (idx >= 0) categoriasProductos[idx] = nuevo;
+    await _persistirCategoriasCatalogo();
 
-  const afectados = catalogoProductos.filter(p => p.categoria === nombreActual);
-  for (const p of afectados) {
-    p.categoria = nuevo;
-    try { await fbGuardarCatalogoProducto(p); } catch(e) { console.error(e); }
-  }
-  try { localStorage.setItem('catalogoProductos3d', JSON.stringify(catalogoProductos)); } catch(e) {}
-  if (typeof renderCatalogoProductos === 'function') renderCatalogoProductos();
-  toast('Categoría actualizada ✓', 'success');
+    const afectados = catalogoProductos.filter(p => p.categoria === nombreActual);
+    for (const p of afectados) {
+      p.categoria = nuevo;
+      try { await fbGuardarCatalogoProducto(p); } catch(e) { console.error(e); }
+    }
+    try { localStorage.setItem('catalogoProductos3d', JSON.stringify(catalogoProductos)); } catch(e) {}
+    if (typeof renderCatalogoProductos === 'function') renderCatalogoProductos();
+    toast('Categoría actualizada ✓', 'success');
+  });
 }
 
 /** Elimina una categoría de la lista administrable (no afecta productos
