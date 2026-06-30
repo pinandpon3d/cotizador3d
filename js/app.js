@@ -1867,6 +1867,7 @@ async function cargarVentaDetalle() {
     }
 
     renderVentaDetalle(lotes);
+    if (detalleVista === 'pos') renderPOS();
   } catch(e) {
     console.error(e);
     toast('Error al cargar ventas al detalle', 'error');
@@ -2011,6 +2012,284 @@ async function guardarVenta() {
       trabajos[idx].montoPendiente = prevPendiente;
     }
     renderVentaDetalle(trabajos.filter(t => t.ventaDetalle === true));
+  }
+}
+
+/* ----------------------------------------------------------
+   Punto de Venta (POS)
+---------------------------------------------------------- */
+let posCarrito = []; // [{ loteId, cantidad, precioUnit, nombre }]
+let detalleVista = 'lotes';
+
+function setDetalleVista(vista) {
+  detalleVista = vista;
+  const lv = document.getElementById('detalle-vista-lotes');
+  const pv = document.getElementById('detalle-vista-pos');
+  const bl = document.getElementById('btn-vista-lotes');
+  const bp = document.getElementById('btn-vista-pos');
+  if (vista === 'pos') {
+    if (lv) lv.style.display = 'none';
+    if (pv) pv.style.display = 'block';
+    if (bl) bl.classList.remove('active');
+    if (bp) bp.classList.add('active');
+    renderPOS();
+  } else {
+    if (lv) lv.style.display = 'block';
+    if (pv) pv.style.display = 'none';
+    if (bl) bl.classList.add('active');
+    if (bp) bp.classList.remove('active');
+  }
+}
+
+function _getLotesActivos() {
+  const esLote = t => t.ventaDetalle === true || t.categoria === 'Venta al Detalle';
+  return trabajos.filter(t =>
+    esLote(t) &&
+    t.estado !== 'Cancelado' &&
+    (t.unidadesVendidas || 0) < _totalUnidadesDetalle(t)
+  );
+}
+
+function renderPOS() {
+  const grid   = document.getElementById('pos-productos-grid');
+  const empty  = document.getElementById('pos-empty');
+  const catBar = document.getElementById('pos-cat-filters');
+  if (!grid) return;
+
+  const lotes  = _getLotesActivos();
+  const busq   = (document.getElementById('pos-search')?.value || '').toLowerCase().trim();
+  const catSel = document._posCatSel || '';
+
+  // Categorías únicas (usando material como agrupador)
+  const categorias = [...new Set(lotes.map(l => l.material || 'General').filter(Boolean))].sort();
+
+  // Pintar filtros de categoría
+  if (catBar) {
+    catBar.innerHTML = `
+      <button class="pos-cat-btn${catSel === '' ? ' active' : ''}" onclick="posSetCat('')">Todos</button>
+      ${categorias.map(c => `<button class="pos-cat-btn${catSel === c ? ' active' : ''}" onclick="posSetCat('${c.replace(/'/g,"\\'")}')">
+        ${escHtml(c)}
+      </button>`).join('')}
+    `;
+  }
+
+  // Filtrar por búsqueda y categoría
+  const filtrados = lotes.filter(l => {
+    const matchBusq = !busq || (l.pieza||'').toLowerCase().includes(busq) || (l.material||'').toLowerCase().includes(busq) || (l.notas||'').toLowerCase().includes(busq);
+    const matchCat  = !catSel || (l.material || 'General') === catSel;
+    return matchBusq && matchCat;
+  });
+
+  if (!filtrados.length) {
+    grid.innerHTML = '';
+    if (empty) empty.style.display = 'flex';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+
+  // Agrupar por material
+  const grupos = {};
+  filtrados.forEach(l => {
+    const cat = l.material || 'General';
+    if (!grupos[cat]) grupos[cat] = [];
+    grupos[cat].push(l);
+  });
+
+  grid.innerHTML = Object.entries(grupos).map(([cat, items]) => `
+    <div class="pos-grupo">
+      <div class="pos-grupo-titulo">
+        <span>${escHtml(cat)}</span>
+        <span class="pos-grupo-count">${items.length} producto${items.length !== 1 ? 's' : ''}</span>
+      </div>
+      <div class="pos-items-row">
+        ${items.map(l => {
+          const total      = _totalUnidadesDetalle(l);
+          const vendidas   = Math.min(l.unidadesVendidas || 0, total);
+          const disponibles = total - vendidas;
+          const precioUnit  = total > 0 ? Math.round((l.precio_final || 0) / total) : 0;
+          const enCarrito   = posCarrito.find(c => c.loteId === l.id);
+          const cantCarrito = enCarrito ? enCarrito.cantidad : 0;
+          const stockClass  = disponibles <= 0 ? 'stock-agotado' : disponibles <= 3 ? 'stock-bajo' : 'stock-ok';
+          const stockLabel  = disponibles <= 0 ? 'Agotado' : disponibles <= 3 ? `¡Solo ${disponibles}!` : `${disponibles} disp.`;
+          return `
+            <div class="pos-producto-card${cantCarrito > 0 ? ' en-carrito' : ''}${disponibles <= 0 ? ' agotado' : ''}" data-id="${l.id}">
+              <div class="pos-prod-stock-badge ${stockClass}">${stockLabel}</div>
+              <div class="pos-prod-nombre">${escHtml(l.pieza || '—')}</div>
+              ${l.notas ? `<div class="pos-prod-notas">${escHtml(l.notas)}</div>` : ''}
+              <div class="pos-prod-precio">₡${precioUnit.toLocaleString('es-CR')}</div>
+              <div class="pos-prod-acciones">
+                ${disponibles > 0
+                  ? cantCarrito > 0
+                    ? `<div class="pos-qty-control">
+                        <button class="pos-qty-btn" onclick="posQuitarUno('${l.id}')">−</button>
+                        <span class="pos-qty-val">${cantCarrito}</span>
+                        <button class="pos-qty-btn" onclick="posAgregarUno('${l.id}',${disponibles},${precioUnit},'${(l.pieza||'').replace(/'/g,"\\'")}')" ${cantCarrito >= disponibles ? 'disabled' : ''}>+</button>
+                      </div>`
+                    : `<button class="btn btn-primary btn-sm pos-add-btn" onclick="posAgregarUno('${l.id}',${disponibles},${precioUnit},'${(l.pieza||'').replace(/'/g,"\\'")}')">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        Agregar
+                      </button>`
+                  : `<span style="font-size:.75rem;color:var(--text3)">Sin stock</span>`
+                }
+              </div>
+            </div>`;
+        }).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+function posSetCat(cat) {
+  document._posCatSel = cat;
+  renderPOS();
+}
+
+function posAgregarUno(loteId, disponibles, precioUnit, nombre) {
+  const idx = posCarrito.findIndex(c => c.loteId === loteId);
+  if (idx >= 0) {
+    if (posCarrito[idx].cantidad < disponibles) posCarrito[idx].cantidad++;
+  } else {
+    posCarrito.push({ loteId, cantidad: 1, precioUnit, nombre });
+  }
+  renderPOS();
+  renderCarritoPOS();
+}
+
+function posQuitarUno(loteId) {
+  const idx = posCarrito.findIndex(c => c.loteId === loteId);
+  if (idx < 0) return;
+  posCarrito[idx].cantidad--;
+  if (posCarrito[idx].cantidad <= 0) posCarrito.splice(idx, 1);
+  renderPOS();
+  renderCarritoPOS();
+}
+
+function posBorrarCarrito() {
+  posCarrito = [];
+  renderPOS();
+  renderCarritoPOS();
+}
+
+function renderCarritoPOS() {
+  const container  = document.getElementById('pos-cart-items');
+  const emptyEl    = document.getElementById('pos-cart-empty');
+  const totalEl    = document.getElementById('pos-total-val');
+  const countEl    = document.getElementById('pos-items-count');
+  const btnCheckout = document.getElementById('pos-btn-checkout');
+  if (!container) return;
+
+  const total = posCarrito.reduce((s, c) => s + c.cantidad * c.precioUnit, 0);
+  const count = posCarrito.reduce((s, c) => s + c.cantidad, 0);
+
+  if (totalEl)    totalEl.textContent  = `₡${total.toLocaleString('es-CR')}`;
+  if (countEl)    countEl.textContent  = `${count} unidad${count !== 1 ? 'es' : ''}`;
+  if (btnCheckout) btnCheckout.disabled = posCarrito.length === 0;
+
+  if (!posCarrito.length) {
+    if (emptyEl) emptyEl.style.display = 'flex';
+    // Eliminar items previos excepto el empty
+    container.querySelectorAll('.pos-cart-item').forEach(n => n.remove());
+    return;
+  }
+  if (emptyEl) emptyEl.style.display = 'none';
+
+  container.querySelectorAll('.pos-cart-item').forEach(n => n.remove());
+  posCarrito.forEach(c => {
+    const div = document.createElement('div');
+    div.className = 'pos-cart-item';
+    div.innerHTML = `
+      <div class="pos-ci-info">
+        <div class="pos-ci-nombre">${escHtml(c.nombre)}</div>
+        <div class="pos-ci-precio">₡${c.precioUnit.toLocaleString('es-CR')} × ${c.cantidad}</div>
+      </div>
+      <div class="pos-ci-right">
+        <span class="pos-ci-total">₡${(c.cantidad * c.precioUnit).toLocaleString('es-CR')}</span>
+        <button class="pos-ci-remove" onclick="posQuitarTodo('${c.loteId}')" title="Quitar">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+    `;
+    container.insertBefore(div, emptyEl);
+  });
+}
+
+function posQuitarTodo(loteId) {
+  posCarrito = posCarrito.filter(c => c.loteId !== loteId);
+  renderPOS();
+  renderCarritoPOS();
+}
+
+async function posCheckout() {
+  if (!posCarrito.length) return;
+  const nota = document.getElementById('pos-nota-venta')?.value?.trim() || '';
+  const btn  = document.getElementById('pos-btn-checkout');
+  if (btn) { btn.disabled = true; btn.textContent = 'Procesando…'; }
+
+  let errores = 0;
+  for (const item of posCarrito) {
+    try {
+      const t = trabajos.find(t => t.id === item.loteId);
+      if (!t) continue;
+      const total      = _totalUnidadesDetalle(t);
+      const vendidas   = t.unidadesVendidas || 0;
+      const disponibles = total - vendidas;
+      const cantidad   = Math.min(item.cantidad, disponibles);
+      if (cantidad <= 0) continue;
+
+      const entrada = { fecha: new Date().toISOString(), cantidad, nota };
+      const nuevasVendidas = vendidas + cantidad;
+      const agotado = nuevasVendidas >= total;
+      const idx = trabajos.findIndex(t2 => t2.id === item.loteId);
+
+      const updateData = {
+        unidadesVendidas: firebase.firestore.FieldValue.increment(cantidad),
+        historialVentas:  firebase.firestore.FieldValue.arrayUnion(entrada)
+      };
+      if (agotado) {
+        Object.assign(updateData, {
+          estado: 'Entregado', estadoPago: 'Pagado',
+          montoAbonado: t.precio_final || 0, montoPendiente: 0,
+          fechaActualizacionEstado: new Date().toISOString()
+        });
+      }
+      await db.collection('cotizaciones').doc(String(item.loteId)).update(updateData);
+
+      if (idx >= 0) {
+        trabajos[idx].unidadesVendidas = nuevasVendidas;
+        trabajos[idx].historialVentas  = [...(trabajos[idx].historialVentas || []), entrada];
+        if (agotado) {
+          trabajos[idx].estado         = 'Entregado';
+          trabajos[idx].estadoPago     = 'Pagado';
+          trabajos[idx].montoAbonado   = trabajos[idx].precio_final || 0;
+          trabajos[idx].montoPendiente = 0;
+        }
+      }
+    } catch(e) {
+      console.error('Error al vender lote', item.loteId, e);
+      errores++;
+    }
+  }
+
+  try { localStorage.setItem('trabajos3d', JSON.stringify(trabajos)); } catch(_) {}
+
+  const total = posCarrito.reduce((s, c) => s + c.cantidad * c.precioUnit, 0);
+  const count = posCarrito.reduce((s, c) => s + c.cantidad, 0);
+
+  posCarrito = [];
+  if (document.getElementById('pos-nota-venta')) document.getElementById('pos-nota-venta').value = '';
+
+  if (errores > 0) {
+    toast(`Venta registrada con ${errores} error(es). Revise el historial.`, 'warn');
+  } else {
+    toast(`✓ ${count} unidad${count !== 1 ? 'es' : ''} vendida${count !== 1 ? 's' : ''} — ₡${total.toLocaleString('es-CR')}`, 'success');
+  }
+
+  renderPOS();
+  renderCarritoPOS();
+
+  if (btn) {
+    btn.disabled = false;
+    btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Confirmar venta`;
   }
 }
 
