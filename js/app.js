@@ -2399,6 +2399,13 @@ function actualizarBadgePedidosOnline() {
   badge.style.display = n > 0 ? 'inline-flex' : 'none';
 }
 
+let _mostrarPedidosRechazados = false;
+
+function toggleRechazadosPedidosOnline() {
+  _mostrarPedidosRechazados = !_mostrarPedidosRechazados;
+  renderPedidosOnline();
+}
+
 function renderPedidosOnline() {
   const cont  = document.getElementById('pedidos-online-lista');
   const empty = document.getElementById('pedidos-online-empty');
@@ -2411,9 +2418,26 @@ function renderPedidosOnline() {
     if (empty) empty.style.display = 'flex';
     return;
   }
+
+  const rechazados = pedidosOnline.filter(p => p.estado === 'Rechazado');
+  const visibles = _mostrarPedidosRechazados ? pedidosOnline : pedidosOnline.filter(p => p.estado !== 'Rechazado');
+
+  const toggleHtml = rechazados.length
+    ? `<div style="text-align:right;margin-bottom:10px">
+         <button type="button" class="btn btn-ghost btn-sm" onclick="toggleRechazadosPedidosOnline()">
+           ${_mostrarPedidosRechazados ? 'Ocultar' : 'Ver'} rechazados (${rechazados.length})
+         </button>
+       </div>`
+    : '';
+
+  if (!visibles.length) {
+    cont.innerHTML = toggleHtml;
+    if (empty) empty.style.display = 'flex';
+    return;
+  }
   if (empty) empty.style.display = 'none';
 
-  cont.innerHTML = pedidosOnline.map(p => {
+  cont.innerHTML = toggleHtml + visibles.map(p => {
     const fecha = p.fecha ? new Date(p.fecha).toLocaleString('es-CR', { dateStyle: 'medium', timeStyle: 'short' }) : '—';
     const aprobado  = p.estado === 'Aprobado';
     const rechazado = p.estado === 'Rechazado';
