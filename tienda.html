@@ -443,7 +443,7 @@ button,a,input,select,textarea{font-family:inherit;-webkit-tap-highlight-color:t
   <div class="hero-inner">
     <div class="hero-text">
       <div class="hero-badge"><span class="dot"></span> Tienda en línea · Costa Rica</div>
-      <h1 class="hero-title" id="hero-nombre">Pin<span class="amp">&amp;</span>Pon <span class="glow">3D</span></h1>
+      <h1 class="hero-title" id="hero-nombre">Pin<span class="amp">&amp;</span>Pon 3D</h1>
       <p class="hero-sub">Impresiones de alta calidad hechas a pedido. Elegí tu pieza y ordenala directo por WhatsApp.</p>
       <div class="hero-chips">
         <span class="hero-chip">
@@ -642,8 +642,8 @@ async function cargarTienda() {
       if (heroEl) {
         const parts = (nombreEmpresa || 'Pin&Pon 3D').split('&');
         heroEl.innerHTML = parts.length === 2
-          ? `${esc(parts[0])}<span class="amp">&amp;</span>${esc(parts[1])} <span class="glow">3D</span>`
-          : `${esc(nombreEmpresa)} <span class="glow">3D</span>`;
+          ? `${esc(parts[0])}<span class="amp">&amp;</span>${esc(parts[1])}`
+          : `${esc(nombreEmpresa)}`;
       }
       const footerNombre = document.getElementById('footer-nombre');
       if (footerNombre) {
