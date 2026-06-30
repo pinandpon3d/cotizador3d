@@ -14,6 +14,7 @@
 ---------------------------------------------------------- */
 let trabajos   = [];
 let trabajosListos = false;
+let pedidosOnline = [];
 let filamentos = [];
 let clientes   = [];
 let editingId  = null;
@@ -255,6 +256,12 @@ function iniciarSincronizacion() {
     try { localStorage.setItem('catalogoProductos3d', JSON.stringify(catalogoProductos)); } catch(e) {}
     if (typeof renderCatalogoProductos     === 'function') renderCatalogoProductos();
     if (typeof cargarCategoriasCatalogo    === 'function') cargarCategoriasCatalogo();
+  }));
+
+  _unsubs.push(fbSuscribirPedidosOnline(data => {
+    pedidosOnline = data;
+    if (typeof actualizarBadgePedidosOnline === 'function') actualizarBadgePedidosOnline();
+    if (typeof renderPedidosOnline === 'function' && detalleVista === 'pedidos') renderPedidosOnline();
   }));
 }
 
@@ -1921,6 +1928,7 @@ async function cargarVentaDetalle() {
 
     renderVentaDetalle(lotes);
     if (detalleVista === 'pos') renderPOS();
+    if (detalleVista === 'pedidos') renderPedidosOnline();
   } catch(e) {
     console.error(e);
     toast('Error al cargar ventas al detalle', 'error');
@@ -2094,20 +2102,20 @@ function setDetalleVista(vista) {
   detalleVista = vista;
   const lv = document.getElementById('detalle-vista-lotes');
   const pv = document.getElementById('detalle-vista-pos');
+  const ov = document.getElementById('detalle-vista-pedidos');
   const bl = document.getElementById('btn-vista-lotes');
   const bp = document.getElementById('btn-vista-pos');
-  if (vista === 'pos') {
-    if (lv) lv.style.display = 'none';
-    if (pv) pv.style.display = 'block';
-    if (bl) bl.classList.remove('active');
-    if (bp) bp.classList.add('active');
-    renderPOS();
-  } else {
-    if (lv) lv.style.display = 'block';
-    if (pv) pv.style.display = 'none';
-    if (bl) bl.classList.add('active');
-    if (bp) bp.classList.remove('active');
-  }
+  const bo = document.getElementById('btn-vista-pedidos');
+
+  if (lv) lv.style.display = vista === 'lotes'   ? 'block' : 'none';
+  if (pv) pv.style.display = vista === 'pos'     ? 'block' : 'none';
+  if (ov) ov.style.display = vista === 'pedidos' ? 'block' : 'none';
+  if (bl) bl.classList.toggle('active', vista === 'lotes');
+  if (bp) bp.classList.toggle('active', vista === 'pos');
+  if (bo) bo.classList.toggle('active', vista === 'pedidos');
+
+  if (vista === 'pos') renderPOS();
+  if (vista === 'pedidos') renderPedidosOnline();
 }
 
 function _getLotesActivos() {
@@ -2434,6 +2442,177 @@ async function posCheckout() {
     btn.disabled = false;
     btn.innerHTML = `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Confirmar venta`;
   }
+}
+
+/* ----------------------------------------------------------
+   Pedidos Online (generados desde tienda.html)
+---------------------------------------------------------- */
+function actualizarBadgePedidosOnline() {
+  const badge = document.getElementById('pedidos-pend-badge');
+  if (!badge) return;
+  const n = pedidosOnline.filter(p => p.estado !== 'Aprobado').length;
+  badge.textContent = n;
+  badge.style.display = n > 0 ? 'inline-flex' : 'none';
+}
+
+function renderPedidosOnline() {
+  const cont  = document.getElementById('pedidos-online-lista');
+  const empty = document.getElementById('pedidos-online-empty');
+  if (!cont) return;
+
+  actualizarBadgePedidosOnline();
+
+  if (!pedidosOnline.length) {
+    cont.innerHTML = '';
+    if (empty) empty.style.display = 'flex';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+
+  cont.innerHTML = pedidosOnline.map(p => {
+    const fecha = p.fecha ? new Date(p.fecha).toLocaleString('es-CR', { dateStyle: 'medium', timeStyle: 'short' }) : '—';
+    const aprobado = p.estado === 'Aprobado';
+    const itemsHtml = (p.items || []).map(it => `
+      <div class="pedido-item-row">
+        <span>${escHtml(it.nombre)}${it.porEncargo ? ' <em class="pedido-encargo-tag">por encargo</em>' : ''} × ${it.cantidad}</span>
+        <span>₡${(it.cantidad * it.precio).toLocaleString('es-CR')}</span>
+      </div>`).join('');
+
+    return `
+      <div class="card pedido-online-card">
+        <div class="pedido-online-hdr">
+          <div>
+            <div class="pedido-online-cliente">${escHtml(p.cliente || 'Cliente sin nombre')}</div>
+            <div class="pedido-online-fecha">${fecha}</div>
+          </div>
+          <span class="badge ${aprobado ? 'badge-success' : 'badge-warn'}">${aprobado ? 'Aprobado' : 'Pendiente'}</span>
+        </div>
+        <div class="pedido-online-items">${itemsHtml}</div>
+        <div class="pedido-online-footer">
+          <span class="pedido-online-total">Total: ₡${(p.total || 0).toLocaleString('es-CR')}</span>
+          ${aprobado
+            ? ''
+            : `<button class="btn btn-primary btn-sm" onclick="aprobarPedidoOnline('${p.id}')">
+                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                 Aprobar
+               </button>`}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+/** Aprueba un pedido online: descuenta del stock disponible (sumando a la
+ *  venta del lote correspondiente) o, si no hay suficiente stock, crea una
+ *  cotización nueva con categoría "Venta en Línea" para producirlo. */
+async function aprobarPedidoOnline(id) {
+  const pedido = pedidosOnline.find(p => p.id === id);
+  if (!pedido || pedido.estado === 'Aprobado') return;
+
+  if (!trabajos.length) {
+    try { trabajos = await fbCargarTrabajos(); } catch(e) { console.error(e); }
+  }
+
+  const norm = s => (s || '').trim().toLowerCase();
+
+  for (const item of (pedido.items || [])) {
+    let restante = item.cantidad;
+
+    // Lotes activos con ese nombre, ordenados por fecha (más antiguos primero)
+    const lotes = trabajos
+      .filter(t => (t.ventaDetalle === true || t.categoria === 'Venta al Detalle') &&
+                   t.estado !== 'Cancelado' &&
+                   norm(t.pieza) === norm(item.nombre))
+      .sort((a, b) => (a.fecha || '').localeCompare(b.fecha || ''));
+
+    for (const lote of lotes) {
+      if (restante <= 0) break;
+      const total = _totalUnidadesDetalle(lote);
+      const vendidas = lote.unidadesVendidas || 0;
+      const disponibles = total - vendidas;
+      if (disponibles <= 0) continue;
+
+      const cantidad = Math.min(restante, disponibles);
+      const entrada = { fecha: new Date().toISOString(), cantidad, nota: `Pedido online · ${pedido.cliente || ''}`.trim() };
+      const nuevasVendidas = vendidas + cantidad;
+      const agotado = nuevasVendidas >= total;
+
+      const updateData = {
+        unidadesVendidas: firebase.firestore.FieldValue.increment(cantidad),
+        historialVentas:  firebase.firestore.FieldValue.arrayUnion(entrada)
+      };
+      if (agotado) Object.assign(updateData, {
+        estado: 'Entregado', estadoPago: 'Pagado',
+        montoAbonado: lote.precio_final || 0, montoPendiente: 0,
+        fechaActualizacionEstado: new Date().toISOString()
+      });
+
+      try {
+        await db.collection('cotizaciones').doc(String(lote.id)).update(updateData);
+        lote.unidadesVendidas = nuevasVendidas;
+        lote.historialVentas  = [...(lote.historialVentas || []), entrada];
+        if (agotado) {
+          lote.estado = 'Entregado'; lote.estadoPago = 'Pagado';
+          lote.montoAbonado = lote.precio_final || 0; lote.montoPendiente = 0;
+        }
+        restante -= cantidad;
+      } catch(e) {
+        console.error('Error al descontar stock de pedido online:', lote.id, e);
+      }
+    }
+
+    // Si quedó cantidad sin cubrir por stock, se crea una cotización para producirla
+    if (restante > 0) {
+      const precioFinal = restante * item.precio;
+      const nueva = {
+        id: genId(),
+        pieza: item.nombre,
+        cliente: pedido.cliente || 'Cliente Tienda Online',
+        fecha: new Date().toISOString().slice(0, 10),
+        fechaEntrega: '',
+        cantidad: restante,
+        placas: 1,
+        categoria: 'Venta en Línea',
+        material: '',
+        notas: `Pedido online de ${pedido.cliente || 'cliente'} — generado automáticamente al aprobar (sin stock suficiente).`,
+        costo_total: 0,
+        precio_final: precioFinal,
+        precio_unitario: item.precio,
+        ganancia_por_objeto: 0,
+        estado: 'Venta',
+        fechaActualizacionEstado: new Date().toISOString(),
+        estadoPago: 'Pendiente',
+        metodoPago: 'Efectivo',
+        montoAbonado: 0,
+        montoPendiente: precioFinal,
+        fechaPago: '',
+        materialesAdicionales: [],
+        inventarioDescontado: false,
+        precioManualActivo: true,
+        precioManualValor: precioFinal,
+        ventaDetalle: false
+      };
+      try {
+        await fbGuardarCotizacion(nueva);
+        trabajos.unshift(nueva);
+      } catch(e) {
+        console.error('Error al crear cotización de pedido online:', e);
+      }
+    }
+  }
+
+  try {
+    await fbActualizarEstadoPedidoOnline(id, 'Aprobado', { fechaAprobacion: new Date().toISOString() });
+    pedido.estado = 'Aprobado';
+  } catch(e) {
+    console.error('Error al actualizar estado del pedido:', e);
+  }
+
+  try { localStorage.setItem('trabajos3d', JSON.stringify(trabajos.map(t => { const {_desglose,...c}=t; return c; }))); } catch(e){}
+
+  renderPedidosOnline();
+  if (typeof renderVentaDetalle === 'function') renderVentaDetalle(trabajos.filter(t => t.ventaDetalle === true));
+  if (typeof renderTrabajos === 'function') renderTrabajos();
+  toast('Pedido aprobado ✓', 'success');
 }
 
 /* ----------------------------------------------------------

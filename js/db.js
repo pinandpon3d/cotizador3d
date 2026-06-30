@@ -322,3 +322,37 @@ async function fbCargarCatalogoConfig() {
   const snap = await db.collection('settings').doc('catalogo').get();
   return snap.exists ? snap.data() : null;
 }
+
+/* ----------------------------------------------------------
+   Pedidos Online (generados desde tienda.html)
+   Colección: pedidosOnline
+   Campos: id, fecha, cliente, telefono, items[], total,
+           estado ('Pendiente' | 'Aprobado'), notas
+---------------------------------------------------------- */
+
+/** Crea un pedido online (usado desde la tienda pública, sin auth). */
+async function fbCrearPedidoOnline(data) {
+  await db.collection('pedidosOnline').doc(String(data.id)).set(data);
+}
+
+/** Carga todos los pedidos online, ordenados por fecha desc. */
+async function fbCargarPedidosOnline() {
+  const snap = await db.collection('pedidosOnline').get();
+  const arr = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+  arr.sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
+  return arr;
+}
+
+/** Suscribe a cambios en pedidos online. Retorna función para desuscribir. */
+function fbSuscribirPedidosOnline(onData) {
+  return db.collection('pedidosOnline').onSnapshot(snap => {
+    const arr = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+    arr.sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
+    onData(arr);
+  }, err => console.error('onSnapshot pedidosOnline:', err));
+}
+
+/** Actualiza el estado de un pedido online. */
+async function fbActualizarEstadoPedidoOnline(id, estado, extra = {}) {
+  await db.collection('pedidosOnline').doc(String(id)).update({ estado, ...extra });
+}

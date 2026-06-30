@@ -2683,3 +2683,65 @@ tr.skeleton-row td {
   cursor: not-allowed;
   transform: none;
 }
+
+/* =========================================================
+   PEDIDOS ONLINE (tienda.html → panel admin)
+========================================================= */
+.vista-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--danger);
+  color: #fff;
+  font-size: .65rem;
+  font-weight: 800;
+  line-height: 1;
+}
+.pedidos-online-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.pedido-online-card { padding: 16px 18px; }
+.pedido-online-hdr {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.pedido-online-cliente { font-weight: 700; color: var(--text1); font-size: .92rem; }
+.pedido-online-fecha   { font-size: .76rem; color: var(--text3); margin-top: 2px; }
+.pedido-online-items   { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; }
+.pedido-item-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: .83rem;
+  color: var(--text2);
+}
+.pedido-encargo-tag {
+  font-style: normal;
+  font-size: .68rem;
+  font-weight: 700;
+  color: #7c3aed;
+  background: rgba(124,58,237,.1);
+  border-radius: 4px;
+  padding: 1px 6px;
+  margin-left: 4px;
+}
+.pedido-online-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.pedido-online-total { font-weight: 700; color: var(--text1); font-size: .9rem; }
