@@ -1185,10 +1185,6 @@
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
               <span>Lotes</span>
             </button>
-            <button class="vista-btn vista-btn-label" id="btn-vista-pos" onclick="setDetalleVista('pos')" title="Punto de venta">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
-              <span>Punto de Venta</span>
-            </button>
             <button class="vista-btn vista-btn-label" id="btn-vista-pedidos" onclick="setDetalleVista('pedidos')" title="Pedidos de la tienda online">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><line x1="9" y1="14" x2="15" y2="14"/><line x1="9" y1="10" x2="15" y2="10"/></svg>
               <span>Pedidos Online</span>
@@ -1230,91 +1226,6 @@
             <span style="font-size:.82rem;color:var(--text3)">Crea una cotización con categoría "Venta al Detalle" para empezar.</span>
           </p>
         </div>
-      </div>
-
-      <!-- VISTA TIENDA / PUNTO DE VENTA -->
-      <div id="detalle-vista-pos" style="display:none">
-
-        <!-- Barra superior de la tienda -->
-        <div class="tienda-topbar">
-          <div class="tienda-search-wrap">
-            <svg class="tienda-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <input type="text" id="pos-search" class="tienda-search-input" placeholder="Buscar productos…" oninput="renderPOS()">
-          </div>
-          <button class="tienda-cart-btn" id="tienda-cart-btn" onclick="posToggleCarrito()">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
-            <span id="tienda-cart-badge" class="tienda-cart-badge" style="display:none">0</span>
-            <span id="tienda-cart-total-label">Ver carrito</span>
-          </button>
-          <button class="btn btn-ghost btn-sm" onclick="cargarVentaDetalle()" title="Recargar">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-          </button>
-        </div>
-
-        <!-- Layout: sidebar categorías + grid de productos -->
-        <div class="tienda-layout">
-
-          <!-- Sidebar de categorías -->
-          <aside class="tienda-sidebar">
-            <div class="tienda-sidebar-title">Categorías</div>
-            <div id="tienda-cat-list" class="tienda-cat-list"></div>
-          </aside>
-
-          <!-- Grid principal de productos -->
-          <div class="tienda-productos-wrap">
-            <div id="tienda-productos-grid" class="tienda-productos-grid"></div>
-            <div id="pos-empty" class="empty-state" style="display:none">
-              <svg viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
-              <p>No hay productos disponibles.<br>
-                <span style="font-size:.82rem;color:var(--text3)">Crea una cotización con categoría "Venta al Detalle" para agregar productos.</span>
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <!-- Drawer del carrito (slide-in desde la derecha) -->
-        <div class="tienda-cart-overlay" id="tienda-cart-overlay" onclick="posToggleCarrito()" style="display:none"></div>
-        <div class="tienda-cart-drawer" id="tienda-cart-drawer">
-          <div class="tienda-cart-drw-header">
-            <div class="tienda-cart-drw-title">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
-              Mi carrito
-              <span id="drw-items-count" class="drw-count-badge">0</span>
-            </div>
-            <button class="tienda-cart-close" onclick="posToggleCarrito()">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
-          </div>
-
-          <div class="tienda-cart-body" id="tienda-cart-body">
-            <div class="tienda-cart-empty-state" id="tienda-cart-empty">
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
-              <p>Tu carrito está vacío</p>
-              <small>Explorá los productos y agregá lo que necesitás</small>
-            </div>
-          </div>
-
-          <div class="tienda-cart-drw-footer">
-            <div class="tienda-cart-drw-subtotal">
-              <div class="tienda-subtotal-row">
-                <span>Subtotal (<span id="drw-unidades">0</span> unidades)</span>
-                <span id="drw-subtotal">₡0</span>
-              </div>
-            </div>
-            <div class="form-group" style="margin:12px 0 0">
-              <label style="font-size:.78rem;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.04em">Nota <span style="font-weight:400;text-transform:none">(opcional)</span></label>
-              <input type="text" id="pos-nota-venta" placeholder="Ej: Feria Tecnológica, evento…">
-            </div>
-            <button class="tienda-checkout-btn" id="pos-btn-checkout" onclick="posCheckout()" disabled>
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-              Confirmar venta
-            </button>
-            <button class="btn btn-ghost btn-sm" onclick="posBorrarCarrito()" style="width:100%;margin-top:6px;justify-content:center">
-              Vaciar carrito
-            </button>
-          </div>
-        </div>
-
       </div>
 
       <!-- VISTA PEDIDOS ONLINE -->
