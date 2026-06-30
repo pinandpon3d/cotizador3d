@@ -2394,7 +2394,7 @@ function solicitarPermisoNotificaciones() {
 function actualizarBadgePedidosOnline() {
   const badge = document.getElementById('pedidos-pend-badge');
   if (!badge) return;
-  const n = pedidosOnline.filter(p => p.estado !== 'Aprobado').length;
+  const n = pedidosOnline.filter(p => p.estado !== 'Aprobado' && p.estado !== 'Rechazado').length;
   badge.textContent = n;
   badge.style.display = n > 0 ? 'inline-flex' : 'none';
 }
@@ -2415,7 +2415,8 @@ function renderPedidosOnline() {
 
   cont.innerHTML = pedidosOnline.map(p => {
     const fecha = p.fecha ? new Date(p.fecha).toLocaleString('es-CR', { dateStyle: 'medium', timeStyle: 'short' }) : '—';
-    const aprobado = p.estado === 'Aprobado';
+    const aprobado  = p.estado === 'Aprobado';
+    const rechazado = p.estado === 'Rechazado';
     const discrepancias = _detectarDiscrepanciasPedido(p);
     const itemsHtml = (p.items || []).map(it => {
       const disc = discrepancias.find(d => d.nombre === it.nombre);
@@ -2433,18 +2434,24 @@ function renderPedidosOnline() {
             <div class="pedido-online-cliente">${escHtml(p.cliente || 'Cliente sin nombre')}</div>
             <div class="pedido-online-fecha">${fecha}</div>
           </div>
-          <span class="badge ${aprobado ? 'badge-success' : 'badge-warn'}">${aprobado ? 'Aprobado' : 'Pendiente'}</span>
+          <span class="badge ${aprobado ? 'badge-success' : rechazado ? 'badge-danger' : 'badge-warn'}">${aprobado ? 'Aprobado' : rechazado ? 'Rechazado' : 'Pendiente'}</span>
         </div>
-        ${discrepancias.length && !aprobado ? `<div style="background:#fef2f2;color:var(--danger);border:1px solid var(--danger);border-radius:6px;padding:8px 10px;font-size:.8125rem;margin:8px 0">⚠ Precio(s) distinto(s) al catálogo actual. Se usará el precio oficial del catálogo al aprobar.</div>` : ''}
+        ${discrepancias.length && !aprobado && !rechazado ? `<div style="background:#fef2f2;color:var(--danger);border:1px solid var(--danger);border-radius:6px;padding:8px 10px;font-size:.8125rem;margin:8px 0">⚠ Precio(s) distinto(s) al catálogo actual. Se usará el precio oficial del catálogo al aprobar.</div>` : ''}
         <div class="pedido-online-items">${itemsHtml}</div>
         <div class="pedido-online-footer">
           <span class="pedido-online-total">Total: ₡${(p.total || 0).toLocaleString('es-CR')}</span>
-          ${aprobado
+          ${aprobado || rechazado
             ? ''
-            : `<button class="btn btn-primary btn-sm" onclick="aprobarPedidoOnline('${p.id}')">
-                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                 Aprobar
-               </button>`}
+            : `<div class="btn-group">
+                 <button class="btn btn-primary btn-sm" onclick="aprobarPedidoOnline('${p.id}')">
+                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                   Aprobar
+                 </button>
+                 <button class="btn btn-danger btn-sm" onclick="rechazarPedidoOnline('${p.id}')">
+                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                   Rechazar
+                 </button>
+               </div>`}
         </div>
       </div>`;
   }).join('');
@@ -2582,6 +2589,33 @@ async function _procesarAprobacionPedido(id) {
   if (typeof renderVentaDetalle === 'function') renderVentaDetalle(trabajos.filter(t => t.ventaDetalle === true));
   if (typeof renderTrabajos === 'function') renderTrabajos();
   toast('Pedido aprobado ✓', 'success');
+}
+
+/** Rechaza un pedido online. Como un pedido pendiente nunca llegó a
+ *  descontar stock ni a generar ventas/cotizaciones (eso solo ocurre al
+ *  aprobar), no hay nada que revertir: solo se marca como Rechazado para
+ *  que deje de aparecer como pendiente. El registro NO se borra de
+ *  Firestore — queda como historial para que el admin pueda consultarlo. */
+function rechazarPedidoOnline(id) {
+  const pedido = pedidosOnline.find(p => p.id === id);
+  if (!pedido || pedido.estado === 'Aprobado' || pedido.estado === 'Rechazado') return;
+
+  showConfirm(
+    '¿Rechazar pedido?',
+    `¿Seguro que deseas rechazar el pedido de ${pedido.cliente || 'este cliente'}? No se descontará stock ni se generará ninguna venta. El pedido quedará marcado como rechazado (no se elimina).`,
+    async () => {
+      try {
+        await fbActualizarEstadoPedidoOnline(id, 'Rechazado', { fechaRechazo: new Date().toISOString() });
+        pedido.estado = 'Rechazado';
+        renderPedidosOnline();
+        toast('Pedido rechazado', 'success');
+      } catch(e) {
+        console.error('Error al rechazar el pedido:', e);
+        toast('No se pudo rechazar el pedido', 'error');
+      }
+    },
+    'Rechazar pedido'
+  );
 }
 
 /* ----------------------------------------------------------
