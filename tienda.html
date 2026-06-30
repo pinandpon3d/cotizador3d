@@ -884,7 +884,8 @@ async function cargarTienda() {
    RENDER CATEGORÍAS
 ============================================================ */
 function renderCategorias() {
-  const cats = [...new Set(productos.map(p => p.categoria).filter(Boolean))].sort();
+  const catsOcultas = ['general', 'venta al detalle'];
+  const cats = [...new Set(productos.map(p => p.categoria).filter(c => c && !catsOcultas.includes(c.toLowerCase())))].sort();
   const catList = document.getElementById('cat-list');
   document.getElementById('cnt-todos').textContent = productos.length;
 
@@ -998,7 +999,7 @@ function renderProductos() {
           ${cartBadge}
         </div>
         <div class="prod-body">
-          ${p.categoria ? `<div class="prod-cat">${esc(p.categoria)}</div>` : ''}
+          ${p.categoria && !['general','venta al detalle'].includes(p.categoria.toLowerCase()) ? `<div class="prod-cat">${esc(p.categoria)}</div>` : ''}
           <div class="prod-nombre">${esc(p.nombre)}</div>
           ${p.descripcion ? `<div class="prod-desc">${esc(p.descripcion)}</div>` : ''}
           <div class="prod-precio">₡${p.precio.toLocaleString('es-CR')}</div>
