@@ -15,6 +15,7 @@
 let trabajos   = [];
 let trabajosListos = false;
 let pedidosOnline = [];
+let _pedidosOnlineIdsConocidos = null; // null = aún no se ha recibido el primer snapshot
 let filamentos = [];
 let clientes   = [];
 let editingId  = null;
@@ -266,6 +267,7 @@ function iniciarSincronizacion() {
   }));
 
   _unsubs.push(fbSuscribirPedidosOnline(data => {
+    if (typeof _detectarPedidosNuevos === 'function') _detectarPedidosNuevos(data);
     pedidosOnline = data;
     if (typeof actualizarBadgePedidosOnline === 'function') actualizarBadgePedidosOnline();
     if (typeof renderPedidosOnline === 'function' && detalleVista === 'pedidos') renderPedidosOnline();
@@ -2269,6 +2271,74 @@ function _detectarDiscrepanciasPedido(pedido) {
     if (oficial !== null && oficial !== it.precio) acc.push({ ...it, precioOficial: oficial });
     return acc;
   }, []);
+}
+
+/** Compara el snapshot recién recibido de pedidosOnline contra el set de
+ *  IDs ya vistos y avisa al admin (notificación del navegador + sonido)
+ *  por cada pedido nuevo. En el primer snapshot solo se registra el
+ *  estado inicial, sin avisar (para no notificar pedidos ya existentes
+ *  al abrir la app). */
+function _detectarPedidosNuevos(data) {
+  const idsActuales = new Set(data.map(p => p.id));
+  if (_pedidosOnlineIdsConocidos === null) {
+    _pedidosOnlineIdsConocidos = idsActuales;
+    return;
+  }
+  const nuevos = data.filter(p => !_pedidosOnlineIdsConocidos.has(p.id));
+  _pedidosOnlineIdsConocidos = idsActuales;
+  if (!nuevos.length) return;
+
+  nuevos.forEach(p => {
+    const cliente = (p.cliente && p.cliente.nombre) || 'Cliente';
+    const total = (p.total || 0).toLocaleString('es-CR');
+    if (typeof toast === 'function') toast(`🛒 Nuevo pedido de ${cliente} — ₡${total}`, 'info', 6000);
+    _notificarPedidoNuevo(cliente, total);
+  });
+  _sonarAlertaPedido();
+}
+
+function _notificarPedidoNuevo(cliente, total) {
+  if (typeof Notification === 'undefined') return;
+  if (Notification.permission === 'granted') {
+    try { new Notification('Nuevo pedido online', { body: `${cliente} — ₡${total}`, icon: 'icons/icon-192.png' }); } catch(e) {}
+  }
+}
+
+function _sonarAlertaPedido() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    [0, 0.15].forEach((t, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = i === 0 ? 880 : 1175;
+      gain.gain.setValueAtTime(0.0001, ctx.currentTime + t);
+      gain.gain.exponentialRampToValueAtTime(0.3, ctx.currentTime + t + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + t + 0.25);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(ctx.currentTime + t);
+      osc.stop(ctx.currentTime + t + 0.3);
+    });
+  } catch(e) {}
+}
+
+/** Solicita permiso de notificaciones del navegador. Debe llamarse desde
+ *  un gesto del usuario (clic), ya que los navegadores bloquean la
+ *  solicitud automática sin interacción. */
+function solicitarPermisoNotificaciones() {
+  if (typeof Notification === 'undefined') {
+    if (typeof toast === 'function') toast('Tu navegador no soporta notificaciones', 'error');
+    return;
+  }
+  if (Notification.permission === 'granted') {
+    if (typeof toast === 'function') toast('Las notificaciones ya están activadas', 'success');
+    return;
+  }
+  Notification.requestPermission().then(perm => {
+    if (typeof toast === 'function') {
+      toast(perm === 'granted' ? 'Notificaciones activadas ✓' : 'Notificaciones no activadas', perm === 'granted' ? 'success' : 'info');
+    }
+  });
 }
 
 function actualizarBadgePedidosOnline() {
