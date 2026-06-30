@@ -1411,6 +1411,20 @@
         </div>
       </div>
 
+      <!-- Categorías del Catálogo (independientes, alimentan el Catálogo y la Tienda en Línea) -->
+      <div class="card">
+        <div class="card-title">
+          <svg viewBox="0 0 24 24"><path d="M20.59 13.41 11 22.99 1 13V1h12l9.59 9.59a2 2 0 0 1 0 2.82z"/><circle cx="6.5" cy="6.5" r="1.5"/></svg>
+          Categorías del Catálogo
+        </div>
+        <div class="page-hdr-sub" style="margin-bottom:10px">Estas categorías son independientes de las demás del sistema: solo se usan para organizar el Catálogo y la Tienda en Línea.</div>
+        <div style="display:flex;gap:6px;margin-bottom:12px">
+          <input type="text" id="cat_categoria_nueva_input" placeholder="Nombre de la categoría" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();crearCategoriaCatalogo();}">
+          <button type="button" class="btn btn-primary" onclick="crearCategoriaCatalogo()">Agregar</button>
+        </div>
+        <div id="cat-categorias-lista" style="display:flex;flex-direction:column;gap:6px"></div>
+      </div>
+
       <!-- Formulario de producto -->
       <div class="card">
         <div class="card-title">
@@ -1425,15 +1439,7 @@
           </div>
           <div class="form-group">
             <label>Categoría</label>
-            <div style="display:flex;gap:6px">
-              <select id="cat_p_categoria" style="flex:1"></select>
-              <button type="button" class="btn btn-ghost btn-sm" onclick="mostrarNuevaCategoriaCatalogo()" title="Nueva categoría">+</button>
-            </div>
-            <div id="cat-nueva-categoria-row" style="display:none;gap:6px;margin-top:6px">
-              <input type="text" id="cat_nueva_categoria_input" placeholder="Nombre de la nueva categoría" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();agregarCategoriaCatalogo();}">
-              <button type="button" class="btn btn-primary btn-sm" onclick="agregarCategoriaCatalogo()">Agregar</button>
-              <button type="button" class="btn btn-ghost btn-sm" onclick="cancelarNuevaCategoriaCatalogo()">✕</button>
-            </div>
+            <select id="cat_p_categoria"></select>
           </div>
           <div class="form-group">
             <label>Material</label>

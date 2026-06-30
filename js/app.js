@@ -1589,24 +1589,31 @@ function mostrarPreviewImagenCatalogo(dataUrl) {
   }
 }
 
-/** Refresca el selector de categoría del formulario de producto y el
- *  filtro del grid. La lista de categorías es administrable (ver
- *  agregarCategoriaCatalogo) y es la que se muestra en la tienda online;
- *  además se incluyen aquí (por compatibilidad) categorías ya usadas en
- *  productos existentes que no estén en la lista administrada. */
-function cargarCategoriasCatalogo() {
-  const usadas = [...new Set(catalogoProductos.map(p => p.categoria).filter(Boolean))];
-  usadas.forEach(c => {
-    if (!categoriasProductos.some(x => x.toLowerCase() === c.toLowerCase())) categoriasProductos.push(c);
-  });
+/** Persiste la lista de categorías (local + Firebase) y refresca toda la UI
+ *  que depende de ella. */
+async function _persistirCategoriasCatalogo() {
   categoriasProductos.sort((a, b) => a.localeCompare(b, 'es'));
+  try { localStorage.setItem('categoriasCatalogo3d', JSON.stringify(categoriasProductos)); } catch(e) {}
+  cargarCategoriasCatalogo();
+  try {
+    await fbGuardarCategoriasCatalogo(categoriasProductos);
+  } catch(e) {
+    console.error('Error al guardar categorías:', e);
+    toast('No se pudo guardar en Firebase (se guardó localmente)', 'warn');
+  }
+}
 
+/** Refresca el selector de categoría del formulario de producto, el
+ *  filtro del grid y la lista de administración de categorías. Esta
+ *  lista es completamente independiente de las demás categorías del
+ *  sistema: solo existe para organizar el Catálogo y la Tienda en Línea. */
+function cargarCategoriasCatalogo() {
   const selProd = el('cat_p_categoria');
   if (selProd) {
     const prev = selProd.value;
     selProd.innerHTML = categoriasProductos.length
       ? '<option value="">Seleccionar categoría…</option>' + categoriasProductos.map(c => `<option value="${escHtml(c)}">${escHtml(c)}</option>`).join('')
-      : '<option value="">Sin categorías — agregá una con el botón "+"</option>';
+      : '<option value="">Sin categorías — agregá una arriba</option>';
     if (categoriasProductos.includes(prev)) selProd.value = prev;
   }
 
@@ -1617,55 +1624,70 @@ function cargarCategoriasCatalogo() {
       categoriasProductos.map(c => `<option value="${escHtml(c)}">${escHtml(c)}</option>`).join('');
     if (categoriasProductos.includes(prevF)) sel.value = prevF;
   }
+
+  const lista = el('cat-categorias-lista');
+  if (lista) {
+    lista.innerHTML = categoriasProductos.length
+      ? categoriasProductos.map(c => `
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:6px">
+          <span style="flex:1">${escHtml(c)}</span>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="editarCategoriaCatalogo('${escHtml(c).replace(/'/g, "\\'")}')" title="Editar">✎</button>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="eliminarCategoriaCatalogo('${escHtml(c).replace(/'/g, "\\'")}')" title="Eliminar">🗑</button>
+        </div>`).join('')
+      : '<div class="page-hdr-sub">Aún no hay categorías. Agregá la primera arriba.</div>';
+  }
 }
 
-/** Muestra el campo para escribir el nombre de una nueva categoría. */
-function mostrarNuevaCategoriaCatalogo() {
-  const row = el('cat-nueva-categoria-row');
-  if (!row) return;
-  row.style.display = 'flex';
-  const input = el('cat_nueva_categoria_input');
-  if (input) { input.value = ''; input.focus(); }
-}
-
-/** Oculta el campo de nueva categoría sin guardar. */
-function cancelarNuevaCategoriaCatalogo() {
-  const row = el('cat-nueva-categoria-row');
-  if (row) row.style.display = 'none';
-}
-
-/** Agrega una nueva categoría a la lista administrable, la persiste en
- *  Firebase y la deja seleccionada en el formulario de producto. */
-async function agregarCategoriaCatalogo() {
-  const input  = el('cat_nueva_categoria_input');
+/** Crea una nueva categoría desde el campo de la sección de administración. */
+async function crearCategoriaCatalogo() {
+  const input  = el('cat_categoria_nueva_input');
   const nombre = (input?.value || '').trim();
   if (!nombre) { input?.focus(); return; }
 
   if (categoriasProductos.some(c => c.toLowerCase() === nombre.toLowerCase())) {
     toast('Esa categoría ya existe', 'warn');
-    cargarCategoriasCatalogo();
-    const selProd = el('cat_p_categoria');
-    if (selProd) selProd.value = categoriasProductos.find(c => c.toLowerCase() === nombre.toLowerCase());
-    cancelarNuevaCategoriaCatalogo();
     return;
   }
 
   categoriasProductos.push(nombre);
-  categoriasProductos.sort((a, b) => a.localeCompare(b, 'es'));
-  try { localStorage.setItem('categoriasCatalogo3d', JSON.stringify(categoriasProductos)); } catch(e) {}
+  if (input) input.value = '';
+  await _persistirCategoriasCatalogo();
+  toast('Categoría agregada ✓', 'success');
+}
 
-  cargarCategoriasCatalogo();
-  const selProd = el('cat_p_categoria');
-  if (selProd) selProd.value = nombre;
-  cancelarNuevaCategoriaCatalogo();
+/** Renombra una categoría existente (prompt simple) y actualiza los
+ *  productos que la tuvieran asignada. */
+async function editarCategoriaCatalogo(nombreActual) {
+  const nuevo = (prompt('Nuevo nombre de la categoría:', nombreActual) || '').trim();
+  if (!nuevo || nuevo === nombreActual) return;
 
-  try {
-    await fbGuardarCategoriasCatalogo(categoriasProductos);
-    toast('Categoría agregada ✓', 'success');
-  } catch(e) {
-    console.error('Error al guardar categoría:', e);
-    toast('No se pudo guardar en Firebase (se guardó localmente)', 'warn');
+  if (categoriasProductos.some(c => c.toLowerCase() === nuevo.toLowerCase())) {
+    toast('Ya existe una categoría con ese nombre', 'warn');
+    return;
   }
+
+  const idx = categoriasProductos.findIndex(c => c === nombreActual);
+  if (idx >= 0) categoriasProductos[idx] = nuevo;
+  await _persistirCategoriasCatalogo();
+
+  const afectados = catalogoProductos.filter(p => p.categoria === nombreActual);
+  for (const p of afectados) {
+    p.categoria = nuevo;
+    try { await fbGuardarCatalogoProducto(p); } catch(e) { console.error(e); }
+  }
+  try { localStorage.setItem('catalogoProductos3d', JSON.stringify(catalogoProductos)); } catch(e) {}
+  if (typeof renderCatalogoProductos === 'function') renderCatalogoProductos();
+  toast('Categoría actualizada ✓', 'success');
+}
+
+/** Elimina una categoría de la lista administrable (no afecta productos
+ *  que ya la tengan asignada, solo deja de aparecer en el desplegable). */
+function eliminarCategoriaCatalogo(nombre) {
+  showConfirm('¿Eliminar categoría?', `¿Seguro que deseas eliminar la categoría "${nombre}"? Los productos que ya la tengan asignada la conservarán como texto, pero dejará de estar disponible en el desplegable.`, async () => {
+    categoriasProductos = categoriasProductos.filter(c => c !== nombre);
+    await _persistirCategoriasCatalogo();
+    toast('Categoría eliminada ✓', 'success');
+  });
 }
 
 /** Si una nueva venta al detalle no coincide con ningún producto del
