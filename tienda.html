@@ -305,6 +305,7 @@ body {
 .prod-stock-badge.ok     { background: rgba(22,163,74,.88); color: #fff; }
 .prod-stock-badge.bajo   { background: rgba(217,119,6,.92); color: #fff; }
 .prod-stock-badge.agotado { background: rgba(71,85,105,.82); color: #fff; }
+.prod-stock-badge.encargo { background: rgba(124,58,237,.88); color: #fff; }
 .prod-cart-badge {
   position: absolute;
   top: 8px; right: 8px;
@@ -378,6 +379,21 @@ body {
   background: #e2e8f0;
   color: var(--text3);
   cursor: not-allowed;
+}
+.btn-agregar.encargo {
+  background: #7c3aed;
+  color: #fff;
+}
+.ci-encargo-tag {
+  display: inline-block;
+  font-size: .65rem;
+  font-weight: 700;
+  color: #7c3aed;
+  background: rgba(124,58,237,.12);
+  border-radius: 4px;
+  padding: 1px 6px;
+  margin-left: 4px;
+  vertical-align: middle;
 }
 
 /* Control cantidad */
@@ -887,7 +903,7 @@ function renderProductos() {
          </div>`;
 
     const stockBadge = agotado
-      ? `<span class="prod-stock-badge agotado">Agotado</span>`
+      ? `<span class="prod-stock-badge encargo">Por Encargo</span>`
       : disp <= 3
         ? `<span class="prod-stock-badge bajo">¡Solo ${disp} disponibles!</span>`
         : `<span class="prod-stock-badge ok">Disponible</span>`;
@@ -897,7 +913,16 @@ function renderProductos() {
       : '';
 
     const accionHtml = agotado
-      ? `<button class="btn-agregar agotado" disabled>Sin stock</button>`
+      ? cantCar > 0
+        ? `<div class="qty-row">
+             <button class="qty-btn" onclick="quitarUno('${p.id}')">−</button>
+             <span class="qty-val">${cantCar}</span>
+             <button class="qty-btn" onclick="agregarUno('${p.id}')">+</button>
+           </div>`
+        : `<button class="btn-agregar encargo" onclick="agregarUno('${p.id}')">
+             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+             Pedir por encargo
+           </button>`
       : cantCar > 0
         ? `<div class="qty-row">
              <button class="qty-btn" onclick="quitarUno('${p.id}')">−</button>
@@ -910,7 +935,7 @@ function renderProductos() {
            </button>`;
 
     return `
-      <div class="prod-card${agotado ? ' agotado' : ''}${cantCar > 0 ? ' en-carrito' : ''}" id="card-${p.id}">
+      <div class="prod-card${cantCar > 0 ? ' en-carrito' : ''}" id="card-${p.id}">
         <div class="prod-img-wrap">
           ${imgHtml}
           ${stockBadge}
@@ -933,12 +958,13 @@ function renderProductos() {
 ============================================================ */
 function agregarUno(id) {
   const p = productos.find(p => p.id === id);
-  if (!p || p.disponibles <= 0) return;
+  if (!p) return;
+  const porEncargo = p.disponibles <= 0;
   const idx = carrito.findIndex(c => c.id === id);
   if (idx >= 0) {
-    if (carrito[idx].cantidad < p.disponibles) carrito[idx].cantidad++;
+    if (porEncargo || carrito[idx].cantidad < p.disponibles) carrito[idx].cantidad++;
   } else {
-    carrito.push({ id, nombre: p.nombre, precio: p.precio, imagen: p.imagen, cantidad: 1, maxDisp: p.disponibles });
+    carrito.push({ id, nombre: p.nombre, precio: p.precio, imagen: p.imagen, cantidad: 1, maxDisp: p.disponibles, porEncargo });
   }
   renderProductos();
   renderCarrito();
@@ -997,18 +1023,19 @@ function renderCarrito() {
       : `<div class="ci-thumb-placeholder" style="background:linear-gradient(135deg,${g1},${g2})">${ini}</div>`;
     const p = productos.find(p => p.id === c.id);
     const maxDisp = p ? p.disponibles : c.maxDisp;
+    const porEncargo = c.porEncargo || (p && p.disponibles <= 0);
 
     const div = document.createElement('div');
     div.className = 'cart-item';
     div.innerHTML = `
       ${thumbHtml}
       <div class="ci-info">
-        <div class="ci-nombre">${esc(c.nombre)}</div>
+        <div class="ci-nombre">${esc(c.nombre)}${porEncargo ? ' <span class="ci-encargo-tag">Por encargo</span>' : ''}</div>
         <div class="ci-unit">₡${c.precio.toLocaleString('es-CR')} c/u</div>
         <div class="ci-qty">
           <button class="ci-qty-btn" onclick="quitarUno('${c.id}')">−</button>
           <span class="ci-qty-val">${c.cantidad}</span>
-          <button class="ci-qty-btn" onclick="agregarUno('${c.id}')" ${c.cantidad >= maxDisp ? 'disabled' : ''}>+</button>
+          <button class="ci-qty-btn" onclick="agregarUno('${c.id}')" ${!porEncargo && c.cantidad >= maxDisp ? 'disabled' : ''}>+</button>
         </div>
       </div>
       <div class="ci-right">
@@ -1027,7 +1054,7 @@ function renderCarrito() {
 function generarLinkWA(e) {
   if (!carrito.length) { e.preventDefault(); return false; }
   const total  = carrito.reduce((s, c) => s + c.cantidad * c.precio, 0);
-  const lineas = carrito.map(c => `• ${c.nombre} × ${c.cantidad} → ₡${(c.cantidad * c.precio).toLocaleString('es-CR')}`).join('\n');
+  const lineas = carrito.map(c => `• ${c.nombre}${c.porEncargo ? ' (por encargo)' : ''} × ${c.cantidad} → ₡${(c.cantidad * c.precio).toLocaleString('es-CR')}`).join('\n');
   const msg    = `¡Hola ${nombreEmpresa}! 👋\n\nMe interesa hacer el siguiente pedido:\n\n${lineas}\n\n*Total: ₡${total.toLocaleString('es-CR')}*\n\n¿Me podés confirmar disponibilidad? 😊`;
   const num    = waNumero || '50612345678';
   document.getElementById('wa-btn').href = `https://wa.me/${num}?text=${encodeURIComponent(msg)}`;
