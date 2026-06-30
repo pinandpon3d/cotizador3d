@@ -2611,7 +2611,6 @@ async function guardarConfiguracion() {
   const emp = {
     emp_nombre:el('emp_nombre').value, emp_email:el('emp_email').value,
     emp_tel:el('emp_tel').value, emp_web:el('emp_web').value,
-    emp_instagram:el('emp_instagram').value,
     emp_cedula:el('emp_cedula').value, emp_nota:el('emp_nota').value
   };
   localStorage.setItem('cfg3d',JSON.stringify(cfg));
@@ -2634,7 +2633,7 @@ async function cargarConfiguracion() {
       localStorage.setItem('cfg3d',JSON.stringify(cfg));
     }
     if(emp) {
-      ['emp_nombre','emp_email','emp_tel','emp_web','emp_instagram','emp_cedula','emp_nota']
+      ['emp_nombre','emp_email','emp_tel','emp_web','emp_cedula','emp_nota']
         .forEach(f=>{ if(emp[f]!==undefined&&el(f)) el(f).value=emp[f]; });
       localStorage.setItem('emp3d',JSON.stringify(emp));
     }
