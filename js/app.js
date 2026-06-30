@@ -1616,6 +1616,9 @@ async function _registrarEnCatalogoSiFalta(t) {
  *  catálogo los que aún no tengan un producto correspondiente (por nombre).
  *  Útil para productos creados antes de que existiera el auto-registro. */
 async function sincronizarCatalogoDesdeVentas() {
+  if (!trabajos.length) {
+    try { trabajos = await fbCargarTrabajos(); } catch(e) { console.error(e); }
+  }
   const lotes = trabajos.filter(t => t.ventaDetalle === true || t.categoria === 'Venta al Detalle');
   if (!lotes.length) { toast('No hay productos de Venta al Detalle', 'error'); return; }
 
