@@ -194,8 +194,8 @@ img { max-width: 100%; }
   padding: clamp(28px, 5vw, 52px) 20px;
   text-align: center;
 }
-.store-hero h1 { font-size: clamp(1.35rem, 3.2vw, 2.1rem); font-weight: 800; margin-bottom: 8px; }
-.store-hero p  { font-size: clamp(.85rem, 1.6vw, 1.1rem); opacity: .85; }
+.store-hero h1 { font-size: clamp(1.25rem, 4vw + .5rem, 2.1rem); font-weight: 800; margin-bottom: 8px; }
+.store-hero p  { font-size: clamp(.85rem, 2vw + .3rem, 1.1rem); opacity: .85; }
 
 /* ========================
    LAYOUT
@@ -341,11 +341,22 @@ img { max-width: 100%; }
 }
 @media (max-width: 500px) {
   .products-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
-  .prod-body { padding: 10px 10px 12px; }
+  .prod-body { padding: 10px 10px 12px; gap: 3px; }
   .prod-nombre { font-size: .87rem; }
-  .prod-precio { font-size: 1.1rem; }
+  .prod-precio { font-size: 1.1rem; margin-top: 4px; }
+  .prod-precio-sub { font-size: .65rem; margin-bottom: 6px; }
+  .prod-desc { display: none; }
+  .prod-iniciales { font-size: 1.6rem; }
   .btn-agregar { padding: 11px 8px; font-size: .78rem; min-height: 44px; }
   .qty-btn { width: 42px; height: 42px; }
+}
+@media (max-width: 360px) {
+  .products-grid { gap: 8px; }
+  .store-body { padding: 14px 12px 40px; }
+  .prod-body { padding: 8px 8px 10px; }
+  .prod-nombre { font-size: .82rem; }
+  .prod-precio { font-size: 1rem; }
+  .btn-agregar { padding: 10px 6px; font-size: .74rem; }
 }
 @media (max-width: 640px) {
   .detalle-modal {
