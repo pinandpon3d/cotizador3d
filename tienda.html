@@ -541,6 +541,55 @@ img { max-width: 100%; }
 }
 .cart-drawer.open { transform: translateX(0); }
 
+.detalle-overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.5);
+  z-index: 950;
+  backdrop-filter: blur(2px);
+}
+.detalle-modal {
+  display: none;
+  position: fixed;
+  top: 50%; left: 50%;
+  transform: translate(-50%,-50%);
+  width: 560px; max-width: 92vw;
+  max-height: 88vh; overflow-y: auto;
+  background: var(--surface);
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.3);
+  z-index: 951;
+  padding: 20px;
+}
+.detalle-overlay.open, .detalle-modal.open { display: block; }
+.detalle-close {
+  position: absolute; top: 14px; right: 14px;
+  border: none; background: #f1f5f9;
+  border-radius: 50%; width: 34px; height: 34px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: var(--text2); z-index: 2;
+  transition: background .15s;
+}
+.detalle-close:hover { background: #e2e8f0; }
+.detalle-img-main {
+  width: 100%; aspect-ratio: 1/1; object-fit: cover;
+  border-radius: 12px; background: var(--bg);
+}
+.detalle-img-main-ph {
+  width: 100%; aspect-ratio: 1/1; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+}
+.detalle-thumbs {
+  display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap;
+}
+.detalle-thumb {
+  width: 56px; height: 56px; object-fit: cover;
+  border-radius: 8px; cursor: pointer; border: 2px solid transparent;
+  opacity: .7; transition: opacity .15s, border-color .15s;
+}
+.detalle-thumb:hover, .detalle-thumb.active { opacity: 1; border-color: var(--accent); }
+.detalle-info { margin-top: 16px; }
+
 .drawer-header {
   display: flex; align-items: center; justify-content: space-between;
   padding: 18px 20px;
@@ -814,6 +863,15 @@ img { max-width: 100%; }
   </div>
 </div>
 
+<!-- OVERLAY + MODAL DE DETALLE DE PRODUCTO -->
+<div class="detalle-overlay" id="detalle-overlay" onclick="cerrarDetalleProducto()"></div>
+<div class="detalle-modal" id="detalle-modal">
+  <button class="detalle-close" onclick="cerrarDetalleProducto()">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+  </button>
+  <div id="detalle-contenido"></div>
+</div>
+
 <script>
 /* ============================================================
    CONFIGURACIÓN FIREBASE
@@ -909,6 +967,7 @@ async function cargarTienda() {
         categoria:   p.categoria   || 'General',
         precio:      p.precio      || st.precio || 0,
         imagen:      p.imagen      || '',
+        imagenesExtra: Array.isArray(p.imagenesExtra) ? p.imagenesExtra : [],
         disponibles: st.disponibles,
       };
     });
@@ -1073,14 +1132,14 @@ function renderProductos() {
 
     return `
       <div class="prod-card${cantCar > 0 ? ' en-carrito' : ''}" id="card-${p.id}">
-        <div class="prod-img-wrap">
+        <div class="prod-img-wrap" onclick="abrirDetalleProducto('${p.id}')">
           ${imgHtml}
           ${stockBadge}
           ${cartBadge}
         </div>
         <div class="prod-body">
           ${p.categoria && !['general','venta al detalle'].includes(p.categoria.toLowerCase()) ? `<div class="prod-cat">${esc(p.categoria)}</div>` : ''}
-          <div class="prod-nombre">${esc(p.nombre)}</div>
+          <div class="prod-nombre" onclick="abrirDetalleProducto('${p.id}')" style="cursor:pointer">${esc(p.nombre)}</div>
           ${p.descripcion ? `<div class="prod-desc">${esc(p.descripcion)}</div>` : ''}
           <div class="prod-precio">₡${p.precio.toLocaleString('es-CR')}</div>
           <div class="prod-precio-sub">precio por unidad</div>
@@ -1329,6 +1388,59 @@ function navegarSugerencias(e) {
     return;
   }
   items.forEach((it, i) => it.classList.toggle('active', i === _sugerenciaActiva));
+}
+
+/* ============================================================
+   DETALLE DE PRODUCTO (galería de fotos)
+============================================================ */
+function abrirDetalleProducto(id) {
+  const p = productos.find(p => p.id === id);
+  if (!p) return;
+
+  const fotos = [p.imagen, ...(p.imagenesExtra || [])].filter(Boolean);
+  const [g1, g2] = gradiente(p.nombre);
+  const ini = iniciales(p.nombre);
+  const disp = p.disponibles;
+  const agotado = disp <= 0;
+
+  const imgPrincipal = fotos.length
+    ? `<img id="detalle-img-principal" src="${fotos[0]}" alt="${esc(p.nombre)}" class="detalle-img-main">`
+    : `<div class="detalle-img-main-ph" style="background:linear-gradient(135deg,${g1},${g2})"><span class="prod-iniciales">${ini}</span></div>`;
+
+  const thumbsHtml = fotos.length > 1
+    ? `<div class="detalle-thumbs">${fotos.map((f, i) => `<img src="${f}" class="detalle-thumb${i === 0 ? ' active' : ''}" onclick="_cambiarFotoDetalle(this,'${f.replace(/'/g,"\\'")}')">`).join('')}</div>`
+    : '';
+
+  const stockTxt = agotado ? 'Por encargo' : `${disp} disponible${disp !== 1 ? 's' : ''}`;
+
+  document.getElementById('detalle-contenido').innerHTML = `
+    ${imgPrincipal}
+    ${thumbsHtml}
+    <div class="detalle-info">
+      ${p.categoria && !['general','venta al detalle'].includes(p.categoria.toLowerCase()) ? `<div class="prod-cat">${esc(p.categoria)}</div>` : ''}
+      <div style="font-size:1.2rem;font-weight:800;color:var(--text1);margin-top:4px">${esc(p.nombre)}</div>
+      ${p.descripcion ? `<p style="color:var(--text2);font-size:.9rem;margin-top:8px">${esc(p.descripcion)}</p>` : ''}
+      <div class="prod-precio" style="margin-top:12px">₡${p.precio.toLocaleString('es-CR')}</div>
+      <div class="prod-precio-sub">${stockTxt}</div>
+      <button class="btn-agregar${agotado ? ' encargo' : ''}" style="margin-top:14px" onclick="agregarUno('${p.id}'); cerrarDetalleProducto()">
+        ${agotado ? 'Pedir por encargo' : 'Agregar al carrito'}
+      </button>
+    </div>`;
+
+  document.getElementById('detalle-overlay').classList.add('open');
+  document.getElementById('detalle-modal').classList.add('open');
+}
+
+function _cambiarFotoDetalle(thumbEl, src) {
+  const img = document.getElementById('detalle-img-principal');
+  if (img) img.src = src;
+  thumbEl.parentElement.querySelectorAll('.detalle-thumb').forEach(t => t.classList.remove('active'));
+  thumbEl.classList.add('active');
+}
+
+function cerrarDetalleProducto() {
+  document.getElementById('detalle-overlay').classList.remove('open');
+  document.getElementById('detalle-modal').classList.remove('open');
 }
 
 /* ============================================================

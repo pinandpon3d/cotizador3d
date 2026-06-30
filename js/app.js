@@ -31,6 +31,7 @@ let catalogoProductos   = [];
 let catalogoConfig      = {};
 let categoriasProductos = [];
 let _catImagenPendiente = null;   // null = sin cambios; '' = imagen quitada; dataURL = nueva imagen
+let _catImagenesExtraPendientes = null; // null = sin cambios; array = nueva lista de fotos adicionales
 
 /* ----------------------------------------------------------
    Navegación
@@ -1576,6 +1577,48 @@ function quitarImagenCatalogo() {
   const inp = el('cat_p_imagen_input'); if (inp) inp.value = '';
 }
 
+/** Procesa hasta 4 fotos adicionales seleccionadas para el formulario de
+ *  producto del catálogo. Se agregan a las ya pendientes (o a las del
+ *  producto en edición, si aún no se había tocado nada). */
+function manejarImagenesExtraCatalogo(input) {
+  const files = Array.from(input.files || []).filter(f => f.type.startsWith('image/'));
+  if (!files.length) return;
+
+  const editId = el('cat-edit-id')?.textContent?.trim();
+  const old = catalogoProductos.find(p => p.id === editId);
+  const actuales = _catImagenesExtraPendientes !== null ? _catImagenesExtraPendientes : (old?.imagenesExtra || []);
+
+  const disponibles = Math.max(0, 4 - actuales.length);
+  if (!disponibles) { toast('Máximo 4 fotos adicionales','warn'); input.value=''; return; }
+
+  Promise.all(files.slice(0, disponibles).map(f => comprimirImagen(f)))
+    .then(dataUrls => {
+      _catImagenesExtraPendientes = [...actuales, ...dataUrls];
+      renderPreviewImagenesExtraCatalogo(_catImagenesExtraPendientes);
+    })
+    .catch(() => toast('No se pudo procesar alguna imagen','error'))
+    .finally(() => { input.value = ''; });
+}
+
+function quitarImagenExtraCatalogo(idx) {
+  const editId = el('cat-edit-id')?.textContent?.trim();
+  const old = catalogoProductos.find(p => p.id === editId);
+  const actuales = _catImagenesExtraPendientes !== null ? _catImagenesExtraPendientes : (old?.imagenesExtra || []);
+  _catImagenesExtraPendientes = actuales.filter((_, i) => i !== idx);
+  renderPreviewImagenesExtraCatalogo(_catImagenesExtraPendientes);
+}
+
+function renderPreviewImagenesExtraCatalogo(lista) {
+  const cont = el('cat_p_imagenes_extra_preview');
+  if (!cont) return;
+  cont.innerHTML = (lista || []).map((src, i) => `
+    <div style="position:relative;width:60px;height:60px">
+      <img src="${src}" style="width:100%;height:100%;object-fit:cover;border-radius:6px;border:1px solid var(--border)">
+      <button type="button" onclick="quitarImagenExtraCatalogo(${i})" title="Quitar"
+        style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;border:none;background:var(--danger,#e5484d);color:#fff;cursor:pointer;font-size:.7rem;line-height:1">✕</button>
+    </div>`).join('');
+}
+
 function mostrarPreviewImagenCatalogo(dataUrl) {
   const img    = el('cat_p_imagen_preview');
   const ph     = el('cat_p_imagen_placeholder');
@@ -1808,6 +1851,7 @@ async function guardarProductoCatalogo() {
   const editId = el('cat-edit-id')?.textContent?.trim();
   const old    = catalogoProductos.find(p => p.id === editId);
   const imagen = _catImagenPendiente !== null ? _catImagenPendiente : (old?.imagen || '');
+  const imagenesExtra = _catImagenesExtraPendientes !== null ? _catImagenesExtraPendientes : (old?.imagenesExtra || []);
 
   const id = editId || genId();
   const data = {
@@ -1817,6 +1861,7 @@ async function guardarProductoCatalogo() {
     precio:      fv('cat_p_precio'),
     descripcion: el('cat_p_descripcion')?.value.trim() || '',
     imagen,
+    imagenesExtra,
     orden: old?.orden ?? Date.now()
   };
 
@@ -1848,6 +1893,8 @@ function editarProductoCatalogo(id) {
   el('cat-cancel-edit').style.display = 'inline-flex';
   _catImagenPendiente = null;
   mostrarPreviewImagenCatalogo(p.imagen || '');
+  _catImagenesExtraPendientes = null;
+  renderPreviewImagenesExtraCatalogo(p.imagenesExtra || []);
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
@@ -1860,6 +1907,9 @@ function cancelarEditProductoCatalogo() {
   const inp = el('cat_p_imagen_input'); if (inp) inp.value = '';
   _catImagenPendiente = null;
   mostrarPreviewImagenCatalogo('');
+  const inpExtra = el('cat_p_imagenes_extra_input'); if (inpExtra) inpExtra.value = '';
+  _catImagenesExtraPendientes = null;
+  renderPreviewImagenesExtraCatalogo([]);
 }
 
 function eliminarProductoCatalogo(id) {

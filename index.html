@@ -1491,6 +1491,11 @@
               </div>
             </div>
           </div>
+          <div class="form-group" style="grid-column:span 2">
+            <label>Fotos adicionales (opcional, hasta 4)</label>
+            <div id="cat_p_imagenes_extra_preview" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px"></div>
+            <input type="file" id="cat_p_imagenes_extra_input" accept="image/*" multiple onchange="manejarImagenesExtraCatalogo(this)">
+          </div>
         </div>
         <div class="btn-group" style="margin-top:14px">
           <button class="btn btn-primary" onclick="guardarProductoCatalogo()">
