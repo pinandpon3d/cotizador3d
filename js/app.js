@@ -1612,6 +1612,31 @@ async function _registrarEnCatalogoSiFalta(t) {
   try { await fbGuardarCatalogoProducto(data); } catch(e) { console.error('No se pudo registrar en catálogo:', e); }
 }
 
+/** Recorre todos los lotes de Venta al Detalle existentes y registra en el
+ *  catálogo los que aún no tengan un producto correspondiente (por nombre).
+ *  Útil para productos creados antes de que existiera el auto-registro. */
+async function sincronizarCatalogoDesdeVentas() {
+  const lotes = trabajos.filter(t => t.ventaDetalle === true || t.categoria === 'Venta al Detalle');
+  if (!lotes.length) { toast('No hay productos de Venta al Detalle', 'error'); return; }
+
+  const norm = s => (s || '').trim().toLowerCase();
+  const nombresExistentes = new Set(catalogoProductos.map(p => norm(p.nombre)));
+  const faltantes = [];
+  for (const t of lotes) {
+    const n = norm(t.pieza);
+    if (!n || nombresExistentes.has(n)) continue;
+    nombresExistentes.add(n);
+    faltantes.push(t);
+  }
+
+  if (!faltantes.length) { toast('El catálogo ya está al día ✓', 'success'); return; }
+
+  for (const t of faltantes) await _registrarEnCatalogoSiFalta(t);
+
+  if (typeof renderCatalogoProductos === 'function') renderCatalogoProductos();
+  toast(`${faltantes.length} producto(s) agregado(s) al catálogo ✓`, 'success');
+}
+
 async function guardarProductoCatalogo() {
   const nombre = el('cat_p_nombre')?.value.trim();
   if (!nombre) { toast('Ingrese el nombre del producto','error'); return; }
