@@ -54,7 +54,7 @@ img { max-width: 100%; }
   box-shadow: 0 1px 8px rgba(0,0,0,.06);
 }
 .store-header-inner {
-  max-width: 1200px;
+  max-width: 1320px;
   margin: 0 auto;
   padding: 0 16px;
   display: flex;
@@ -191,28 +191,26 @@ img { max-width: 100%; }
 .store-hero {
   background: linear-gradient(135deg, #1a60a6 0%, #0d3b6e 100%);
   color: #fff;
-  padding: 40px 20px;
+  padding: clamp(28px, 5vw, 52px) 20px;
   text-align: center;
 }
-.store-hero h1 { font-size: 1.8rem; font-weight: 800; margin-bottom: 8px; }
-.store-hero p  { font-size: 1rem; opacity: .85; }
-@media (max-width: 640px) {
-  .store-hero { padding: 24px 16px; }
-  .store-hero h1 { font-size: 1.3rem; }
-  .store-hero p  { font-size: .85rem; }
-}
+.store-hero h1 { font-size: clamp(1.35rem, 3.2vw, 2.1rem); font-weight: 800; margin-bottom: 8px; }
+.store-hero p  { font-size: clamp(.85rem, 1.6vw, 1.1rem); opacity: .85; }
 
 /* ========================
    LAYOUT
 ======================== */
 .store-body {
-  max-width: 1200px;
+  max-width: 1320px;
   margin: 0 auto;
   padding: 28px 20px 60px;
   display: grid;
-  grid-template-columns: 220px 1fr;
-  gap: 24px;
+  grid-template-columns: 240px 1fr;
+  gap: 28px;
   align-items: start;
+}
+@media (min-width: 1300px) {
+  .store-body { grid-template-columns: 260px 1fr; gap: 32px; }
 }
 @media (max-width: 860px) {
   .store-body { grid-template-columns: 1fr; padding: 18px 16px 40px; gap: 16px; }
@@ -335,8 +333,11 @@ img { max-width: 100%; }
 
 .products-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 20px;
+}
+@media (min-width: 1300px) {
+  .products-grid { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 24px; }
 }
 @media (max-width: 500px) {
   .products-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
@@ -441,20 +442,20 @@ img { max-width: 100%; }
   display: flex; flex-direction: column; flex: 1; gap: 4px;
 }
 .prod-cat {
-  font-size: .67rem;
+  font-size: clamp(.67rem, .9vw, .73rem);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: .07em;
   color: var(--accent);
 }
 .prod-nombre {
-  font-size: .95rem;
+  font-size: clamp(.95rem, 1.2vw, 1.05rem);
   font-weight: 700;
   color: var(--text1);
   line-height: 1.3;
 }
 .prod-desc {
-  font-size: .78rem;
+  font-size: clamp(.78rem, .95vw, .85rem);
   color: var(--text2);
   line-height: 1.35;
   display: -webkit-box;
@@ -463,13 +464,13 @@ img { max-width: 100%; }
   overflow: hidden;
 }
 .prod-precio {
-  font-size: 1.3rem;
+  font-size: clamp(1.3rem, 1.7vw, 1.5rem);
   font-weight: 900;
   color: var(--text1);
   margin-top: 6px;
 }
 .prod-precio-sub {
-  font-size: .68rem;
+  font-size: clamp(.68rem, .85vw, .75rem);
   color: var(--text3);
   margin-top: -3px;
   margin-bottom: 8px;
@@ -485,7 +486,7 @@ img { max-width: 100%; }
   color: #fff;
   border: none;
   border-radius: 8px;
-  font-size: .85rem;
+  font-size: clamp(.85rem, 1vw, .92rem);
   font-weight: 700;
   cursor: pointer;
   transition: opacity .15s, transform .1s;
