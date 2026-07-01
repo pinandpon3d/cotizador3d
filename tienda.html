@@ -278,6 +278,9 @@ button,a,input,select,textarea{font-family:inherit;-webkit-tap-highlight-color:t
 .btn-agregar:not(:disabled):hover{transform:translateY(-2px) scale(1.015);filter:brightness(1.08)}
 .btn-agregar.encargo{background:var(--sky)}
 .btn-agregar.agotado{background:#eef2f7;color:#aab8c8;cursor:not-allowed}
+.btn-agregar.btn-ok{background:var(--ok)!important;transform:scale(1.04);pointer-events:none}
+@keyframes btnOkPop{0%{transform:scale(1)}50%{transform:scale(1.06)}100%{transform:scale(1.04)}}
+.btn-agregar.btn-ok{animation:btnOkPop .22s ease}
 
 /* Control de cantidad en tarjeta */
 .qty-row{display:flex;align-items:center;border:2px solid var(--blue);border-radius:10px;overflow:hidden}
@@ -869,8 +872,16 @@ function agregarUno(id) {
     carrito.push({ id, nombre: p.nombre, precio: p.precio, imagen: p.imagen, categoria: p.categoria, cantidad: 1, maxDisp: p.disponibles, porEncargo });
   }
   guardarCarrito();
-  renderProductos();
   renderCarrito();
+
+  const btn = document.querySelector(`#card-${id} .btn-agregar`);
+  if (btn) {
+    btn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Agregado';
+    btn.classList.add('btn-ok');
+    setTimeout(() => renderProductos(), 320);
+  } else {
+    renderProductos();
+  }
 }
 
 function quitarUno(id) {
