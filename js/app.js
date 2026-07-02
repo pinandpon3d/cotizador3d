@@ -2184,6 +2184,69 @@ function cerrarModalVenta() {
   if (mv) mv.style.display = 'none';
 }
 
+/** Abre el modal para agregarle más unidades al stock de un producto
+ *  (útil tanto para reponer uno agotado como para sumarle más a uno activo). */
+function abrirModalReabastecer(id) {
+  const t = trabajos.find(t => t.id === id);
+  if (!t) return;
+  const disponibles = Math.max(_totalUnidadesDetalle(t) - (t.unidadesVendidas || 0), 0);
+  el('rb-id').value              = id;
+  el('rb-pieza-lbl').textContent = t.pieza || '—';
+  el('rb-actual-num').textContent = disponibles;
+  el('rb-cantidad').value        = 1;
+  const mv = el('modal-reabastecer');
+  if (mv) mv.style.display = 'flex';
+}
+
+function cerrarModalReabastecer() {
+  const mv = el('modal-reabastecer');
+  if (mv) mv.style.display = 'none';
+}
+
+/** Suma unidades al total del lote manteniendo el mismo precio unitario,
+ *  y si estaba agotado (Entregado/Pagado por venta total) lo reactiva. */
+async function guardarReabastecimiento() {
+  const id       = el('rb-id')?.value;
+  const unidades = parseInt(el('rb-cantidad')?.value) || 0;
+  const t        = trabajos.find(t => t.id === id);
+  if (!t) return;
+  if (unidades < 1) { toast('Ingresá una cantidad mayor a 0', 'error'); return; }
+
+  const placas        = Math.max(t.placas || 1, 1);
+  const totalActual    = _totalUnidadesDetalle(t);
+  const precioUnitario = totalActual > 0 ? (t.precio_final || 0) / totalActual : 0;
+  const nuevaCantidad  = (t.cantidad || 1) + unidades;
+  const nuevoTotal     = nuevaCantidad * placas;
+  const nuevoPrecioFinal = Math.round(precioUnitario * nuevoTotal);
+  const vendidas       = t.unidadesVendidas || 0;
+  const yaNoAgotado    = t.estado === 'Entregado' && vendidas < nuevoTotal;
+
+  const updateData = {
+    cantidad: nuevaCantidad,
+    precio_final: nuevoPrecioFinal,
+    fechaActualizacionEstado: new Date().toISOString()
+  };
+  if (yaNoAgotado) {
+    updateData.estado        = 'Venta';
+    updateData.estadoPago    = 'Pendiente';
+    updateData.montoAbonado  = 0;
+    updateData.montoPendiente = 0;
+  }
+
+  try {
+    await db.collection('cotizaciones').doc(String(id)).update(updateData);
+    Object.assign(t, updateData);
+    try { localStorage.setItem('trabajos3d', JSON.stringify(trabajos.map(t => { const {_desglose,...c}=t; return c; }))); } catch(e){}
+    cerrarModalReabastecer();
+    toast('Unidades agregadas al stock ✓', 'success');
+    if (typeof renderTrabajos === 'function') renderTrabajos();
+    cargarVentaDetalle();
+  } catch(e) {
+    console.error('Error al reabastecer producto:', e);
+    toast('No se pudo agregar unidades al stock', 'error');
+  }
+}
+
 async function guardarVenta() {
   const id        = el('mv-id')?.value;
   const tipo      = el('mv-tipo')?.value || 'venta';
