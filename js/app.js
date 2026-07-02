@@ -117,10 +117,11 @@ let _guardandoCotizacion = false;
 
 async function guardarCotizacion() {
   if (_guardandoCotizacion) return; // evita doble envío mientras se guarda
-  const pieza   = el('c_pieza').value.trim();
-  const cliente = el('c_cliente').value.trim();
+  const pieza    = el('c_pieza').value.trim();
+  const cliente  = el('c_cliente').value.trim();
+  const esInventarioProductos = el('c_categoria').value === 'Inventario Productos';
   if (!pieza)   { toast('Ingrese el nombre de la pieza',  'error'); return; }
-  if (!cliente) { toast('Ingrese el nombre del cliente',  'error'); return; }
+  if (!cliente && !esInventarioProductos) { toast('Ingrese el nombre del cliente',  'error'); return; }
 
   // El preview de material no comprometido no debe entrar al precio guardado
   const savedPreview = _matPreviewCosto;
@@ -2094,89 +2095,16 @@ document.fonts.ready.then(function(){ setTimeout(function(){ window.print(); }, 
    Inventario Productos
 ---------------------------------------------------------- */
 
-/** Abre el modal de alta rápida de un producto de Inventario Productos
- *  (sin pasar por el desglose de costos del Cotizador). */
-function abrirModalNuevoProducto() {
-  const mp = el('modal-nuevo-producto');
-  if (!mp) return;
-  el('np-nombre').value   = '';
-  el('np-cantidad').value = 1;
-  el('np-precio').value   = 0;
-  el('np-material').value = '';
-  el('np-notas').value    = '';
-  mp.style.display = 'flex';
-}
-
-function cerrarModalNuevoProducto() {
-  const mp = el('modal-nuevo-producto');
-  if (mp) mp.style.display = 'none';
-}
-
-/** Crea un lote de Inventario Productos directamente, sin costeo, y lo
- *  registra también en el Catálogo de Productos si no existe todavía. */
-async function guardarProductoInventario() {
-  const pieza    = el('np-nombre').value.trim();
-  const cantidad = parseInt(el('np-cantidad').value) || 0;
-  const precio   = parseFloat(el('np-precio').value) || 0;
-  const material = el('np-material')?.value.trim() || '';
-  const notas    = el('np-notas')?.value.trim() || '';
-
-  if (!pieza)       { toast('Ingrese el nombre del producto', 'error'); return; }
-  if (cantidad < 1) { toast('La cantidad debe ser al menos 1', 'error'); return; }
-
-  const precioFinal = precio * cantidad;
-  const data = {
-    id: genId(),
-    pieza,
-    cliente: '',
-    fecha: new Date().toISOString().slice(0, 10),
-    fechaEntrega: '',
-    cantidad,
-    placas: 1,
-    categoria: 'Inventario Productos',
-    material,
-    filamento_id: '',
-    notas,
-    gramos: 0, horas_imp: 0, horas_mo: 0, horas_dis: 0,
-    costo_dis: 0, postpro: 0, otros: 0,
-    pFallos: 0, pMargen: 0, pIVA: 0,
-    costo_total: 0,
-    precio_final: precioFinal,
-    precio_unitario: precio,
-    ganancia_por_objeto: 0,
-    estado: 'Venta',
-    fechaActualizacionEstado: new Date().toISOString(),
-    estadoPago: 'Pendiente',
-    metodoPago: 'Efectivo',
-    montoAbonado: 0,
-    montoPendiente: precioFinal,
-    fechaPago: '',
-    materialesAdicionales: [],
-    inventarioDescontado: false,
-    precioManualActivo: false,
-    precioManualValor: 0,
-    ventaDetalle: true,
-    unidadesVendidas: 0,
-    historialVentas: []
-  };
-
-  const btn = el('np-btn-guardar');
-  if (btn) btn.disabled = true;
-  try {
-    await _registrarEnCatalogoSiFalta(data);
-    await fbGuardarCotizacion(data);
-    trabajos.unshift(data);
-    try { localStorage.setItem('trabajos3d', JSON.stringify(trabajos.map(t => { const {_desglose,...c}=t; return c; }))); } catch(e){}
-    cerrarModalNuevoProducto();
-    toast('Producto agregado ✓', 'success');
-    if (typeof renderTrabajos === 'function') renderTrabajos();
-    cargarVentaDetalle();
-  } catch(e) {
-    console.error('Error al guardar producto de inventario:', e);
-    toast('No se pudo guardar el producto', 'error');
-  } finally {
-    if (btn) btn.disabled = false;
-  }
+/** Lleva al Cotizador listo para dar de alta un producto de Inventario
+ *  Productos: limpia el formulario, deja la categoría preseleccionada y
+ *  pide el mismo desglose de costos (gramos, horas, fallos, margen, IVA…)
+ *  que cualquier otra cotización, para que la ganancia quede bien calculada. */
+function agregarProductoDesdeInventario() {
+  navTo('cotizador');
+  if (typeof nuevaCotizacion === 'function') nuevaCotizacion();
+  if (el('c_categoria')) el('c_categoria').value = 'Inventario Productos';
+  if (el('c_pieza')) el('c_pieza').focus();
+  toast('Completa el producto y su costeo — la categoría ya quedó en "Inventario Productos"', 'info');
 }
 
 async function cargarVentaDetalle() {
