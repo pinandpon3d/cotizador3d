@@ -830,15 +830,24 @@ function renderHistorialAbonos(t) {
 /* ----------------------------------------------------------
    Inventario Productos — render de lotes
 ---------------------------------------------------------- */
+const STOCK_BAJO_UMBRAL = 2;
+let _detalleLotesCache = [];
+
 function renderVentaDetalle(lotes) {
   const table   = el('detalle-table');
   const tbody   = el('detalle-tbody');
   const emptyEl = el('detalle-empty');
   if (!tbody) return;
 
+  if (lotes) _detalleLotesCache = lotes;
+  const search = (el('detalle-search')?.value || '').toLowerCase().trim();
+
   // Ocultar solo cancelados — los agotados se mantienen visibles para
   // poder reabastecerlos (agregarles más unidades) sin perderlos de vista
-  const activos = (lotes || []).filter(l => l.estado !== 'Cancelado');
+  const activos = (_detalleLotesCache || []).filter(l =>
+    l.estado !== 'Cancelado' &&
+    (!search || (l.pieza||'').toLowerCase().includes(search) || (l.material||'').toLowerCase().includes(search))
+  );
 
   if (!activos.length) {
     tbody.innerHTML = '';
@@ -857,6 +866,7 @@ function renderVentaDetalle(lotes) {
     const recaudado   = vendidas * precioUnit;
     const potencial   = l.precio_final || 0;
     const agotado     = disponibles === 0;
+    const bajoStock   = !agotado && disponibles <= STOCK_BAJO_UMBRAL;
     const histLen     = (l.historialVentas || []).length;
 
     return `<tr class="${agotado ? 'vd-agotado' : ''}">
@@ -873,7 +883,9 @@ function renderVentaDetalle(lotes) {
       <td class="td-mono">${fmt(potencial)}</td>
       <td>${agotado
         ? `<span class="badge badge-success">Agotado ✓</span>`
-        : `<span class="badge badge-accent">Activo</span>`}</td>
+        : bajoStock
+          ? `<span class="badge badge-warn" title="Quedan ${disponibles} unidad${disponibles !== 1 ? 'es' : ''}">⚠ Bajo stock</span>`
+          : `<span class="badge badge-accent">Activo</span>`}</td>
       <td><div class="td-actions">
         ${!agotado ? `
         <button class="btn btn-primary btn-sm" onclick="abrirModalVenta('${l.id}')">

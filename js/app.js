@@ -175,10 +175,12 @@ async function guardarCotizacion() {
   const existing = trabajos.find(t => t.id === id);
   data.ventaDetalle = esVenta;
   if (esVenta) {
-    data.unidadesVendidas = existing?.unidadesVendidas || 0;
-    data.historialVentas  = existing?.historialVentas  || [];
+    data.unidadesVendidas   = existing?.unidadesVendidas   || 0;
+    data.historialVentas    = existing?.historialVentas    || [];
+    data.catalogoProductoId = existing?.catalogoProductoId || '';
+    if (!editingId) await _registrarEnCatalogoSiFalta(data);
+    else            await _actualizarCatalogoSiVinculado(data);
   }
-  if (esVenta && !editingId) await _registrarEnCatalogoSiFalta(data);
 
   const wasEditing = !!editingId;
   const idx        = trabajos.findIndex(t => t.id === id);
@@ -1743,8 +1745,8 @@ function eliminarCategoriaCatalogo(nombre) {
  *  en el Catálogo de Productos y pueda editarse / agregarle foto. */
 async function _registrarEnCatalogoSiFalta(t) {
   const norm = s => (s || '').trim().toLowerCase();
-  const yaExiste = catalogoProductos.some(p => norm(p.nombre) === norm(t.pieza));
-  if (yaExiste) return;
+  const existente = catalogoProductos.find(p => norm(p.nombre) === norm(t.pieza));
+  if (existente) { t.catalogoProductoId = existente.id; return; }
 
   const totalUnidades = Math.max((t.cantidad || 1) * Math.max(t.placas || 1, 1), 1);
   const data = {
@@ -1758,8 +1760,36 @@ async function _registrarEnCatalogoSiFalta(t) {
     orden: Date.now()
   };
   catalogoProductos.push(data);
+  t.catalogoProductoId = data.id;
   try { localStorage.setItem('catalogoProductos3d', JSON.stringify(catalogoProductos)); } catch(e){}
   try { await fbGuardarCatalogoProducto(data); } catch(e) { console.error('No se pudo registrar en catálogo:', e); }
+}
+
+/** Si un producto de Inventario Productos ya editado tiene un producto
+ *  vinculado en el Catálogo, actualiza su nombre y precio para que no
+ *  queden desactualizados frente a la tienda pública. No toca material,
+ *  descripción ni foto para no perder ediciones manuales del catálogo. */
+async function _actualizarCatalogoSiVinculado(t) {
+  let prod = t.catalogoProductoId ? catalogoProductos.find(p => p.id === t.catalogoProductoId) : null;
+
+  if (!prod) {
+    // Sin vínculo todavía (producto creado antes de esta función) — se
+    // busca por nombre, o se registra desde cero si de plano no existe.
+    const norm = s => (s || '').trim().toLowerCase();
+    prod = catalogoProductos.find(p => norm(p.nombre) === norm(t.pieza));
+    if (!prod) { await _registrarEnCatalogoSiFalta(t); return; }
+    t.catalogoProductoId = prod.id;
+  }
+
+  const totalUnidades = Math.max((t.cantidad || 1) * Math.max(t.placas || 1, 1), 1);
+  const nuevoPrecio = totalUnidades > 0 ? Math.round((t.precio_final || 0) / totalUnidades) : 0;
+  if (prod.nombre === t.pieza && prod.precio === nuevoPrecio) return; // ya está al día
+
+  prod.nombre = t.pieza;
+  prod.precio = nuevoPrecio;
+  try { localStorage.setItem('catalogoProductos3d', JSON.stringify(catalogoProductos)); } catch(e){}
+  try { await fbGuardarCatalogoProducto({ ...prod }); } catch(e) { console.error('No se pudo actualizar el catálogo:', e); }
+  if (typeof renderCatalogoProductos === 'function') renderCatalogoProductos();
 }
 
 /** Recorre todos los lotes de Inventario Productos existentes y registra en el
@@ -1784,7 +1814,15 @@ async function sincronizarCatalogoDesdeVentas() {
 
   if (!faltantes.length) { toast('El catálogo ya está al día ✓', 'success'); return; }
 
-  for (const t of faltantes) await _registrarEnCatalogoSiFalta(t);
+  for (const t of faltantes) {
+    await _registrarEnCatalogoSiFalta(t);
+    // Guarda el vínculo en la cotización para que futuras ediciones sepan
+    // qué producto del catálogo deben mantener sincronizado.
+    if (t.catalogoProductoId) {
+      try { await db.collection('cotizaciones').doc(String(t.id)).update({ catalogoProductoId: t.catalogoProductoId }); }
+      catch(e) { console.error('No se pudo vincular producto con el catálogo:', t.id, e); }
+    }
+  }
 
   if (typeof renderCatalogoProductos === 'function') renderCatalogoProductos();
   toast(`${faltantes.length} producto(s) agregado(s) al catálogo ✓`, 'success');
