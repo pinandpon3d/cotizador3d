@@ -876,15 +876,16 @@ function renderVentaDetalle(lotes) {
         : `<span class="badge badge-accent">Activo</span>`}</td>
       <td><div class="td-actions">
         ${!agotado ? `
-        <button class="btn btn-primary btn-icon btn-sm" title="Registrar venta" onclick="abrirModalVenta('${l.id}')">
+        <button class="btn btn-primary btn-sm" onclick="abrirModalVenta('${l.id}')">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Vender
         </button>` : ''}
         ${vendidas > 0 ? `
         <button class="btn btn-ghost btn-icon btn-sm" title="Devolver unidades" onclick="abrirModalDevolucion('${l.id}')">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>
         </button>` : ''}
-        <button class="btn btn-ghost btn-icon btn-sm" title="Agregar más unidades al stock" onclick="abrirModalReabastecer('${l.id}')">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        <button class="btn btn-ghost btn-icon btn-sm" title="Agregar más unidades al stock (reabastecer)" onclick="abrirModalReabastecer('${l.id}')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
         </button>
         <button class="btn btn-ghost btn-icon btn-sm" title="Ver historial (${histLen})" onclick="abrirModalHistorialVD('${l.id}')">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
