@@ -666,7 +666,7 @@ async function cargarTienda() {
     cotSnap.docs.forEach(d => {
       const t = d.data();
       if (t.estado === 'Cancelado') return;
-      if (t.ventaDetalle !== true && t.categoria !== 'Venta al Detalle' && t.categoria !== 'Inventario Productos') return;
+      if (t.ventaDetalle !== true && t.categoria !== 'Venta al Detalle') return;
       const total      = Math.max((t.cantidad || 1) * Math.max(t.placas || 1, 1), 1);
       const vendidas   = Math.min(t.unidadesVendidas || 0, total);
       const disponibles = total - vendidas;
@@ -736,7 +736,7 @@ async function cargarTienda() {
    RENDER CATEGORÍAS
 ============================================================ */
 function renderCategorias() {
-  const ocultas = ['general', 'venta al detalle', 'inventario productos'];
+  const ocultas = ['general', 'venta al detalle'];
   const cats = [...new Set(productos.map(p => p.categoria).filter(c => c && !ocultas.includes(c.toLowerCase())))].sort();
   const catList = document.getElementById('cat-list');
 
@@ -847,7 +847,7 @@ function renderProductos() {
           ${cartBadge}
         </div>
         <div class="prod-body">
-          ${p.categoria && !['general','venta al detalle','inventario productos'].includes(p.categoria.toLowerCase()) ? `<div class="prod-cat">${esc(p.categoria)}</div>` : ''}
+          ${p.categoria && !['general','venta al detalle'].includes(p.categoria.toLowerCase()) ? `<div class="prod-cat">${esc(p.categoria)}</div>` : ''}
           <div class="prod-nombre" onclick="abrirDetalleProducto('${p.id}')" style="cursor:pointer">${esc(p.nombre)}</div>
           ${p.descripcion ? `<div class="prod-desc">${esc(p.descripcion)}</div>` : ''}
           <div class="prod-precio">₡${p.precio.toLocaleString('es-CR')}</div>
@@ -1145,7 +1145,7 @@ function abrirDetalleProducto(id) {
     </div>
     ${thumbsHtml}
     <div class="detalle-info">
-      ${p.categoria && !['general','venta al detalle','inventario productos'].includes(p.categoria.toLowerCase()) ? `<div class="prod-cat">${esc(p.categoria)}</div>` : ''}
+      ${p.categoria && !['general','venta al detalle'].includes(p.categoria.toLowerCase()) ? `<div class="prod-cat">${esc(p.categoria)}</div>` : ''}
       <div style="font-family:var(--font-display);font-size:1.25rem;font-weight:700;color:var(--text1);margin-top:4px">${esc(p.nombre)}</div>
       ${p.descripcion ? `<p style="color:var(--text2);font-size:.9rem;margin-top:8px;line-height:1.5">${esc(p.descripcion)}</p>` : ''}
       <div class="prod-precio" style="margin-top:12px">₡${p.precio.toLocaleString('es-CR')}</div>

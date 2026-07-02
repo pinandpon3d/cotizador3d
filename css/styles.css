@@ -783,7 +783,7 @@ tbody td{padding:10px 14px;color:var(--text);vertical-align:middle}
   /* ── Kanban: sugerencia de tabla (toggle oculto) — solo en lista ── */
   .kanban-col { flex: 0 0 88vw; min-width: 88vw }
 
-  /* ── Vista de Inventario Productos: 1 col ── */
+  /* ── Vista al detalle: 1 col ── */
   .detalle-grid { grid-template-columns: 1fr }
 
   /* ── Catálogo de productos: 1 col ── */
@@ -1112,7 +1112,7 @@ tbody td{padding:10px 14px;color:var(--text);vertical-align:middle}
 .estado-select{font-size:.72rem;font-weight:600;border:none;cursor:pointer;border-radius:20px;padding:3px 8px}
 
 /* ================================================================
-   INVENTARIO PRODUCTOS — Venta por unidades
+   AL DETALLE — Venta por unidades
 ================================================================ */
 .detalle-grid{
   display:grid;

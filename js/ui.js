@@ -19,7 +19,7 @@ function _totalUnidadesDetalle(t) {
   return Math.max((t.cantidad || 1) * Math.max(t.placas || 1, 1), 1);
 }
 function _esDetalle(t) {
-  return t.ventaDetalle === true || t.categoria === 'Inventario Productos' || t.categoria === 'Venta al Detalle';
+  return t.ventaDetalle === true || t.categoria === 'Venta al Detalle';
 }
 
 function ingresosLote(t) {
@@ -372,7 +372,7 @@ function renderTrabajos() {
 }
 
 /* ----------------------------------------------------------
-   Tabla de insumos
+   Tabla de inventario
 ---------------------------------------------------------- */
 
 const CATEGORIA_COLOR = {
@@ -828,7 +828,7 @@ function renderHistorialAbonos(t) {
 }
 
 /* ----------------------------------------------------------
-   Inventario Productos — render de lotes
+   Venta al Detalle — render de lotes
 ---------------------------------------------------------- */
 function renderVentaDetalle(lotes) {
   const grid    = el('detalle-grid');

@@ -7,7 +7,7 @@
  *
  * Colecciones:
  *   - cotizaciones       → trabajos guardados
- *   - filamentos         → insumos (materiales)
+ *   - filamentos         → inventario de materiales
  *   - settings/config    → configuración de costos
  *   - settings/empresa   → datos de la empresa
  */
@@ -62,7 +62,7 @@ async function fbEliminarCotizacion(id) {
 }
 
 /* ----------------------------------------------------------
-   Insumos — filamentos
+   Inventario de filamentos
 ---------------------------------------------------------- */
 
 /** Carga todos los filamentos. */
@@ -226,7 +226,7 @@ async function fbActualizarPago(id, pago) {
 }
 
 /* ----------------------------------------------------------
-   Inventario Productos
+   Venta al Detalle
 ---------------------------------------------------------- */
 
 /** Registra una venta unitaria en el historial del lote. */

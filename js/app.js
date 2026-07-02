@@ -39,12 +39,12 @@ let _catImagenesExtraPendientes = null; // null = sin cambios; array = nueva lis
 const PAGE_LABELS = {
   cotizador:    'Cotizador',
   trabajos:     'Trabajos',
-  inventario:   'Insumos',
+  inventario:   'Inventario',
   configuracion:'Configuración',
   usuarios:     'Usuarios',
   dashboard:    'Dashboard',
   clientes:     'Clientes',
-  detalle:      'Inventario Productos',
+  detalle:      'Al Detalle',
   costos:       'Costos',
   calendario:   'Calendario',
   catalogo:     'Catálogo de Productos'
@@ -153,7 +153,7 @@ async function guardarCotizacion() {
     ganancia_por_objeto:  desglose.gananciaObjeto,
     estado: editingId
       ? (trabajos.find(t=>t.id===editingId)?.estado || 'Cotizado')
-      : (el('c_categoria').value === 'Inventario Productos' ? 'Venta' : 'Cotizado'),
+      : (el('c_categoria').value === 'Venta al Detalle' ? 'Venta' : 'Cotizado'),
     fechaActualizacionEstado: editingId
       ? (trabajos.find(t=>t.id===editingId)?.fechaActualizacionEstado || new Date().toISOString())
       : new Date().toISOString(),
@@ -169,8 +169,8 @@ async function guardarCotizacion() {
     _desglose: desglose
   };
 
-  // — Inventario de Productos: se activa cuando la categoría es "Inventario Productos" —
-  const esVenta = data.categoria === 'Inventario Productos';
+  // — Venta al detalle: se activa cuando la categoría es "Venta al Detalle" —
+  const esVenta = data.categoria === 'Venta al Detalle';
   const existing = trabajos.find(t => t.id === id);
   data.ventaDetalle = esVenta;
   if (esVenta) {
@@ -337,7 +337,7 @@ async function eliminarTrabajo(id) {
 function pdfTrabajo(id) { const t=trabajos.find(t=>t.id===id); if(t) generarPDFData(t); }
 
 /* ----------------------------------------------------------
-   Insumos — Descuento automático al entregar
+   Inventario — Descuento automático al entregar
 ---------------------------------------------------------- */
 async function descontarInventario(t) {
   if (t.inventarioDescontado) return;
@@ -386,11 +386,11 @@ async function descontarInventario(t) {
     if (idx !== -1) trabajos[idx].inventarioDescontado = true;
     if (ops.length > 0) {
       if (typeof renderInventario === 'function') renderInventario();
-      toast('Insumos actualizados ✓', 'success');
+      toast('Inventario actualizado ✓', 'success');
     }
   } catch(e) {
-    console.error('Error actualizando insumos:', e);
-    toast('Error al actualizar insumos', 'error');
+    console.error('Error actualizando inventario:', e);
+    toast('Error al actualizar inventario', 'error');
   }
 }
 
@@ -439,11 +439,11 @@ async function revertirInventario(t) {
     if (idx !== -1) trabajos[idx].inventarioDescontado = false;
     if (ops.length > 0) {
       if (typeof renderInventario === 'function') renderInventario();
-      toast('Insumos devueltos al stock ✓', 'success');
+      toast('Inventario devuelto al stock ✓', 'success');
     }
   } catch(e) {
-    console.error('Error revirtiendo insumos:', e);
-    toast('Error al revertir insumos', 'error');
+    console.error('Error revirtiendo inventario:', e);
+    toast('Error al revertir inventario', 'error');
   }
 }
 
@@ -938,7 +938,7 @@ function editarEnCotizador(id) {
   sv('c_cantidad',     t.cantidad    || 1);
   sv('c_placas',       t.placas      || 1);
   sv('c_notas',        t.notas       || '');
-  if (el('c_categoria')) el('c_categoria').value = (t.categoria === 'Venta al Detalle' ? 'Inventario Productos' : t.categoria) || 'Funcional';
+  if (el('c_categoria')) el('c_categoria').value = t.categoria || 'Funcional';
 
   sv('c_gramos',    t.gramos    || 0);
   sv('c_horas_imp', t.horas_imp || 0);
@@ -1088,7 +1088,7 @@ function abrirWhatsAppCliente(telefono) {
 }
 
 /* ----------------------------------------------------------
-   Insumos
+   Inventario
 ---------------------------------------------------------- */
 async function agregarFilamento() {
   const color = el('inv_color').value.trim();
@@ -1350,7 +1350,7 @@ function agregarMaterialCotizacion() {
   if(!sel?.value) { toast('Seleccioná un material', 'error'); return; }
   if(qty<=0)      { toast('Ingresá una cantidad mayor a 0', 'error'); return; }
   const m = filamentos.find(f=>f.id===sel.value);
-  if(!m) { toast('Material no encontrado en insumos', 'error'); return; }
+  if(!m) { toast('Material no encontrado en inventario', 'error'); return; }
   const pu = getMaterialPrecioUnitario(m);
   materialesAdicionalesCotizacion.push({
     materialId: m.id, nombre: getMaterialNombre(m),
@@ -1737,8 +1737,8 @@ function eliminarCategoriaCatalogo(nombre) {
   });
 }
 
-/** Si un nuevo lote de Inventario Productos no coincide con ningún producto
- *  del catálogo (por nombre), la registra automáticamente para que aparezca
+/** Si una nueva venta al detalle no coincide con ningún producto del
+ *  catálogo (por nombre), la registra automáticamente para que aparezca
  *  en el Catálogo de Productos y pueda editarse / agregarle foto. */
 async function _registrarEnCatalogoSiFalta(t) {
   const norm = s => (s || '').trim().toLowerCase();
@@ -1749,7 +1749,7 @@ async function _registrarEnCatalogoSiFalta(t) {
   const data = {
     id: genId(),
     nombre: t.pieza,
-    categoria: 'Inventario Productos',
+    categoria: 'Venta al Detalle',
     material: t.material || '',
     precio: totalUnidades > 0 ? Math.round((t.precio_final || 0) / totalUnidades) : 0,
     descripcion: t.notas || '',
@@ -1761,15 +1761,15 @@ async function _registrarEnCatalogoSiFalta(t) {
   try { await fbGuardarCatalogoProducto(data); } catch(e) { console.error('No se pudo registrar en catálogo:', e); }
 }
 
-/** Recorre todos los lotes de Inventario Productos existentes y registra en el
+/** Recorre todos los lotes de Venta al Detalle existentes y registra en el
  *  catálogo los que aún no tengan un producto correspondiente (por nombre).
  *  Útil para productos creados antes de que existiera el auto-registro. */
 async function sincronizarCatalogoDesdeVentas() {
   if (!trabajos.length) {
     try { trabajos = await fbCargarTrabajos(); } catch(e) { console.error(e); }
   }
-  const lotes = trabajos.filter(_esDetalle);
-  if (!lotes.length) { toast('No hay productos de Inventario Productos', 'error'); return; }
+  const lotes = trabajos.filter(t => t.ventaDetalle === true || t.categoria === 'Venta al Detalle');
+  if (!lotes.length) { toast('No hay productos de Venta al Detalle', 'error'); return; }
 
   const norm = s => (s || '').trim().toLowerCase();
   const nombresExistentes = new Set(catalogoProductos.map(p => norm(p.nombre)));
@@ -1811,7 +1811,7 @@ function _sinAcentos(s) {
 /** Crea las categorías sugeridas (si no existen) y reclasifica los
  *  productos actuales del catálogo según su nombre, usando reglas de
  *  palabras clave. No modifica productos que ya tengan asignada una
- *  categoría distinta de "General" o "Inventario Productos". */
+ *  categoría distinta de "General" o "Venta al Detalle". */
 async function clasificarCategoriasAutomaticamente() {
   const nuevasCategorias = [..._REGLAS_CATEGORIAS_AUTO.map(r => r.categoria)];
   let categoriasCreadas = 0;
@@ -1826,7 +1826,7 @@ async function clasificarCategoriasAutomaticamente() {
 
   let reclasificados = 0;
   for (const p of catalogoProductos) {
-    const sinCategoriaReal = !p.categoria || ['general', 'venta al detalle', 'inventario productos'].includes(p.categoria.toLowerCase());
+    const sinCategoriaReal = !p.categoria || ['general', 'venta al detalle'].includes(p.categoria.toLowerCase());
     if (!sinCategoriaReal) continue;
 
     const nombreNorm = _sinAcentos(p.nombre).toLowerCase();
@@ -2091,7 +2091,7 @@ document.fonts.ready.then(function(){ setTimeout(function(){ window.print(); }, 
 }
 
 /* ----------------------------------------------------------
-   Inventario Productos
+   Venta al Detalle
 ---------------------------------------------------------- */
 
 async function cargarVentaDetalle() {
@@ -2100,9 +2100,10 @@ async function cargarVentaDetalle() {
     if (!trabajos.length) trabajos = await fbCargarTrabajos();
     try { localStorage.setItem('trabajos3d', JSON.stringify(trabajos)); } catch(e){}
 
-    // Incluye tanto los que tienen ventaDetalle:true como los que tienen
-    // categoria "Inventario Productos" (o el nombre legado "Venta al Detalle")
-    const lotes = trabajos.filter(_esDetalle);
+    // Incluir tanto los que tienen ventaDetalle:true como los que
+    // tienen categoria "Venta al Detalle" (registros creados antes del flag)
+    const esLote = t => t.ventaDetalle === true || t.categoria === 'Venta al Detalle';
+    const lotes  = trabajos.filter(esLote);
 
     // Auto-corregir agotados: los que tienen todas las unidades vendidas
     // y todavía no están marcados como Entregado + Pagado
@@ -2133,7 +2134,7 @@ async function cargarVentaDetalle() {
     if (detalleVista === 'pedidos') renderPedidosOnline();
   } catch(e) {
     console.error(e);
-    toast('Error al cargar Inventario Productos', 'error');
+    toast('Error al cargar ventas al detalle', 'error');
   }
 }
 
@@ -2518,7 +2519,7 @@ async function _procesarAprobacionPedido(id) {
 
     // Lotes activos con ese nombre, ordenados por fecha (más antiguos primero)
     const lotes = trabajos
-      .filter(t => _esDetalle(t) &&
+      .filter(t => (t.ventaDetalle === true || t.categoria === 'Venta al Detalle') &&
                    t.estado !== 'Cancelado' &&
                    norm(t.pieza) === norm(item.nombre))
       .sort((a, b) => (a.fecha || '').localeCompare(b.fecha || ''));
@@ -3058,18 +3059,18 @@ document.fonts.ready.then(function(){ setTimeout(function(){ window.print(); }, 
 }
 
 /* ----------------------------------------------------------
-   Inventario Productos — Generar Lista de Precios (PDF)
+   Venta al Detalle — Generar Lista de Precios (PDF)
 ---------------------------------------------------------- */
 function generarListaPrecios() {
   // Filtrar lotes activos (misma lógica que renderVentaDetalle)
   const lotes = trabajos.filter(l =>
-    _esDetalle(l) &&
+    l.categoria === 'Venta al Detalle' &&
     l.estado !== 'Cancelado' &&
     (l.unidadesVendidas || 0) < _totalUnidadesDetalle(l)
   );
 
   if (!lotes.length) {
-    toast('No hay productos disponibles en Inventario Productos para exportar', 'error');
+    toast('No hay productos disponibles en Venta al Detalle para exportar', 'error');
     return;
   }
 
@@ -3184,7 +3185,7 @@ body{min-height:100vh;padding:20px 0 80px;display:flex;justify-content:center;al
         <div>
           <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.5);letter-spacing:.15em;text-transform:uppercase;margin-bottom:4px">Pin&amp;Pon 3D — Impresión 3D Personalizada</div>
           <div style="font-size:30px;font-weight:800;color:#ffffff;letter-spacing:-.02em;line-height:1">LISTA DE PRECIOS</div>
-          <div style="font-size:12px;color:rgba(255,255,255,.45);margin-top:5px;font-weight:400">Precios unitarios al público · Inventario Productos</div>
+          <div style="font-size:12px;color:rgba(255,255,255,.45);margin-top:5px;font-weight:400">Precios unitarios al público · Venta al detalle</div>
         </div>
       </div>
 
@@ -3987,7 +3988,7 @@ async function exportarTodosCSV() {
   /* 1 — Todos los trabajos (filtrar por estado/estadoPago en Power BI) */
   zip.file('trabajos.csv', _csvStr([_HDR_COT, ...trabajos.map(_filaCot)]));
 
-  /* 2 — Historial de ventas de Inventario Productos */
+  /* 2 — Historial de ventas al detalle */
   const filasVentas = [['cotizacion_id','pieza','cliente','categoria','fecha_venta','cantidad','es_devolucion','nota']];
   trabajos.filter(t => (t.historialVentas||[]).length).forEach(t => {
     (t.historialVentas||[]).forEach(v => filasVentas.push([
