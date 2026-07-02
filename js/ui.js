@@ -831,125 +831,66 @@ function renderHistorialAbonos(t) {
    Inventario Productos — render de lotes
 ---------------------------------------------------------- */
 function renderVentaDetalle(lotes) {
-  const grid    = el('detalle-grid');
+  const table   = el('detalle-table');
+  const tbody   = el('detalle-tbody');
   const emptyEl = el('detalle-empty');
-  if (!grid) return;
+  if (!tbody) return;
 
   // Ocultar solo cancelados — los agotados se mantienen visibles para
   // poder reabastecerlos (agregarles más unidades) sin perderlos de vista
   const activos = (lotes || []).filter(l => l.estado !== 'Cancelado');
 
   if (!activos.length) {
-    grid.innerHTML = '';
+    tbody.innerHTML = '';
+    if (table)   table.style.display   = 'none';
     if (emptyEl) emptyEl.style.display = 'flex';
     return;
   }
+  if (table)   table.style.display   = 'table';
   if (emptyEl) emptyEl.style.display = 'none';
 
-  grid.innerHTML = activos.map(l => {
-    const total      = _totalUnidadesDetalle(l);
-    const vendidas   = Math.min(l.unidadesVendidas || 0, total);
+  tbody.innerHTML = activos.map(l => {
+    const total       = _totalUnidadesDetalle(l);
+    const vendidas    = Math.min(l.unidadesVendidas || 0, total);
     const disponibles = total - vendidas;
-    const pct        = Math.round((vendidas / total) * 100);
-    const precioUnit = total > 0 ? (l.precio_final || 0) / total : 0;
-    const recaudado  = vendidas * precioUnit;
-    const potencial  = l.precio_final || 0;
-    const agotado    = disponibles === 0;
+    const precioUnit  = total > 0 ? (l.precio_final || 0) / total : 0;
+    const recaudado   = vendidas * precioUnit;
+    const potencial   = l.precio_final || 0;
+    const agotado     = disponibles === 0;
+    const histLen     = (l.historialVentas || []).length;
 
-    const histItems = (l.historialVentas || [])
-      .slice()
-      .reverse()
-      .map(v => {
-        const esDev = (v.cantidad || 0) < 0;
-        const cantLabel = esDev
-          ? `<span class="vd-hist-cant" style="color:var(--danger,#dc2626)">−${Math.abs(v.cantidad)}</span>`
-          : `<span class="vd-hist-cant">+${v.cantidad}</span>`;
-        return `
-          <div class="vd-hist-item">
-            <span class="vd-hist-fecha">${(v.fecha||'').split('T')[0] || '—'}</span>
-            ${cantLabel}
-            ${v.nota ? `<span class="vd-hist-nota">${escHtml(v.nota)}</span>` : ''}
-          </div>`;
-      }).join('');
-
-    const histLen = (l.historialVentas || []).length;
-
-    return `
-    <div class="vd-card${agotado ? ' vd-agotado' : ''}">
-
-      <div class="vd-header">
-        <div>
-          <div class="vd-nombre">${escHtml(l.pieza || '—')}</div>
-          <div class="vd-meta">
-            <span class="badge badge-gray">${escHtml(l.categoria || 'General')}</span>
-            ${l.material ? `<span style="font-size:.74rem;color:var(--text2)">${escHtml(l.material)}</span>` : ''}
-            ${l.fecha    ? `<span style="font-size:.74rem;color:var(--text2)">${l.fecha}</span>` : ''}
-          </div>
-        </div>
-        ${agotado
-          ? `<span class="badge badge-success" style="align-self:flex-start;white-space:nowrap">Agotado ✓</span>`
-          : `<span class="badge badge-accent"  style="align-self:flex-start;white-space:nowrap">${disponibles} disp.</span>`}
-      </div>
-
-      <!-- Barra de progreso -->
-      <div class="vd-progress-wrap">
-        <div class="vd-progress-bar">
-          <div class="vd-progress-fill" style="width:${pct}%"></div>
-        </div>
-        <div class="vd-progress-labels">
-          <span>${vendidas} vendida${vendidas !== 1 ? 's' : ''}</span>
-          <span>${pct}% de ${total}</span>
-        </div>
-      </div>
-
-      <!-- Stats -->
-      <div class="vd-stats">
-        <div class="vd-stat">
-          <div class="vd-stat-lbl">Precio unitario</div>
-          <div class="vd-stat-val">₡${precioUnit.toLocaleString('es-CR')}</div>
-        </div>
-        <div class="vd-stat">
-          <div class="vd-stat-lbl">Recaudado</div>
-          <div class="vd-stat-val vd-stat-green">₡${recaudado.toLocaleString('es-CR')}</div>
-        </div>
-        <div class="vd-stat">
-          <div class="vd-stat-lbl">Potencial total</div>
-          <div class="vd-stat-val">₡${potencial.toLocaleString('es-CR')}</div>
-        </div>
-        <div class="vd-stat">
-          <div class="vd-stat-lbl">Disponibles</div>
-          <div class="vd-stat-val${agotado ? ' vd-stat-gray' : ''}">${disponibles}</div>
-        </div>
-      </div>
-
-      <!-- Acción -->
-      <div style="display:flex;gap:8px">
-        ${agotado
-          ? `<div style="flex:1;text-align:center;font-size:.8rem;color:var(--text2);padding:4px 0">✓ Todas las unidades vendidas</div>`
-          : `<button class="btn btn-primary btn-sm" style="flex:1" onclick="abrirModalVenta('${l.id}')">
-               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-               Registrar venta
-             </button>`}
-        ${vendidas > 0
-          ? `<button class="btn btn-secondary btn-sm" onclick="abrirModalDevolucion('${l.id}')" title="Devolver unidades">
-               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>
-               Devolver
-             </button>`
-          : ''}
-        <button class="btn btn-secondary btn-sm" onclick="abrirModalReabastecer('${l.id}')" title="Agregar más unidades al stock">
+    return `<tr class="${agotado ? 'vd-agotado' : ''}">
+      <td>
+        <strong>${escHtml(l.pieza || '—')}</strong>
+        ${l.material ? `<br><span style="font-size:.68rem;color:var(--text3)">${escHtml(l.material)}</span>` : ''}
+      </td>
+      <td class="td-mono">${fmt(precioUnit)}</td>
+      <td class="td-mono">
+        <strong>${disponibles}</strong> disp.
+        <div style="font-size:.68rem;color:var(--text3);margin-top:2px">${vendidas} de ${total} vendidas</div>
+      </td>
+      <td class="td-mono" style="color:#16a34a">${fmt(recaudado)}</td>
+      <td class="td-mono">${fmt(potencial)}</td>
+      <td>${agotado
+        ? `<span class="badge badge-success">Agotado ✓</span>`
+        : `<span class="badge badge-accent">Activo</span>`}</td>
+      <td><div class="td-actions">
+        ${!agotado ? `
+        <button class="btn btn-primary btn-icon btn-sm" title="Registrar venta" onclick="abrirModalVenta('${l.id}')">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          Reabastecer
+        </button>` : ''}
+        ${vendidas > 0 ? `
+        <button class="btn btn-ghost btn-icon btn-sm" title="Devolver unidades" onclick="abrirModalDevolucion('${l.id}')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>
+        </button>` : ''}
+        <button class="btn btn-ghost btn-icon btn-sm" title="Agregar más unidades al stock" onclick="abrirModalReabastecer('${l.id}')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         </button>
-      </div>
-
-      <!-- Historial -->
-      ${histLen > 0 ? `
-      <div class="vd-hist">
-        <div class="vd-hist-title">Historial (${histLen} transacción${histLen !== 1 ? 'es' : ''})</div>
-        <div class="vd-hist-list">${histItems}</div>
-      </div>` : ''}
-
-    </div>`;
+        <button class="btn btn-ghost btn-icon btn-sm" title="Ver historial (${histLen})" onclick="abrirModalHistorialVD('${l.id}')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </button>
+      </div></td>
+    </tr>`;
   }).join('');
 }
 

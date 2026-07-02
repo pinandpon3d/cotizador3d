@@ -2247,6 +2247,40 @@ async function guardarReabastecimiento() {
   }
 }
 
+/** Muestra el historial de ventas/devoluciones de un lote de Inventario
+ *  Productos (antes se mostraba siempre expandido dentro de la tarjeta). */
+function abrirModalHistorialVD(id) {
+  const t = trabajos.find(t => t.id === id);
+  if (!t) return;
+  set('hvd-pieza', t.pieza || '—');
+
+  const hist  = (t.historialVentas || []).slice().reverse();
+  const lista = el('hvd-lista');
+  if (lista) {
+    lista.innerHTML = hist.map(v => {
+      const esDev = (v.cantidad || 0) < 0;
+      const cantLabel = esDev
+        ? `<span class="vd-hist-cant" style="color:var(--danger,#dc2626)">−${Math.abs(v.cantidad)}</span>`
+        : `<span class="vd-hist-cant">+${v.cantidad}</span>`;
+      return `<div class="vd-hist-item">
+        <span class="vd-hist-fecha">${(v.fecha||'').split('T')[0] || '—'}</span>
+        ${cantLabel}
+        ${v.nota ? `<span class="vd-hist-nota">${escHtml(v.nota)}</span>` : ''}
+      </div>`;
+    }).join('');
+  }
+  const vacio = el('hvd-empty');
+  if (vacio) vacio.style.display = hist.length ? 'none' : 'block';
+
+  const mv = el('modal-historial-vd');
+  if (mv) mv.style.display = 'flex';
+}
+
+function cerrarModalHistorialVD() {
+  const mv = el('modal-historial-vd');
+  if (mv) mv.style.display = 'none';
+}
+
 async function guardarVenta() {
   const id        = el('mv-id')?.value;
   const tipo      = el('mv-tipo')?.value || 'venta';
