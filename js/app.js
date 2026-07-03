@@ -1976,9 +1976,40 @@ function generarCatalogoPDF() {
 
   const cfg = { ...CATALOGO_DEFAULTS, ...catalogoConfig };
   const base = new URL('.', window.location.href).href;
-  const logoUrl = base + 'img/Nombre-PNG.png';
+  const foxHeadUrl = base + 'img/marca/fox-head.png';
 
-  // Agrupar por categoría (orden de primera aparición) y paginar de 6 en 6
+  let empNombre = 'Pin&Pon 3D', empEmail = '';
+  try {
+    const emp = JSON.parse(localStorage.getItem('emp3d') || '{}');
+    if (emp.emp_nombre) empNombre = emp.emp_nombre;
+    if (emp.emp_email) empEmail = emp.emp_email;
+  } catch (e) {}
+
+  // Logotipo estilizado "Pin&Pon 3D": separa el "&" y aísla el sufijo "3D" en un chip
+  function wordmarkHtml(nombre, opts) {
+    opts = opts || {};
+    const ampColor = opts.ampColor || '#F0B429';
+    const chipBg   = opts.chipBg   || '#2E77B5';
+    const parts = String(nombre || 'Pin&Pon 3D').split('&');
+    if (parts.length !== 2) return escHtml(nombre);
+    let right = parts[1];
+    let chip  = '';
+    const m = right.match(/\s*(3D)\s*$/i);
+    if (m) {
+      right = right.slice(0, m.index);
+      chip  = `<span class="pp-wm-chip" style="background:${chipBg}">${escHtml(m[1].toUpperCase())}</span>`;
+    }
+    return `${escHtml(parts[0])}<span class="pp-wm-amp" style="color:${ampColor}">&amp;</span>${escHtml(right)}${chip}`;
+  }
+
+  // Acentos de color por categoría (rotan cada 3)
+  const ACCENTS = [
+    { accent: '#2E77B5', tint: '#EAF2F9' },
+    { accent: '#C98A00', tint: '#FCF3DE' },
+    { accent: '#16324A', tint: '#EAEEF2' },
+  ];
+
+  // Agrupar por categoría (orden de primera aparición) y paginar de 4 en 4 (grilla 2×2)
   const porCategoria = new Map();
   catalogoProductos.forEach(p => {
     const cat = p.categoria || 'General';
@@ -1990,67 +2021,114 @@ function generarCatalogoPDF() {
   const paginas = [];
   categorias.forEach((cat, ci) => {
     const items = porCategoria.get(cat);
-    for (let i = 0; i < items.length; i += 6) {
-      paginas.push({ categoria: cat, catIndex: ci + 1, items: items.slice(i, i + 6) });
+    const { accent, tint } = ACCENTS[ci % ACCENTS.length];
+    for (let i = 0; i < items.length; i += 4) {
+      paginas.push({ categoria: cat, catIndex: ci + 1, accent, tint, items: items.slice(i, i + 4) });
     }
   });
   paginas.forEach((pg, i) => { pg.pageNo = i + 1; pg.pageTotal = paginas.length; });
 
   const precioFmt = n => '₡' + Math.ceil(n || 0).toLocaleString('es-CR');
 
-  const itemHtml = (p, idx) => `
+  const itemHtml = (p, idx, accent, tint) => `
     <div class="pp-item">
-      ${p.imagen ? `<img class="pp-item-img" src="${p.imagen}" alt="">` : `<div class="pp-item-noimg">Sin imagen</div>`}
-      <div class="pp-item-row">
-        <span class="pp-item-num">${idx + 1}</span>
-        <span class="pp-item-mat">${escHtml(p.material || '')}</span>
-        <span class="pp-item-price">${precioFmt(p.precio)}</span>
+      <div class="pp-item-bar" style="background:${accent}"></div>
+      ${p.imagen
+        ? `<img class="pp-item-img" src="${p.imagen}" alt="" style="background:${tint}">`
+        : `<div class="pp-item-noimg" style="background:${tint}">Foto del producto</div>`}
+      <div class="pp-item-body">
+        <div class="pp-item-row">
+          <span class="pp-item-num">${idx + 1}</span>
+          <span class="pp-item-price" style="background:${accent}">${precioFmt(p.precio)}</span>
+        </div>
+        <div class="pp-item-name">${escHtml((p.nombre || '').toUpperCase())}</div>
+        ${p.material ? `<div class="pp-item-mat">${escHtml(p.material)}</div>` : ''}
+        ${p.descripcion ? `<div class="pp-item-desc">${escHtml(p.descripcion)}</div>` : ''}
       </div>
-      <div class="pp-item-name">${escHtml(p.nombre || '')}</div>
-      ${p.descripcion ? `<div class="pp-item-desc">${escHtml(p.descripcion)}</div>` : ''}
     </div>`;
 
   const paginaHtml = pg => `
     <div class="pp-page">
-      <div class="pp-prod-page">
-        <div class="pp-prod-hdr">
-          <div>
-            <div class="pp-prod-eyebrow">Categoría ${String(pg.catIndex).padStart(2,'0')}</div>
-            <div class="pp-prod-cat">${escHtml(pg.categoria)}</div>
+      <div class="pp-cat-page">
+        <div class="pp-masthead">
+          <div class="pp-masthead-brand">
+            <img src="${foxHeadUrl}" alt="">
+            <span>${escHtml(empNombre)}</span>
           </div>
-          <div class="pp-prod-pageno">${pg.pageNo} / ${pg.pageTotal}</div>
+          <span class="pp-masthead-tag">Catálogo de Productos · ${pg.pageNo}/${pg.pageTotal}</span>
+        </div>
+        <div class="pp-cat-hdr">
+          <div class="pp-cat-eyebrow-row">
+            <span class="pp-cat-tri" style="color:${pg.accent}"></span>
+            <span class="pp-cat-eyebrow" style="color:${pg.accent}">Categoría ${String(pg.catIndex).padStart(2,'0')}</span>
+          </div>
+          <h1 class="pp-cat-title">${escHtml(pg.categoria)}</h1>
+          <div class="pp-cat-rule" style="background:${pg.accent}"></div>
         </div>
         <div class="pp-grid">
-          ${pg.items.map(itemHtml).join('')}
+          ${pg.items.map((p, idx) => itemHtml(p, idx, pg.accent, pg.tint)).join('')}
         </div>
-        <div class="pp-prod-foot">Pin&amp;Pon 3D — Impresión 3D Personalizada · Pedidos por WhatsApp ${escHtml(cfg.back_wa)}</div>
+        <div class="pp-foot">
+          <span>© ${new Date().getFullYear()} ${escHtml(empNombre)} — Impresión y diseño 3D</span>
+          <span>Precios en colones (₡) · sujetos a cambio sin previo aviso</span>
+        </div>
       </div>
     </div>`;
+
+  const contactFrags = String(cfg.cover_contact || '').split('·').map(s => s.trim()).filter(Boolean).slice(0, 3);
+  const pillStyles = [
+    { bg: '#16324A', color: '#fff', border: 'none' },
+    { bg: '#fff',    color: '#16324A', border: '2px solid #F0B429' },
+    { bg: '#fff',    color: '#16324A', border: '2px solid #2E77B5' },
+  ];
+  const contactPillsHtml = contactFrags.map((frag, i) => {
+    const st = pillStyles[i % pillStyles.length];
+    return `<span class="pp-cover-pill" style="background:${st.bg};color:${st.color};border:${st.border}">${escHtml(frag)}</span>`;
+  }).join('');
 
   const coverHtml = `
     <div class="pp-page">
       <div class="pp-cover">
-        <div class="pp-cover-frame"></div>
-        <div class="pp-cover-kicker">${escHtml(cfg.cover_kicker)}</div>
-        <img class="pp-logo" src="${logoUrl}" alt="Pin&amp;Pon 3D">
-        <h1>${escHtml(cfg.cover_title)}</h1>
+        <span class="pp-tri" style="top:56px;left:70px;width:22px;height:22px;background:#2E77B5;transform:rotate(-12deg)"></span>
+        <span class="pp-tri" style="top:120px;left:130px;width:14px;height:14px;background:#F0B429;transform:rotate(18deg)"></span>
+        <span class="pp-tri" style="top:90px;right:110px;width:18px;height:18px;background:#F0B429;transform:rotate(35deg)"></span>
+        <span class="pp-tri" style="top:170px;right:60px;width:26px;height:26px;background:#16324A;transform:rotate(-20deg);opacity:.85"></span>
+        <span class="pp-tri" style="bottom:130px;left:60px;width:24px;height:24px;background:#16324A;transform:rotate(8deg);opacity:.85"></span>
+        <span class="pp-tri" style="bottom:80px;left:150px;width:15px;height:15px;background:#2E77B5;transform:rotate(-30deg)"></span>
+        <span class="pp-tri" style="bottom:150px;right:90px;width:20px;height:20px;background:#2E77B5;transform:rotate(50deg)"></span>
+        <span class="pp-tri" style="bottom:70px;right:170px;width:16px;height:16px;background:#F0B429;transform:rotate(-6deg)"></span>
+
+        <span class="pp-cover-badge">${escHtml(cfg.cover_kicker)}</span>
+
+        <div class="pp-cover-medallion">
+          <div class="pp-cover-medallion-ring"></div>
+          <div class="pp-cover-medallion-circle"><img src="${foxHeadUrl}" alt=""></div>
+        </div>
+
+        <div class="pp-cover-wordmark">${wordmarkHtml(empNombre)}</div>
+        <div class="pp-cover-subtitle">${escHtml(cfg.cover_title)}</div>
         <div class="pp-cover-edition">${escHtml(cfg.cover_edition)}</div>
-        <div class="pp-cover-contact">${escHtml(cfg.cover_contact)}</div>
-        <div class="pp-cover-tag">${escHtml(cfg.cover_tag)}</div>
+        <p class="pp-cover-tag">${escHtml(cfg.cover_tag)}</p>
+        ${contactPillsHtml ? `<div class="pp-cover-pills">${contactPillsHtml}</div>` : ''}
       </div>
     </div>`;
+
+  const backContactLines = [];
+  if (cfg.back_wa) backContactLines.push(`WhatsApp — ${escHtml(cfg.back_wa)}`);
+  if (cfg.back_ig) backContactLines.push(`Instagram — ${escHtml(cfg.back_ig)}`);
+  if (empEmail)     backContactLines.push(`Correo — ${escHtml(empEmail)}`);
 
   const backHtml = `
     <div class="pp-page">
       <div class="pp-back">
-        <div class="pp-back-kicker">Hagamos tu proyecto</div>
-        <h2>${escHtml(cfg.back_title)}</h2>
-        <p>${escHtml(cfg.back_text)}</p>
-        <div class="pp-back-contact">
-          <span>💬 WhatsApp ${escHtml(cfg.back_wa)}</span>
-          <span>📷 ${escHtml(cfg.back_ig)}</span>
-        </div>
-        <div class="pp-back-word">Pin<b>&amp;</b>Pon 3D</div>
+        <span class="pp-back-tri-tr"></span>
+        <span class="pp-back-tri-bl"></span>
+        <span class="pp-back-eyebrow">Hagamos tu proyecto</span>
+        <h2 class="pp-back-title">${escHtml(cfg.back_title)}</h2>
+        <p class="pp-back-text">${escHtml(cfg.back_text)}</p>
+        ${backContactLines.length ? `<div class="pp-back-contact">${backContactLines.map(l => `<span>${l}</span>`).join('')}</div>` : ''}
+        <div class="pp-back-medallion"><img src="${foxHeadUrl}" alt=""></div>
+        <div class="pp-back-word">${wordmarkHtml(empNombre)}</div>
       </div>
     </div>`;
 
@@ -2058,59 +2136,81 @@ function generarCatalogoPDF() {
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Catálogo de Productos — Pin&amp;Pon 3D</title>
+<title>Catálogo de Productos — ${escHtml(empNombre)}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700&family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500&family=Nunito:wght@400;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{background:#ECEEF3;font-family:"Nunito",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+html,body{background:#ECEEF3;font-family:"Manrope",system-ui,sans-serif;-webkit-font-smoothing:antialiased;color:#26333F}
 body{min-height:100vh;padding:24px 0 80px;display:flex;flex-direction:column;align-items:center;gap:24px}
-.pp-page{width:794px;height:1123px;background:#fff;position:relative;overflow:hidden;box-shadow:0 20px 60px -16px rgba(15,42,69,.22),0 4px 16px rgba(15,42,69,.1);flex-shrink:0}
-@page{size:A4;margin:0}
-@media screen and (max-width:820px){body{padding:0;gap:0}.pp-page{box-shadow:none;width:100%;height:auto;min-height:100vh}}
+.pp-page{width:816px;height:1056px;background:#fff;position:relative;overflow:hidden;box-shadow:0 20px 60px -16px rgba(22,50,74,.22),0 4px 16px rgba(22,50,74,.1);flex-shrink:0}
+@page{size:letter;margin:0}
+@media screen and (max-width:860px){body{padding:0;gap:0}.pp-page{box-shadow:none;width:100%;height:auto;min-height:100vh}}
 @media print{html,body{background:#fff;padding:0;margin:0;gap:0}.pp-page{box-shadow:none;width:100%;height:100vh;page-break-after:always}.pp-page:last-child{page-break-after:auto}.print-fab{display:none!important}}
 
-.print-fab{position:fixed;bottom:24px;right:24px;background:#16335B;color:#fff;border:none;border-radius:10px;padding:14px 22px;font-size:14px;font-family:"Nunito",sans-serif;font-weight:800;cursor:pointer;z-index:100;box-shadow:0 4px 16px rgba(10,31,61,.35)}
+.print-fab{position:fixed;bottom:24px;right:24px;background:#16324A;color:#fff;border:none;border-radius:10px;padding:14px 22px;font-size:14px;font-family:"Manrope",sans-serif;font-weight:800;cursor:pointer;z-index:100;box-shadow:0 4px 16px rgba(10,31,61,.35)}
 .print-fab:hover{background:#1f4576}
 
-/* Portada */
-.pp-cover{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;height:100%;padding:60px;position:relative;background:#fff}
-.pp-cover-frame{position:absolute;inset:36px;border:2px solid #16335B}
-.pp-cover-frame::before{content:'';position:absolute;inset:14px;border:1px solid #F2C40F}
-.pp-cover-kicker{font-family:"Baloo 2",sans-serif;font-weight:700;letter-spacing:.18em;text-transform:uppercase;font-size:13px;color:#F2C40F;background:#16335B;padding:8px 22px;border-radius:30px;margin-bottom:28px}
-.pp-cover img.pp-logo{width:140px;margin-bottom:24px}
-.pp-cover h1{font-family:"Cormorant Garamond",serif;font-weight:700;font-size:56px;color:#16335B;line-height:1.05;margin-bottom:18px}
-.pp-cover-edition{font-family:"Baloo 2",sans-serif;font-weight:600;font-size:15px;color:#16335B;letter-spacing:.04em;margin-bottom:50px}
-.pp-cover-contact{font-family:"Nunito",sans-serif;font-weight:700;font-size:14px;color:#16335B;margin-bottom:10px}
-.pp-cover-tag{font-family:"Cormorant Garamond",serif;font-style:italic;font-weight:500;font-size:18px;color:#5b6f86}
+.pp-wm-amp{font-style:italic}
+.pp-wm-chip{display:inline-flex;align-items:center;justify-content:center;color:#fff;font-family:"Manrope",sans-serif;font-weight:800;border-radius:8px;margin-left:6px;vertical-align:middle;transform:rotate(6deg)}
 
-/* Página de productos */
-.pp-prod-page{display:flex;flex-direction:column;height:100%;padding:48px 52px}
-.pp-prod-hdr{display:flex;justify-content:space-between;align-items:baseline;border-bottom:3px solid #F2C40F;padding-bottom:16px;margin-bottom:28px}
-.pp-prod-eyebrow{font-family:"Baloo 2",sans-serif;font-weight:700;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#F2C40F}
-.pp-prod-cat{font-family:"Cormorant Garamond",serif;font-weight:700;font-size:30px;color:#16335B;margin-top:4px}
-.pp-prod-pageno{font-family:"Nunito",sans-serif;font-weight:800;font-size:13px;color:#9aa7b7}
-.pp-grid{flex:1;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:repeat(3,1fr);gap:20px 28px}
-.pp-item{display:flex;flex-direction:column;border-bottom:1px solid #e7e9ee;padding-bottom:10px;overflow:hidden}
-.pp-item-img{width:100%;height:170px;border-radius:8px;object-fit:cover;background:#F5F6FA;margin-bottom:10px}
-.pp-item-noimg{width:100%;height:170px;border-radius:8px;background:#F5F6FA;margin-bottom:10px;display:flex;align-items:center;justify-content:center;color:#c3cad4;font-size:11px;font-family:"Nunito",sans-serif}
-.pp-item-row{display:flex;align-items:center;gap:8px;margin-bottom:4px}
-.pp-item-num{font-family:"Baloo 2",sans-serif;font-weight:700;font-size:11px;color:#fff;background:#16335B;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.pp-item-mat{font-family:"Nunito",sans-serif;font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:#8a96a6;flex:1}
-.pp-item-price{font-family:"Baloo 2",sans-serif;font-weight:700;font-size:15px;color:#16335B}
-.pp-item-name{font-family:"Cormorant Garamond",serif;font-weight:600;font-size:17px;color:#16335B;margin-bottom:3px}
-.pp-item-desc{font-family:"Nunito",sans-serif;font-size:11px;color:#6b7686;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.pp-prod-foot{margin-top:18px;padding-top:14px;border-top:1px solid #e7e9ee;text-align:center;font-family:"Nunito",sans-serif;font-size:10px;color:#9aa7b7}
+/* Portada */
+.pp-cover{height:100%;background:#F7F4EE;position:relative;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:12px;padding:0.6in}
+.pp-tri{position:absolute;clip-path:polygon(50% 0%,100% 100%,0% 100%)}
+.pp-cover-badge{font-family:"Manrope",sans-serif;font-size:11.5px;font-weight:800;letter-spacing:.28em;text-transform:uppercase;color:#fff;background:#2E77B5;padding:7px 20px;border-radius:20px;transform:rotate(-2deg);box-shadow:0 6px 14px rgba(46,119,181,.3)}
+.pp-cover-medallion{position:relative;margin:14px 0 4px}
+.pp-cover-medallion-ring{position:absolute;inset:-14px;border:3px dashed #F0B429;border-radius:50%;transform:rotate(-8deg)}
+.pp-cover-medallion-circle{position:relative;background:#fff;border-radius:50%;width:230px;height:230px;display:flex;align-items:center;justify-content:center;box-shadow:0 20px 40px rgba(22,50,74,.18)}
+.pp-cover-medallion-circle img{width:168px;height:auto}
+.pp-cover-wordmark{font-family:"Playfair Display",serif;font-weight:700;font-size:54px;line-height:1;color:#16324A;margin-top:4px}
+.pp-cover-wordmark .pp-wm-chip{font-size:19px;padding:4px 11px}
+.pp-cover-subtitle{font-family:"Manrope",sans-serif;font-weight:700;font-size:16px;color:#2E77B5}
+.pp-cover-edition{font-family:"Manrope",sans-serif;font-weight:600;font-size:13px;color:#16324A;letter-spacing:.06em;opacity:.75}
+.pp-cover-tag{font-family:"Playfair Display",serif;font-style:italic;font-size:20px;color:#2E77B5;max-width:440px;line-height:1.45;margin-top:2px}
+.pp-cover-pills{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap;justify-content:center}
+.pp-cover-pill{font-size:12px;font-weight:700;padding:7px 16px;border-radius:20px;font-family:"Manrope",sans-serif}
+
+/* Masthead + página de categoría */
+.pp-cat-page{display:flex;flex-direction:column;height:100%;padding:0.6in}
+.pp-masthead{display:flex;align-items:center;justify-content:space-between;padding-bottom:10px;border-bottom:2px solid #F0B429;margin-bottom:22px}
+.pp-masthead-brand{display:flex;align-items:center;gap:10px}
+.pp-masthead-brand img{height:34px;width:auto}
+.pp-masthead-brand span{font-family:"Playfair Display",serif;font-weight:700;font-size:15px;color:#16324A}
+.pp-masthead-tag{font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#2E77B5}
+.pp-cat-eyebrow-row{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.pp-cat-tri{width:0;height:0;border-style:solid;border-width:0 8px 14px 8px;border-color:transparent transparent currentColor transparent}
+.pp-cat-eyebrow{font-size:11px;font-weight:800;letter-spacing:.16em;text-transform:uppercase}
+.pp-cat-title{font-family:"Playfair Display",serif;font-weight:700;font-size:34px;color:#16324A;margin:0 0 12px}
+.pp-cat-rule{height:4px;width:64px;border-radius:2px;margin-bottom:22px}
+
+.pp-grid{flex:1;display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:min-content;align-content:start;gap:22px 22px}
+.pp-item{display:flex;flex-direction:column;background:#fff;border:1px solid #eceef1;border-radius:16px;overflow:hidden;box-shadow:0 6px 18px rgba(22,50,74,.08)}
+.pp-item-bar{height:5px}
+.pp-item-img{width:100%;height:190px;object-fit:cover;display:block}
+.pp-item-noimg{width:100%;height:190px;display:flex;align-items:center;justify-content:center;color:#8a95a1;font-size:11px;font-family:"Manrope",sans-serif}
+.pp-item-body{padding:14px 16px 16px;display:flex;flex-direction:column;gap:6px}
+.pp-item-row{display:flex;align-items:center;justify-content:space-between}
+.pp-item-num{display:flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:#16324A;color:#fff;font-size:10.5px;font-weight:700;font-family:"Manrope",sans-serif;flex-shrink:0}
+.pp-item-price{font-size:14px;font-weight:800;color:#fff;padding:4px 12px;border-radius:20px;font-family:"Manrope",sans-serif}
+.pp-item-name{font-family:"Playfair Display",serif;font-weight:700;font-size:15.5px;color:#16324A;line-height:1.3;text-transform:uppercase;letter-spacing:.01em}
+.pp-item-mat{font-family:"Manrope",sans-serif;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#9aa7b7}
+.pp-item-desc{font-family:"Manrope",sans-serif;font-size:11px;color:#6b7686;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+
+.pp-foot{margin-top:18px;padding-top:12px;border-top:1px solid #dfe3e8;display:flex;justify-content:space-between;font-family:"Manrope",sans-serif;font-size:9.5px;color:#8a95a1}
 
 /* Contraportada */
-.pp-back{height:100%;background:#16335B;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:70px}
-.pp-back-kicker{font-family:"Baloo 2",sans-serif;font-weight:700;letter-spacing:.18em;text-transform:uppercase;font-size:13px;color:#F2C40F;margin-bottom:22px}
-.pp-back h2{font-family:"Cormorant Garamond",serif;font-weight:700;font-size:40px;line-height:1.15;margin-bottom:18px;max-width:520px}
-.pp-back p{font-family:"Nunito",sans-serif;font-size:15px;color:rgba(255,255,255,.78);max-width:480px;line-height:1.6;margin-bottom:40px}
-.pp-back-contact{display:flex;gap:32px;margin-bottom:60px;font-family:"Nunito",sans-serif;font-weight:700;font-size:15px}
-.pp-back-word{font-family:"Cormorant Garamond",serif;font-weight:700;font-size:22px;letter-spacing:.02em}
-.pp-back-word b{color:#F2C40F}
+.pp-back{height:100%;background:#16324A;color:#fff;position:relative;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:16px;padding:0.6in}
+.pp-back-tri-tr{position:absolute;top:0;right:0;width:0;height:0;border-style:solid;border-width:0 200px 200px 0;border-color:transparent #2E77B5 transparent transparent;opacity:.5}
+.pp-back-tri-bl{position:absolute;bottom:0;left:0;width:0;height:0;border-style:solid;border-width:0 0 160px 170px;border-color:transparent transparent #F0B429 transparent;opacity:.35}
+.pp-back-eyebrow{position:relative;font-size:11px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:#F0B429}
+.pp-back-title{position:relative;font-family:"Playfair Display",serif;font-weight:700;font-size:32px;margin:0;max-width:480px}
+.pp-back-text{position:relative;max-width:420px;font-size:14px;line-height:1.6;color:#cfd9e3;font-family:"Manrope",sans-serif}
+.pp-back-contact{position:relative;display:flex;flex-direction:column;gap:10px;margin-top:4px;font-size:14.5px;font-weight:600;font-family:"Manrope",sans-serif}
+.pp-back-medallion{position:relative;background:#fff;border-radius:50%;width:104px;height:104px;display:flex;align-items:center;justify-content:center;box-shadow:0 16px 34px rgba(0,0,0,.3);margin-top:14px}
+.pp-back-medallion img{width:74px;height:auto}
+.pp-back-word{position:relative;font-family:"Playfair Display",serif;font-weight:700;font-size:24px}
+.pp-back-word .pp-wm-chip{font-size:11px;border-radius:5px;padding:2px 7px}
 </style>
 </head>
 <body>
