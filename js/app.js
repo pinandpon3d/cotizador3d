@@ -1985,28 +1985,34 @@ function generarCatalogoPDF() {
     if (emp.emp_email) empEmail = emp.emp_email;
   } catch (e) {}
 
-  // Logotipo estilizado "Pin&Pon 3D": separa el "&" y aísla el sufijo "3D" en un chip
+  // Logotipo estilizado: colorea el primer "&" del nombre y, si termina en "3D", lo aísla en un chip.
+  // Si el nombre no tiene "&", se muestra en texto plano (hereda el color/tipografía navy del contenedor).
   function wordmarkHtml(nombre, opts) {
     opts = opts || {};
     const ampColor = opts.ampColor || '#F0B429';
     const chipBg   = opts.chipBg   || '#2E77B5';
-    const parts = String(nombre || 'Pin&Pon 3D').split('&');
-    if (parts.length !== 2) return escHtml(nombre);
-    let right = parts[1];
-    let chip  = '';
+    const str = String(nombre || 'Pin&Pon 3D');
+    const ampIdx = str.indexOf('&');
+    if (ampIdx === -1) return escHtml(str);
+    const left = str.slice(0, ampIdx);
+    let right  = str.slice(ampIdx + 1);
+    let chip   = '';
     const m = right.match(/\s*(3D)\s*$/i);
     if (m) {
       right = right.slice(0, m.index);
       chip  = `<span class="pp-wm-chip" style="background:${chipBg}">${escHtml(m[1].toUpperCase())}</span>`;
     }
-    return `${escHtml(parts[0])}<span class="pp-wm-amp" style="color:${ampColor}">&amp;</span>${escHtml(right)}${chip}`;
+    return `${escHtml(left)}<span class="pp-wm-amp" style="color:${ampColor}">&amp;</span>${escHtml(right)}${chip}`;
   }
 
-  // Acentos de color por categoría (rotan cada 3)
+  // Acentos de color por categoría (2 tonos por cada color de marca, rotan cada 6)
   const ACCENTS = [
-    { accent: '#2E77B5', tint: '#EAF2F9' },
-    { accent: '#C98A00', tint: '#FCF3DE' },
-    { accent: '#16324A', tint: '#EAEEF2' },
+    { accent: '#2E77B5', tint: '#EAF2F9' }, // azul
+    { accent: '#C98A00', tint: '#FCF3DE' }, // dorado oscuro
+    { accent: '#16324A', tint: '#EAEEF2' }, // navy
+    { accent: '#4185C6', tint: '#EAF6FC' }, // celeste (variante clara del azul)
+    { accent: '#F0B429', tint: '#FFF6DE' }, // dorado (variante clara del dorado oscuro)
+    { accent: '#0D2840', tint: '#E4EAF0' }, // navy profundo (variante oscura del navy)
   ];
 
   // Agrupar por categoría (orden de primera aparición) y paginar de 4 en 4 (grilla 2×2)
@@ -2026,7 +2032,13 @@ function generarCatalogoPDF() {
       paginas.push({ categoria: cat, catIndex: ci + 1, accent, tint, items: items.slice(i, i + 4) });
     }
   });
-  paginas.forEach((pg, i) => { pg.pageNo = i + 1; pg.pageTotal = paginas.length; });
+  // La numeración de página cuenta el documento completo (portada + categorías + contraportada)
+  const totalPaginasFisicas = paginas.length + 2;
+  paginas.forEach((pg, i) => { pg.pageNo = i + 2; pg.pageTotal = totalPaginasFisicas; });
+
+  // WhatsApp de pedidos, con respaldo al valor por defecto si el admin lo dejó vacío
+  const backWa = cfg.back_wa || CATALOGO_DEFAULTS.back_wa;
+  const backIg = cfg.back_ig || CATALOGO_DEFAULTS.back_ig;
 
   const precioFmt = n => '₡' + Math.ceil(n || 0).toLocaleString('es-CR');
 
@@ -2034,7 +2046,7 @@ function generarCatalogoPDF() {
     <div class="pp-item">
       <div class="pp-item-bar" style="background:${accent}"></div>
       ${p.imagen
-        ? `<img class="pp-item-img" src="${p.imagen}" alt="" style="background:${tint}">`
+        ? `<img class="pp-item-img" src="${escHtml(p.imagen)}" alt="" style="background:${tint}">`
         : `<div class="pp-item-noimg" style="background:${tint}">Foto del producto</div>`}
       <div class="pp-item-body">
         <div class="pp-item-row">
@@ -2057,25 +2069,24 @@ function generarCatalogoPDF() {
           </div>
           <span class="pp-masthead-tag">Catálogo de Productos · ${pg.pageNo}/${pg.pageTotal}</span>
         </div>
-        <div class="pp-cat-hdr">
-          <div class="pp-cat-eyebrow-row">
-            <span class="pp-cat-tri" style="color:${pg.accent}"></span>
-            <span class="pp-cat-eyebrow" style="color:${pg.accent}">Categoría ${String(pg.catIndex).padStart(2,'0')}</span>
-          </div>
-          <h1 class="pp-cat-title">${escHtml(pg.categoria)}</h1>
-          <div class="pp-cat-rule" style="background:${pg.accent}"></div>
+        <div class="pp-cat-eyebrow-row">
+          <span class="pp-cat-tri" style="color:${pg.accent}"></span>
+          <span class="pp-cat-eyebrow" style="color:${pg.accent}">Categoría ${String(pg.catIndex).padStart(2,'0')}</span>
         </div>
+        <h1 class="pp-cat-title">${escHtml(pg.categoria)}</h1>
+        <div class="pp-cat-rule" style="background:${pg.accent}"></div>
         <div class="pp-grid">
           ${pg.items.map((p, idx) => itemHtml(p, idx, pg.accent, pg.tint)).join('')}
         </div>
         <div class="pp-foot">
-          <span>© ${new Date().getFullYear()} ${escHtml(empNombre)} — Impresión y diseño 3D</span>
+          <span>© ${new Date().getFullYear()} ${escHtml(empNombre)} — Pedidos por WhatsApp ${escHtml(backWa)}</span>
           <span>Precios en colones (₡) · sujetos a cambio sin previo aviso</span>
         </div>
       </div>
     </div>`;
 
-  const contactFrags = String(cfg.cover_contact || '').split('·').map(s => s.trim()).filter(Boolean).slice(0, 3);
+  const contactFrags = String(cfg.cover_contact || CATALOGO_DEFAULTS.cover_contact || '')
+    .split(/[·|,]/).map(s => s.trim()).filter(Boolean).slice(0, 3);
   const pillStyles = [
     { bg: '#16324A', color: '#fff', border: 'none' },
     { bg: '#fff',    color: '#16324A', border: '2px solid #F0B429' },
@@ -2114,9 +2125,9 @@ function generarCatalogoPDF() {
     </div>`;
 
   const backContactLines = [];
-  if (cfg.back_wa) backContactLines.push(`WhatsApp — ${escHtml(cfg.back_wa)}`);
-  if (cfg.back_ig) backContactLines.push(`Instagram — ${escHtml(cfg.back_ig)}`);
-  if (empEmail)     backContactLines.push(`Correo — ${escHtml(empEmail)}`);
+  if (backWa)   backContactLines.push(`WhatsApp — ${escHtml(backWa)}`);
+  if (backIg)   backContactLines.push(`Instagram — ${escHtml(backIg)}`);
+  if (empEmail) backContactLines.push(`Correo — ${escHtml(empEmail)}`);
 
   const backHtml = `
     <div class="pp-page">
@@ -2193,7 +2204,7 @@ body{min-height:100vh;padding:24px 0 80px;display:flex;flex-direction:column;ali
 .pp-item-row{display:flex;align-items:center;justify-content:space-between}
 .pp-item-num{display:flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:#16324A;color:#fff;font-size:10.5px;font-weight:700;font-family:"Manrope",sans-serif;flex-shrink:0}
 .pp-item-price{font-size:14px;font-weight:800;color:#fff;padding:4px 12px;border-radius:20px;font-family:"Manrope",sans-serif}
-.pp-item-name{font-family:"Playfair Display",serif;font-weight:700;font-size:15.5px;color:#16324A;line-height:1.3;text-transform:uppercase;letter-spacing:.01em}
+.pp-item-name{font-family:"Playfair Display",serif;font-weight:700;font-size:15.5px;color:#16324A;line-height:1.3;text-transform:uppercase;letter-spacing:.01em;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .pp-item-mat{font-family:"Manrope",sans-serif;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#9aa7b7}
 .pp-item-desc{font-family:"Manrope",sans-serif;font-size:11px;color:#6b7686;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 
