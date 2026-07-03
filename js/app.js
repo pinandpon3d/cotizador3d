@@ -744,6 +744,7 @@ document.fonts.ready.then(function(){ setTimeout(function(){ window.print(); }, 
 ---------------------------------------------------------- */
 function nuevaCotizacion() {
   editingId = null;
+  _margenAntesDeManual = null;
   el('edit-banner').style.display = 'none';
   materialesAdicionalesCotizacion = [];
   _matPreviewCosto = 0;
@@ -929,6 +930,7 @@ async function eliminarAbono(idx) {
 function editarEnCotizador(id) {
   const t = trabajos.find(t => t.id === id); if (!t) return;
   editingId = id;
+  _margenAntesDeManual = null;
 
   const sv = (k, v) => { const e = el(k); if (e) e.value = v ?? ''; };
   sv('c_pieza',        t.pieza       || '');
@@ -4229,6 +4231,7 @@ function usarComoBase(id) {
   const t = trabajos.find(t => t.id === id);
   if (!t) return;
   cerrarModalBase();
+  _margenAntesDeManual = null;
   const campos = {
     c_gramos:    t.gramos    || 0,
     c_horas_imp: t.horas_imp || 0,

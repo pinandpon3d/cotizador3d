@@ -31,6 +31,35 @@ function calcCfg() {
 }
 
 /* ----------------------------------------------------------
+   Precio manual por objeto ↔ % Margen
+   (mientras el precio manual está activo, el % de margen se
+   actualiza solo para mostrar el margen efectivo; al vaciar el
+   precio manual se restaura el margen que había antes)
+---------------------------------------------------------- */
+let _margenAntesDeManual = null;
+
+function manejarPrecioManualInput() {
+  const manualEl = el('c_precio_manual');
+  const margenEl = el('c_margen');
+  if (manualEl && margenEl) {
+    if (fv('c_precio_manual') > 0) {
+      if (_margenAntesDeManual === null) _margenAntesDeManual = margenEl.value;
+    } else if (_margenAntesDeManual !== null) {
+      margenEl.value = _margenAntesDeManual;
+      _margenAntesDeManual = null;
+    }
+  }
+  calcular();
+}
+
+function manejarMargenInput() {
+  _margenAntesDeManual = null;
+  const m = el('c_precio_manual');
+  if (m) m.value = '';
+  calcular();
+}
+
+/* ----------------------------------------------------------
    Cálculo principal de cotización
 ---------------------------------------------------------- */
 

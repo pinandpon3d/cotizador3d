@@ -728,12 +728,12 @@
         </div>
         <div class="form-grid-3">
           <div class="form-group"><label>% Fallos / merma</label><input type="number" id="c_fallos" value="5" min="0" max="100" step="1" oninput="calcular()"></div>
-          <div class="form-group"><label>% Margen / ganancia</label><input type="number" id="c_margen" value="35" min="0" step="1" oninput="var m=document.getElementById('c_precio_manual');if(m)m.value='';calcular()"></div>
+          <div class="form-group"><label>% Margen / ganancia</label><input type="number" id="c_margen" value="35" min="0" step="1" oninput="manejarMargenInput()"></div>
           <div class="form-group"><label>% IVA</label><input type="number" id="c_iva" value="0" min="0" max="100" step="1" oninput="calcular()"></div>
         </div>
         <div class="form-group" style="margin-top:10px">
           <label>Precio final por objeto <span style="font-size:.72rem;color:var(--text3)">(opcional — el margen se recalcula automáticamente)</span></label>
-          <input type="number" id="c_precio_manual" min="0" step="100" placeholder="Dejar vacío para usar el % de margen" oninput="calcular()">
+          <input type="number" id="c_precio_manual" min="0" step="100" placeholder="Dejar vacío para usar el % de margen" oninput="manejarPrecioManualInput()">
         </div>
       </div>
       <div class="card">
