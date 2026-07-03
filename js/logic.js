@@ -96,9 +96,9 @@ function calcular() {
   let gananciaObjeto, antesIVA, ivaVal, precioRedondeado, precioTotal, margenEfectivo;
 
   if (precioManual > 0) {
-    // Modo manual: el usuario fijó el precio total → calcular margen implícito
-    precioTotal      = precioManual;
-    precioRedondeado = precioTotal / totalObjetos;
+    // Modo manual: el usuario fijó el precio final por objeto → calcular margen implícito
+    precioRedondeado = precioManual;
+    precioTotal      = precioRedondeado * totalObjetos;
     const precioSinIVA = precioRedondeado / (1 + pIVA / 100);
     antesIVA         = precioSinIVA;
     ivaVal           = precioRedondeado - precioSinIVA;

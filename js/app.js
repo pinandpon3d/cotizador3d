@@ -2735,7 +2735,7 @@ async function _procesarAprobacionPedido(id) {
         materialesAdicionales: [],
         inventarioDescontado: false,
         precioManualActivo: true,
-        precioManualValor: precioFinal,
+        precioManualValor: precioConfiable,
         ventaDetalle: false
       };
       try {
