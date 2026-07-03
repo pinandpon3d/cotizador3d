@@ -172,8 +172,28 @@ async function guardarCotizacion() {
 
   // — Inventario de Productos: se activa cuando la categoría es "Inventario Productos" —
   const esVenta = data.categoria === 'Inventario Productos';
-  const existing = trabajos.find(t => t.id === id);
   data.ventaDetalle = esVenta;
+
+  // Si es un producto nuevo (no una edición) y ya hay un lote activo con el
+  // mismo nombre, se suma como stock adicional a ese lote en vez de crear
+  // un registro (y por lo tanto un producto de catálogo/tienda) duplicado.
+  if (esVenta && !editingId) {
+    const norm = s => (s || '').trim().toLowerCase();
+    const loteExistente = trabajos.find(t =>
+      _esDetalle(t) && t.estado !== 'Cancelado' && norm(t.pieza) === norm(pieza)
+    );
+    if (loteExistente) {
+      _guardandoCotizacion = true;
+      const btnGuardar = el('btn-guardar-cotizacion');
+      if (btnGuardar) btnGuardar.disabled = true;
+      await _sumarStockAExistente(loteExistente, data);
+      _guardandoCotizacion = false;
+      if (btnGuardar) btnGuardar.disabled = false;
+      return;
+    }
+  }
+
+  const existing = trabajos.find(t => t.id === id);
   if (esVenta) {
     data.unidadesVendidas   = existing?.unidadesVendidas   || 0;
     data.historialVentas    = existing?.historialVentas    || [];
@@ -213,6 +233,59 @@ async function guardarCotizacion() {
   } finally {
     _guardandoCotizacion = false;
     if (btnGuardar) btnGuardar.disabled = false;
+  }
+}
+
+/** Suma las unidades y el precio de un lote recién calculado a un lote de
+ *  Inventario Productos activo que ya existe con el mismo nombre, en vez
+ *  de crear un registro (y por lo tanto un producto de catálogo/tienda)
+ *  duplicado. Los precios de ambos lotes se combinan para que el precio
+ *  unitario resultante siga reflejando el costo real de cada tanda. */
+async function _sumarStockAExistente(loteExistente, loteNuevo) {
+  const totalExistente = _totalUnidadesDetalle(loteExistente);
+  const totalNuevo      = _totalUnidadesDetalle(loteNuevo);
+  const nuevoTotal       = totalExistente + totalNuevo;
+  const nuevoPrecioFinal = (loteExistente.precio_final || 0) + (loteNuevo.precio_final || 0);
+  const vendidas         = loteExistente.unidadesVendidas || 0;
+  const yaNoAgotado      = loteExistente.estado === 'Entregado' && vendidas < nuevoTotal;
+
+  const updateData = {
+    cantidad:        nuevoTotal,
+    placas:          1,
+    precio_final:    nuevoPrecioFinal,
+    precio_unitario: nuevoTotal > 0 ? Math.round(nuevoPrecioFinal / nuevoTotal) : 0,
+    costo_total:     (loteExistente.costo_total || 0) + (loteNuevo.costo_total || 0),
+    fechaActualizacionEstado: new Date().toISOString(),
+  };
+  if (yaNoAgotado) {
+    updateData.estado         = 'Venta';
+    updateData.estadoPago     = 'Pendiente';
+    updateData.montoAbonado   = 0;
+    updateData.montoPendiente = 0;
+  } else {
+    updateData.estadoPago     = calcEstadoPago(nuevoPrecioFinal, loteExistente.montoAbonado || 0);
+    updateData.montoPendiente = Math.max(0, nuevoPrecioFinal - (loteExistente.montoAbonado || 0));
+  }
+
+  const merged = { ...loteExistente, ...updateData };
+  const idx = trabajos.findIndex(t => t.id === loteExistente.id);
+  const anterior = idx >= 0 ? trabajos[idx] : null;
+  if (idx >= 0) trabajos[idx] = merged;
+  try { localStorage.setItem('trabajos3d', JSON.stringify(trabajos.map(t => { const {_desglose,...c}=t; return c; }))); } catch(e){}
+  if (typeof renderTrabajos === 'function') renderTrabajos();
+
+  try {
+    await fbGuardarCotizacion(merged);
+    if (loteNuevo.filamento_id) await descontarInventario({ ...loteNuevo, id: loteExistente.id, inventarioDescontado: false });
+    await _actualizarCatalogoSiVinculado(merged);
+    toast(`Se sumaron ${totalNuevo} unidades al stock de "${merged.pieza}" ✓`, 'success');
+    nuevaCotizacion();
+  } catch(e) {
+    console.error('Error al sumar stock a lote existente:', e);
+    if (idx >= 0) trabajos[idx] = anterior;
+    try { localStorage.setItem('trabajos3d', JSON.stringify(trabajos.map(t => { const {_desglose,...c}=t; return c; }))); } catch(e2){}
+    if (typeof renderTrabajos === 'function') renderTrabajos();
+    toast(`No se pudo sumar el stock: ${e?.message || 'error desconocido'}`, 'error');
   }
 }
 
