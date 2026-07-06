@@ -372,6 +372,53 @@ async function cambiarEstado(id, estado, selectEl) {
   const t = trabajos.find(t=>t.id===id);
   if (!t) return;
   const estadoAnterior = t.estado;
+
+  // Los lotes de Inventario Productos acumulan ingresos según unidadesVendidas,
+  // no según estado (ver ingresosLote/gananciaLote). Si se marcan "Entregado"
+  // desde el tablero de Trabajos en vez de usar "Vender" en Inventario
+  // Productos, hay que registrar el stock disponible como vendido aquí
+  // también, o esa venta nunca se sumaría en los dashboards ni en Inventario
+  // Productos.
+  if (_esDetalle(t) && estado === 'Entregado' && estadoAnterior !== 'Entregado') {
+    const total       = _totalUnidadesDetalle(t);
+    const vendidas     = t.unidadesVendidas || 0;
+    const disponibles = Math.max(total - vendidas, 0);
+    const entrada = disponibles > 0
+      ? { fecha: ahora, cantidad: disponibles, nota: 'Marcado como Entregado desde Trabajos' }
+      : null;
+
+    t.estado         = 'Entregado';
+    t.estadoPago     = 'Pagado';
+    t.montoAbonado   = t.precio_final || 0;
+    t.montoPendiente = 0;
+    t.fechaActualizacionEstado = ahora;
+    if (entrada) {
+      t.unidadesVendidas = total;
+      t.historialVentas  = [...(t.historialVentas || []), entrada];
+    }
+    const ec = (typeof ESTADO_COLOR !== 'undefined' ? ESTADO_COLOR['Entregado'] : null) || 'badge-gray';
+    if (selectEl) selectEl.className = 'badge ' + ec + ' estado-select';
+
+    try {
+      const updateData = {
+        estado: 'Entregado', estadoPago: 'Pagado',
+        montoAbonado: t.montoAbonado, montoPendiente: 0,
+        fechaActualizacionEstado: ahora
+      };
+      if (entrada) {
+        updateData.unidadesVendidas = firebase.firestore.FieldValue.increment(disponibles);
+        updateData.historialVentas  = firebase.firestore.FieldValue.arrayUnion(entrada);
+      }
+      await db.collection('cotizaciones').doc(String(id)).update(updateData);
+      toast('Estado actualizado — stock disponible marcado como vendido ✓', 'success');
+      renderTrabajos();
+    } catch(e) {
+      console.error('Error actualizando estado:', e);
+      toast('No se pudo actualizar el estado', 'error');
+    }
+    return;
+  }
+
   t.estado = estado; t.fechaActualizacionEstado = ahora;
   const ec = (typeof ESTADO_COLOR !== 'undefined' ? ESTADO_COLOR[estado] : null) || 'badge-gray';
   if (selectEl) selectEl.className = 'badge ' + ec + ' estado-select';
@@ -2563,7 +2610,7 @@ async function guardarVenta() {
   }
 
   cerrarModalVenta();
-  renderVentaDetalle(trabajos.filter(t => t.ventaDetalle === true));
+  renderVentaDetalle(trabajos.filter(_esDetalle));
 
   try {
     const updateData = {
@@ -2608,7 +2655,7 @@ async function guardarVenta() {
       trabajos[idx].montoAbonado   = prevAbonado;
       trabajos[idx].montoPendiente = prevPendiente;
     }
-    renderVentaDetalle(trabajos.filter(t => t.ventaDetalle === true));
+    renderVentaDetalle(trabajos.filter(_esDetalle));
   }
 }
 
@@ -2943,7 +2990,7 @@ async function _procesarAprobacionPedido(id) {
   try { localStorage.setItem('trabajos3d', JSON.stringify(trabajos.map(t => { const {_desglose,...c}=t; return c; }))); } catch(e){}
 
   renderPedidosOnline();
-  if (typeof renderVentaDetalle === 'function') renderVentaDetalle(trabajos.filter(t => t.ventaDetalle === true));
+  if (typeof renderVentaDetalle === 'function') renderVentaDetalle(trabajos.filter(_esDetalle));
   if (typeof renderTrabajos === 'function') renderTrabajos();
   toast('Pedido aprobado ✓', 'success');
 }
