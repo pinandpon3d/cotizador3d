@@ -502,7 +502,8 @@ function renderCatalogoProductos() {
   grid.style.display  = lista.length ? 'grid' : 'none';
 
   grid.innerHTML = lista.map(p => `
-    <div class="cat-card">
+    <div class="cat-card${p.oculto ? ' cat-card-oculto' : ''}">
+      ${p.oculto ? `<span class="badge badge-gray cat-card-oculto-badge" title="No se muestra en la Tienda en Línea ni en el PDF del catálogo">🚫 Oculto</span>` : ''}
       ${p.imagen
         ? `<img class="cat-card-img" src="${p.imagen}" alt="${escHtml(p.nombre||'')}">`
         : `<div class="cat-card-noimg"><svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></div>`}
@@ -513,6 +514,11 @@ function renderCatalogoProductos() {
         <div class="cat-card-foot">
           <span class="cat-card-precio">${fmt(p.precio||0)}</span>
           <div class="td-actions">
+            <button class="btn btn-ghost btn-icon btn-sm" title="${p.oculto ? 'Mostrar en la tienda' : 'Ocultar de la tienda'}" onclick='toggleOcultoProductoCatalogo("${p.id}")'>
+              ${p.oculto
+                ? `<svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`
+                : `<svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`}
+            </button>
             <button class="btn btn-ghost btn-icon btn-sm" title="Editar" onclick='editarProductoCatalogo("${p.id}")'>
               <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>

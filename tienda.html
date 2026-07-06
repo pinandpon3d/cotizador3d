@@ -691,9 +691,13 @@ async function cargarTienda() {
         imagen:      p.imagen      || '',
         imagenesExtra: Array.isArray(p.imagenesExtra) ? p.imagenesExtra : [],
         disponibles: st.disponibles,
+        oculto:      p.oculto === true,
       };
     });
 
+    // Los nombres ocultos igual bloquean el "resucitado" automático de abajo
+    // (que agrega productos con stock pero sin entrada en el catálogo), para
+    // que un producto oculto no reaparezca en la tienda por tener stock.
     const nombresEnCatalogo = new Set(lista.map(p => p.nombre.toLowerCase().trim()));
     Object.entries(stockMap).forEach(([clave, st]) => {
       if (nombresEnCatalogo.has(clave)) return;
@@ -720,7 +724,7 @@ async function cargarTienda() {
       return a.nombre.localeCompare(b.nombre, 'es');
     });
 
-    productos = lista;
+    productos = lista.filter(p => !p.oculto);
     restaurarCarrito();
     renderCategorias();
     renderProductos();

@@ -1243,6 +1243,7 @@ tbody td{padding:11px 14px;color:var(--text);vertical-align:middle}
   gap:16px;
 }
 .cat-card{
+  position:relative;
   background:var(--surface);
   border:1px solid var(--border);
   border-radius:14px;
@@ -1252,6 +1253,8 @@ tbody td{padding:11px 14px;color:var(--text);vertical-align:middle}
   transition:box-shadow .18s;
 }
 .cat-card:hover{box-shadow:0 4px 18px rgba(26,96,166,.10)}
+.cat-card-oculto{opacity:.6}
+.cat-card-oculto-badge{position:absolute;top:8px;left:8px;z-index:1}
 .cat-card-img{
   width:100%;
   height:140px;

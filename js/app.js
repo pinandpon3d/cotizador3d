@@ -2023,6 +2023,7 @@ async function guardarProductoCatalogo() {
     descripcion: el('cat_p_descripcion')?.value.trim() || '',
     imagen,
     imagenesExtra,
+    oculto: old?.oculto || false,
     orden: old?.orden ?? Date.now()
   };
 
@@ -2073,6 +2074,27 @@ function cancelarEditProductoCatalogo() {
   renderPreviewImagenesExtraCatalogo([]);
 }
 
+/** Oculta o muestra un producto en la Tienda en Línea y en el PDF del
+ *  catálogo, sin borrarlo: sigue editable desde Catálogo de Productos. */
+async function toggleOcultoProductoCatalogo(id) {
+  const p = catalogoProductos.find(p => p.id === id);
+  if (!p) return;
+  const anterior = p.oculto || false;
+  p.oculto = !anterior;
+  try { localStorage.setItem('catalogoProductos3d', JSON.stringify(catalogoProductos)); } catch(e){}
+  renderCatalogoProductos();
+  try {
+    await fbGuardarCatalogoProducto(p);
+    toast(p.oculto ? 'Producto ocultado de la tienda ✓' : 'Producto visible en la tienda ✓', 'success');
+  } catch(e) {
+    console.error(e);
+    p.oculto = anterior;
+    try { localStorage.setItem('catalogoProductos3d', JSON.stringify(catalogoProductos)); } catch(e2){}
+    renderCatalogoProductos();
+    toast('No se pudo cambiar la visibilidad del producto', 'error');
+  }
+}
+
 function eliminarProductoCatalogo(id) {
   const p = catalogoProductos.find(p => p.id === id);
   const nombre = p ? `"${p.nombre}"` : 'este producto';
@@ -2091,7 +2113,8 @@ function eliminarProductoCatalogo(id) {
 }
 
 function generarCatalogoPDF() {
-  if (!catalogoProductos.length) { toast('Agregue al menos un producto al catálogo','error'); return; }
+  const productosVisibles = catalogoProductos.filter(p => !p.oculto);
+  if (!productosVisibles.length) { toast('Agregue al menos un producto visible al catálogo','error'); return; }
   toast('Generando catálogo…', 'info');
 
   const cfg = { ...CATALOGO_DEFAULTS, ...catalogoConfig };
@@ -2137,7 +2160,7 @@ function generarCatalogoPDF() {
 
   // Agrupar por categoría (orden de primera aparición) y paginar de 4 en 4 (grilla 2×2)
   const porCategoria = new Map();
-  catalogoProductos.forEach(p => {
+  productosVisibles.forEach(p => {
     const cat = p.categoria || 'General';
     if (!porCategoria.has(cat)) porCategoria.set(cat, []);
     porCategoria.get(cat).push(p);
