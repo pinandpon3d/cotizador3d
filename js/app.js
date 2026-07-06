@@ -175,14 +175,20 @@ async function guardarCotizacion() {
   const esVenta = data.categoria === 'Inventario Productos';
   data.ventaDetalle = esVenta;
 
-  // Si es un producto nuevo (no una edición) y ya hay un lote activo con el
-  // mismo nombre, se suma como stock adicional a ese lote en vez de crear
+  // Si es un producto nuevo (no una edición) y ya hay un lote activo del
+  // mismo producto, se suma como stock adicional a ese lote en vez de crear
   // un registro (y por lo tanto un producto de catálogo/tienda) duplicado.
+  // Se busca primero por catalogoProductoId (estable aunque el producto se
+  // haya renombrado en el Catálogo) y solo si no hay match se recurre al
+  // nombre como respaldo, para lotes que todavía no quedaron vinculados.
   if (esVenta && !editingId) {
     const norm = s => (s || '').trim().toLowerCase();
-    const loteExistente = trabajos.find(t =>
-      _esDetalle(t) && t.estado !== 'Cancelado' && norm(t.pieza) === norm(pieza)
-    );
+    const catExistente = catalogoProductos.find(p => norm(p.nombre) === norm(pieza));
+    const loteExistente = trabajos.find(t => {
+      if (!_esDetalle(t) || t.estado === 'Cancelado') return false;
+      if (catExistente && t.catalogoProductoId && t.catalogoProductoId === catExistente.id) return true;
+      return norm(t.pieza) === norm(pieza);
+    });
     if (loteExistente) {
       _guardandoCotizacion = true;
       const btnGuardar = el('btn-guardar-cotizacion');
@@ -2735,14 +2741,24 @@ function setDetalleVista(vista) {
    Pedidos Online (generados desde tienda.html)
 ---------------------------------------------------------- */
 
-/** Busca el precio oficial vigente de un producto por nombre, en el
- *  catálogo administrado. Los pedidos online se escriben desde una
- *  página pública sin autenticación, así que el precio que viaja en
- *  el pedido NO debe usarse a ciegas: siempre se recalcula contra el
- *  catálogo real al momento de aprobar/mostrar el pedido. Retorna
- *  null si el producto ya no existe en el catálogo. */
-function _precioOficialPorNombre(nombre) {
+/** Busca el precio oficial vigente de un producto del catálogo administrado,
+ *  a partir de un ítem de pedido ({id, nombre}). Los pedidos online se
+ *  escriben desde una página pública sin autenticación, así que el precio
+ *  que viaja en el pedido NO debe usarse a ciegas: siempre se recalcula
+ *  contra el catálogo real al momento de aprobar/mostrar el pedido. Se
+ *  busca primero por id (estable aunque el producto se haya renombrado) y
+ *  solo se recurre al nombre si no hay id o no hubo match. Retorna null si
+ *  el producto ya no existe en el catálogo. También acepta un string
+ *  (nombre) por compatibilidad con llamadas antiguas. */
+function _precioOficialPorNombre(item) {
   const norm = s => (s || '').trim().toLowerCase();
+  const esObjeto = item && typeof item === 'object';
+  const id     = esObjeto ? item.id     : null;
+  const nombre = esObjeto ? item.nombre : item;
+  if (id && !String(id).startsWith('lote_')) {
+    const porId = catalogoProductos.find(p => p.id === id);
+    if (porId) return porId.precio || 0;
+  }
   const p = catalogoProductos.find(p => norm(p.nombre) === norm(nombre));
   return p ? (p.precio || 0) : null;
 }
@@ -2752,7 +2768,7 @@ function _precioOficialPorNombre(nombre) {
  *  oficial para mostrarlo/usarlo). */
 function _detectarDiscrepanciasPedido(pedido) {
   return (pedido.items || []).reduce((acc, it) => {
-    const oficial = _precioOficialPorNombre(it.nombre);
+    const oficial = _precioOficialPorNombre(it);
     if (oficial !== null && oficial !== it.precio) acc.push({ ...it, precioOficial: oficial });
     return acc;
   }, []);
@@ -2949,15 +2965,26 @@ async function _procesarAprobacionPedido(id) {
 
   for (const item of (pedido.items || [])) {
     let restante = item.cantidad;
-    const oficial = _precioOficialPorNombre(item.nombre);
+    const oficial = _precioOficialPorNombre(item);
     const precioConfiable = oficial !== null ? oficial : item.precio;
 
-    // Lotes activos con ese nombre, ordenados por fecha (más antiguos primero)
-    const lotes = trabajos
-      .filter(t => _esDetalle(t) &&
-                   t.estado !== 'Cancelado' &&
-                   norm(t.pieza) === norm(item.nombre))
-      .sort((a, b) => (a.fecha || '').localeCompare(b.fecha || ''));
+    // Lotes activos del mismo producto, ordenados por fecha (más antiguos
+    // primero). El carrito de la tienda viaja con el id del producto de
+    // catálogo (o "lote_<id>" si el producto no estaba en el catálogo), así
+    // que se busca primero por ese id — estable aunque el producto se haya
+    // renombrado — y solo se recurre al nombre si el pedido es viejo y no
+    // trae id, o el lote todavía no quedó vinculado al catálogo.
+    let lotes = [];
+    if (item.id && String(item.id).startsWith('lote_')) {
+      const loteId = String(item.id).slice(5);
+      lotes = trabajos.filter(t => t.id === loteId && _esDetalle(t) && t.estado !== 'Cancelado');
+    } else if (item.id) {
+      lotes = trabajos.filter(t => _esDetalle(t) && t.estado !== 'Cancelado' && t.catalogoProductoId === item.id);
+    }
+    if (!lotes.length) {
+      lotes = trabajos.filter(t => _esDetalle(t) && t.estado !== 'Cancelado' && norm(t.pieza) === norm(item.nombre));
+    }
+    lotes = lotes.sort((a, b) => (a.fecha || '').localeCompare(b.fecha || ''));
 
     for (const lote of lotes) {
       if (restante <= 0) break;

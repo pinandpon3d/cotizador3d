@@ -662,7 +662,12 @@ async function cargarTienda() {
     }
 
     const cotSnap = await db.collection('cotizaciones').get();
-    const stockMap = {};
+    // El stock de cada lote se agrupa por catalogoProductoId cuando el lote
+    // ya está vinculado (estable aunque el producto se renombre en el
+    // Catálogo); solo los lotes que todavía no tienen ese vínculo se agrupan
+    // por nombre, como respaldo.
+    const stockPorId     = {};
+    const stockPorNombre = {};
     cotSnap.docs.forEach(d => {
       const t = d.data();
       if (t.estado === 'Cancelado') return;
@@ -670,18 +675,19 @@ async function cargarTienda() {
       const total      = Math.max((t.cantidad || 1) * Math.max(t.placas || 1, 1), 1);
       const vendidas   = Math.min(t.unidadesVendidas || 0, total);
       const disponibles = total - vendidas;
-      const clave       = (t.pieza || '').toLowerCase().trim();
-      if (!stockMap[clave]) stockMap[clave] = { disponibles: 0, precio: 0 };
-      stockMap[clave].disponibles += disponibles;
       const pu = total > 0 ? Math.round((t.precio_final || 0) / total) : 0;
-      if (pu > 0) stockMap[clave].precio = pu;
+      const bucket = t.catalogoProductoId ? stockPorId : stockPorNombre;
+      const clave  = t.catalogoProductoId || (t.pieza || '').toLowerCase().trim();
+      if (!bucket[clave]) bucket[clave] = { disponibles: 0, precio: 0 };
+      bucket[clave].disponibles += disponibles;
+      if (pu > 0) bucket[clave].precio = pu;
     });
 
     const catSnap = await db.collection('catalogoProductos').get();
     const lista = catSnap.docs.map(d => {
       const p   = d.data();
       const key = (p.nombre || '').toLowerCase().trim();
-      const st  = stockMap[key] || { disponibles: 0, precio: 0 };
+      const st  = stockPorId[d.id] || stockPorNombre[key] || { disponibles: 0, precio: 0 };
       return {
         id:          d.id,
         nombre:      p.nombre      || '',
@@ -695,11 +701,30 @@ async function cargarTienda() {
       };
     });
 
-    // Los nombres ocultos igual bloquean el "resucitado" automático de abajo
-    // (que agrega productos con stock pero sin entrada en el catálogo), para
-    // que un producto oculto no reaparezca en la tienda por tener stock.
+    // "Resucita" stock que no tiene representación en el catálogo: lotes ya
+    // vinculados a un catalogoProductoId que ya no existe (ej. se borró el
+    // producto del catálogo), y lotes viejos sin vínculo, agrupados por
+    // nombre. Los nombres ocultos igual bloquean este resucitado, para que
+    // un producto oculto no reaparezca en la tienda por tener stock.
+    const idsEnCatalogo     = new Set(catSnap.docs.map(d => d.id));
     const nombresEnCatalogo = new Set(lista.map(p => p.nombre.toLowerCase().trim()));
-    Object.entries(stockMap).forEach(([clave, st]) => {
+    Object.entries(stockPorId).forEach(([catalogoProductoId, st]) => {
+      if (idsEnCatalogo.has(catalogoProductoId)) return;
+      if (st.disponibles <= 0) return;
+      const d = cotSnap.docs.find(doc => doc.data().catalogoProductoId === catalogoProductoId);
+      if (!d) return;
+      const t = d.data();
+      lista.push({
+        id:          'lote_' + d.id,
+        nombre:      t.pieza || '',
+        descripcion: t.notas || '',
+        categoria:   t.material || 'General',
+        precio:      st.precio,
+        imagen:      '',
+        disponibles: st.disponibles,
+      });
+    });
+    Object.entries(stockPorNombre).forEach(([clave, st]) => {
       if (nombresEnCatalogo.has(clave)) return;
       if (st.disponibles <= 0) return;
       cotSnap.docs.forEach(d => {
