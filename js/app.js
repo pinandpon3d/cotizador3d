@@ -32,6 +32,7 @@ let catalogoConfig      = {};
 let categoriasProductos = [];
 let _catImagenPendiente = null;   // null = sin cambios; '' = imagen quitada; dataURL = nueva imagen
 let _catImagenesExtraPendientes = null; // null = sin cambios; array = nueva lista de fotos adicionales
+let catalogoSeleccionados = new Set(); // ids elegidos para el próximo PDF (vacío = incluir todo el catálogo visible)
 
 /* ----------------------------------------------------------
    Navegación
@@ -2095,6 +2096,28 @@ async function toggleOcultoProductoCatalogo(id) {
   }
 }
 
+/* ----------------------------------------------------------
+   Catálogo de Productos — selección de productos para el PDF
+---------------------------------------------------------- */
+function toggleSeleccionCatalogo(id, checkbox) {
+  if (checkbox.checked) catalogoSeleccionados.add(id);
+  else catalogoSeleccionados.delete(id);
+  if (typeof _actualizarBarraSeleccionCatalogo === 'function') _actualizarBarraSeleccionCatalogo();
+}
+
+function seleccionarTodosCatalogo() {
+  const filtroCat = el('cat-filter-categoria')?.value || '';
+  catalogoProductos
+    .filter(p => !p.oculto && (!filtroCat || p.categoria === filtroCat))
+    .forEach(p => catalogoSeleccionados.add(p.id));
+  renderCatalogoProductos();
+}
+
+function limpiarSeleccionCatalogo() {
+  catalogoSeleccionados.clear();
+  renderCatalogoProductos();
+}
+
 function eliminarProductoCatalogo(id) {
   const p = catalogoProductos.find(p => p.id === id);
   const nombre = p ? `"${p.nombre}"` : 'este producto';
@@ -2113,8 +2136,17 @@ function eliminarProductoCatalogo(id) {
 }
 
 function generarCatalogoPDF() {
-  const productosVisibles = catalogoProductos.filter(p => !p.oculto);
-  if (!productosVisibles.length) { toast('Agregue al menos un producto visible al catálogo','error'); return; }
+  const visibles = catalogoProductos.filter(p => !p.oculto);
+  const haySeleccion = catalogoSeleccionados.size > 0;
+  const productosVisibles = haySeleccion
+    ? visibles.filter(p => catalogoSeleccionados.has(p.id))
+    : visibles;
+  if (!productosVisibles.length) {
+    toast(haySeleccion
+      ? 'Los productos seleccionados ya no están visibles en el catálogo'
+      : 'Agregue al menos un producto visible al catálogo', 'error');
+    return;
+  }
   toast('Generando catálogo…', 'info');
 
   const cfg = { ...CATALOGO_DEFAULTS, ...catalogoConfig };

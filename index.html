@@ -1593,6 +1593,13 @@
             <option value="">Todas las categorías</option>
           </select>
         </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px;padding:8px 12px;background:var(--surface2);border-radius:8px">
+          <span id="cat-seleccion-info" style="font-size:.8125rem;color:var(--text2)">Ningún producto seleccionado — el PDF incluirá todo el catálogo visible</span>
+          <div class="btn-group">
+            <button type="button" class="btn btn-ghost btn-sm" onclick="seleccionarTodosCatalogo()">Seleccionar todos</button>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="limpiarSeleccionCatalogo()">Limpiar selección</button>
+          </div>
+        </div>
         <div id="catalogo-grid" class="catalogo-grid"></div>
         <div id="catalogo-empty" class="empty-state" style="display:none">
           <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>

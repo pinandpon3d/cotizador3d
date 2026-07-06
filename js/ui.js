@@ -489,6 +489,18 @@ function renderClientes(lista) {
    Catálogo de Productos
 ---------------------------------------------------------- */
 
+/** Refleja cuántos productos hay elegidos para el próximo PDF. Sin
+ *  selección, el PDF incluye todo el catálogo visible (comportamiento
+ *  previo, sin cambios para quien no usa la selección). */
+function _actualizarBarraSeleccionCatalogo() {
+  const info = el('cat-seleccion-info');
+  if (!info) return;
+  const n = (typeof catalogoSeleccionados !== 'undefined') ? catalogoSeleccionados.size : 0;
+  info.textContent = n > 0
+    ? `${n} producto${n !== 1 ? 's' : ''} seleccionado${n !== 1 ? 's' : ''} — el PDF incluirá solo esos`
+    : 'Ningún producto seleccionado — el PDF incluirá todo el catálogo visible';
+}
+
 function renderCatalogoProductos() {
   const grid  = el('catalogo-grid');
   const empty = el('catalogo-empty');
@@ -501,8 +513,13 @@ function renderCatalogoProductos() {
   empty.style.display = lista.length ? 'none' : 'block';
   grid.style.display  = lista.length ? 'grid' : 'none';
 
+  _actualizarBarraSeleccionCatalogo();
+
   grid.innerHTML = lista.map(p => `
     <div class="cat-card${p.oculto ? ' cat-card-oculto' : ''}">
+      ${!p.oculto ? `<label class="cat-card-check" title="Incluir en el próximo PDF generado">
+        <input type="checkbox" ${catalogoSeleccionados.has(p.id) ? 'checked' : ''} onchange="toggleSeleccionCatalogo('${p.id}', this)">
+      </label>` : ''}
       ${p.oculto ? `<span class="badge badge-gray cat-card-oculto-badge" title="No se muestra en la Tienda en Línea ni en el PDF del catálogo">🚫 Oculto</span>` : ''}
       ${p.imagen
         ? `<img class="cat-card-img" src="${p.imagen}" alt="${escHtml(p.nombre||'')}">`
