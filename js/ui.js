@@ -627,7 +627,9 @@ function renderDashboard(filtro = 'mes-actual') {
   // Calcular KPIs
   // Para filtros mensuales: no-detalle usa fecha de creación; detalle usa fecha real de venta
   const entregados  = lista.filter(t => t.estado === 'Entregado');
-  const pendPago    = lista.filter(t => (t.estadoPago||'Pendiente') !== 'Pagado').length;
+  // pendPago es una deuda actual, no un histórico: se calcula sobre todos los
+  // trabajos (igual que en la página Trabajos), sin importar el filtro de mes.
+  const pendPago    = trabajos.filter(t => (t.estadoPago||'Pendiente') !== 'Pagado').length;
   let ventasMes, gananciaMes;
   if (filtro === 'todos') {
     ventasMes   = lista.reduce((s,t) => s + ingresosLote(t), 0);
@@ -662,8 +664,11 @@ function renderDashboard(filtro = 'mes-actual') {
   const clienteTop = clientTop ? `${clientTop[0]} (${clientTop[1]})` : '—';
 
   // Monto por cobrar y entregas urgentes
+  // montoPorCobrar es una deuda actual, no un histórico del mes: se calcula
+  // sobre todos los trabajos (igual que en la página Trabajos), sin importar
+  // el filtro de mes seleccionado en el Dashboard.
   const ESTADOS_POR_COBRAR_DASH = ['Aprobado', 'En impresión', 'Post-proceso', 'Listo', 'Entregado'];
-  const montoPorCobrar = lista
+  const montoPorCobrar = trabajos
     .filter(t => ESTADOS_POR_COBRAR_DASH.includes(t.estado))
     .reduce((s, t) => {
       if (_esDetalle(t)) {
