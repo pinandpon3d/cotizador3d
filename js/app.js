@@ -1098,6 +1098,20 @@ function editarEnCotizador(id) {
   navTo('cotizador');
 }
 
+/* ─── DUPLICAR COTIZACIÓN ─── Carga los datos de una cotización existente en
+   el formulario para crear una nueva a partir de ella, dejando el nombre
+   del cliente vacío para que se complete con el cliente correspondiente. */
+function duplicarCotizacion(id) {
+  const t = trabajos.find(t => t.id === id); if (!t) return;
+  editarEnCotizador(id);
+  editingId = null;
+  el('edit-banner').style.display = 'none';
+  el('c_cliente').value = '';
+  el('c_fecha').value = today();
+  el('c_cliente').focus();
+  toast(`Cotización de "${t.pieza}" duplicada — ingrese el cliente`, 'success');
+}
+
 /* ─── POST-SAVE BANNER ─── Aparece tras guardar en el Cotizador */
 function mostrarPostGuardado(pieza, isEdit) {
   const b = el('post-save-banner'); if (!b) return;
