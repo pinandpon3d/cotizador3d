@@ -687,12 +687,19 @@ function renderDashboard(filtro = 'mes-actual') {
     t.estado !== 'Entregado' && t.estado !== 'Cancelado'
   ).length;
 
+  // Costo de electricidad del período: suma el consumo eléctrico (guardado
+  // en cada cotización al calcularla) de los trabajos del filtro activo.
+  // Al ser "Mes actual" el filtro por defecto, el total se reinicia solo
+  // cada mes sin necesidad de guardar ni resetear nada manualmente.
+  const elecPeriodo = lista.reduce((s, t) => s + (t._desglose?.elec || 0), 0);
+
   // Actualizar DOM
   set('dash-ventas',              fmt(ventasMes));
   set('dash-ganancia',            fmt(gananciaMes));
   set('dash-total-lista',  lista.length);
   set('dash-monto-cobrar', fmt(montoPorCobrar));
   set('dash-urgentes',     urgentes);
+  set('dash-elec',         fmt(elecPeriodo));
   set('dash-cotizados',    countByEstado['Cotizado']     || 0);
   set('dash-aprobados',    countByEstado['Aprobado']     || 0);
   set('dash-enimpresion',  (countByEstado['En impresión']||0) + (countByEstado['Post-proceso']||0));
