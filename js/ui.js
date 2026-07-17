@@ -596,6 +596,7 @@ function _gananciaDetallePorMes(a, m) {
 
 let _chartEstados  = null;
 let _chartIngresos = null;
+let _chartElec     = null;
 
 function renderDashboard(filtro = 'mes-actual') {
   const ahora = new Date();
@@ -687,12 +688,19 @@ function renderDashboard(filtro = 'mes-actual') {
     t.estado !== 'Entregado' && t.estado !== 'Cancelado'
   ).length;
 
+  // Costo de electricidad del período: suma el consumo eléctrico (guardado
+  // en cada cotización al calcularla) de los trabajos del filtro activo.
+  // Al ser "Mes actual" el filtro por defecto, el total se reinicia solo
+  // cada mes sin necesidad de guardar ni resetear nada manualmente.
+  const elecPeriodo = lista.reduce((s, t) => s + (t._desglose?.elec || 0), 0);
+
   // Actualizar DOM
   set('dash-ventas',              fmt(ventasMes));
   set('dash-ganancia',            fmt(gananciaMes));
   set('dash-total-lista',  lista.length);
   set('dash-monto-cobrar', fmt(montoPorCobrar));
   set('dash-urgentes',     urgentes);
+  set('dash-elec',         fmt(elecPeriodo));
   set('dash-cotizados',    countByEstado['Cotizado']     || 0);
   set('dash-aprobados',    countByEstado['Aprobado']     || 0);
   set('dash-enimpresion',  (countByEstado['En impresión']||0) + (countByEstado['Post-proceso']||0));
@@ -777,6 +785,47 @@ function _renderCharts(lista, countByEstado, anio, mes) {
           label: 'Ingresos (₡)',
           data: ingresosPorMes,
           backgroundColor: 'rgba(26,96,166,.82)',
+          borderRadius: 6, borderSkipped: false
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend:{ display:false } },
+        scales: {
+          y: {
+            ticks: { callback: v => '₡'+(v/1000).toFixed(0)+'K', font:{size:10} },
+            grid: { color:'rgba(0,0,0,.05)' }
+          },
+          x: { ticks:{ font:{size:10} }, grid:{ display:false } }
+        }
+      }
+    });
+  }
+
+  // — Gráfico 3: Barras de costo de electricidad últimos 6 meses —
+  const ctxL = el('chart-elec');
+  if (ctxL) {
+    if (_chartElec) { _chartElec.destroy(); _chartElec = null; }
+    const mesesL = [], elecPorMes = [];
+    for (let i = 5; i >= 0; i--) {
+      let m = mes - i, a = anio;
+      if (m < 0) { m += 12; a -= 1; }
+      const key   = `${a}-${String(m+1).padStart(2,'0')}`;
+      const label = new Date(a, m, 1).toLocaleDateString('es-CR', { month:'short', year:'2-digit' });
+      mesesL.push(label);
+      const elecMes = trabajos
+        .filter(t => (t.fecha||'').startsWith(key))
+        .reduce((s,t) => s + (t._desglose?.elec || 0), 0);
+      elecPorMes.push(elecMes);
+    }
+    _chartElec = new Chart(ctxL, {
+      type: 'bar',
+      data: {
+        labels: mesesL,
+        datasets: [{
+          label: 'Electricidad (₡)',
+          data: elecPorMes,
+          backgroundColor: 'rgba(244,199,15,.85)',
           borderRadius: 6, borderSkipped: false
         }]
       },
