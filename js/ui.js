@@ -598,6 +598,10 @@ let _chartEstados  = null;
 let _chartIngresos = null;
 let _chartElec     = null;
 
+// Estados que implican que el trabajo ya se mandó a imprimir (por lo tanto
+// consumió electricidad); excluye cotizaciones sin confirmar y canceladas.
+const ESTADOS_ELEC = ['Aprobado', 'En impresión', 'Post-proceso', 'Listo', 'Entregado', 'Venta'];
+
 function renderDashboard(filtro = 'mes-actual') {
   const ahora = new Date();
   const anio  = ahora.getFullYear();
@@ -688,11 +692,13 @@ function renderDashboard(filtro = 'mes-actual') {
     t.estado !== 'Entregado' && t.estado !== 'Cancelado'
   ).length;
 
-  // Costo de electricidad del período: suma el consumo eléctrico (guardado
-  // en cada cotización al calcularla) de los trabajos del filtro activo.
-  // Al ser "Mes actual" el filtro por defecto, el total se reinicia solo
-  // cada mes sin necesidad de guardar ni resetear nada manualmente.
-  const elecPeriodo = lista.reduce((s, t) => s + (t._desglose?.elec || 0), 0);
+  // Costo de electricidad del período: solo cuenta trabajos que ya se
+  // mandaron a imprimir (aprobados en adelante), no las simples cotizaciones
+  // sin confirmar ni las canceladas. Al ser "Mes actual" el filtro por
+  // defecto, el total se reinicia solo cada mes sin resetear nada a mano.
+  const elecPeriodo = lista
+    .filter(t => ESTADOS_ELEC.includes(t.estado))
+    .reduce((s, t) => s + costoElectricidadTrabajo(t), 0);
 
   // Actualizar DOM
   set('dash-ventas',              fmt(ventasMes));
@@ -814,8 +820,8 @@ function _renderCharts(lista, countByEstado, anio, mes) {
       const label = new Date(a, m, 1).toLocaleDateString('es-CR', { month:'short', year:'2-digit' });
       mesesL.push(label);
       const elecMes = trabajos
-        .filter(t => (t.fecha||'').startsWith(key))
-        .reduce((s,t) => s + (t._desglose?.elec || 0), 0);
+        .filter(t => (t.fecha||'').startsWith(key) && ESTADOS_ELEC.includes(t.estado))
+        .reduce((s,t) => s + costoElectricidadTrabajo(t), 0);
       elecPorMes.push(elecMes);
     }
     _chartElec = new Chart(ctxL, {
