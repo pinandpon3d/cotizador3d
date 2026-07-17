@@ -150,6 +150,7 @@ async function guardarCotizacion() {
     otros:        fv('c_otros'),     pFallos:   fv('c_fallos'),
     pMargen:      fv('c_margen'),    pIVA:      fv('c_iva'),
     costo_total:          desglose.costoTotalPlacas,
+    costo_electricidad:   desglose.elec,
     precio_final:         precioFinal,
     precio_unitario:      desglose.precioRedondeado,
     ganancia_por_objeto:  desglose.gananciaObjeto,
@@ -262,6 +263,7 @@ async function _sumarStockAExistente(loteExistente, loteNuevo) {
     precio_final:    nuevoPrecioFinal,
     precio_unitario: nuevoTotal > 0 ? Math.round(nuevoPrecioFinal / nuevoTotal) : 0,
     costo_total:     (loteExistente.costo_total || 0) + (loteNuevo.costo_total || 0),
+    costo_electricidad: (loteExistente.costo_electricidad || 0) + (loteNuevo.costo_electricidad || 0),
     fechaActualizacionEstado: new Date().toISOString(),
   };
   if (yaNoAgotado) {

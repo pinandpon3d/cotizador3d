@@ -30,6 +30,20 @@ function calcCfg() {
   if (inp) inp.value = ((watts / 1000) * kwh).toFixed(2);
 }
 
+/**
+ * Costo de electricidad de un trabajo guardado.
+ * Usa el valor persistido (costo_electricidad) si existe; para trabajos
+ * guardados antes de que ese campo existiera, lo aproxima con la tarifa
+ * eléctrica configurada actualmente.
+ */
+function costoElectricidadTrabajo(t) {
+  if (typeof t.costo_electricidad === 'number') return t.costo_electricidad;
+  const watts = fv('cfg_watts') || 200;
+  const kwh   = fv('cfg_kwh')   || 130;
+  const elecH = (watts / 1000) * kwh;
+  return (t.horas_imp || 0) * elecH * Math.max(t.placas || 1, 1);
+}
+
 /* ----------------------------------------------------------
    Precio manual por objeto ↔ % Margen
    (mientras el precio manual está activo, el % de margen se
