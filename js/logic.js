@@ -18,6 +18,23 @@ const fv    = id => parseFloat(document.getElementById(id)?.value) || 0;
 const set   = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
 const el    = id => document.getElementById(id);
 
+/**
+ * Arma un nombre de archivo seguro a partir de partes (ej. cliente + pieza),
+ * quitando caracteres inválidos en nombres de archivo (/ \ : * ? " < > |)
+ * y espacios repetidos. Se usa como <title> del documento imprimible: el
+ * navegador lo toma como nombre sugerido al "Guardar como PDF".
+ */
+function nombreArchivoSeguro(...partes) {
+  return partes
+    .filter(Boolean)
+    .join(' - ')
+    .replace(/[\\/:*?"<>|]/g, '-')
+    .replace(/\s+/g, ' ')
+    .replace(/-(?:\s*-)+/g, '-')
+    .replace(/^[\s-]+|[\s-]+$/g, '')
+    .trim();
+}
+
 /* ----------------------------------------------------------
    Cálculo auxiliar: costo de electricidad por hora
 ---------------------------------------------------------- */

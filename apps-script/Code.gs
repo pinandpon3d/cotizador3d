@@ -1,8 +1,20 @@
 // =====================================================================
+//  ⚠️ LEGACY — NO USADO POR EL FRONTEND ACTUAL
+//
+//  Este backend en Google Apps Script + Sheets fue reemplazado por
+//  Firebase (Auth + Firestore, ver js/db.js). index.html y tienda.html
+//  ya no llaman a ninguna URL de script.google.com — toda la app lee y
+//  escribe directo contra Firestore.
+//
+//  Se conserva aquí solo como referencia / respaldo por si la planilla
+//  de Sheets todavía se usa manualmente fuera de esta app. Si se
+//  confirma que ya no hace falta, este archivo se puede eliminar sin
+//  afectar el funcionamiento de index.html ni tienda.html.
+// =====================================================================
 //  Cotizador 3D – Google Apps Script Backend
 //  Planilla: https://docs.google.com/spreadsheets/d/1BRXafQXA1TPO1NGSs1lqoWOvZwH5et4CZ7exMB0z33I
 //
-//  INSTRUCCIONES DE DESPLIEGUE:
+//  INSTRUCCIONES DE DESPLIEGUE (si se reactiva):
 //  1. Abrí tu planilla de Google Sheets
 //  2. Extensiones → Apps Script → eliminá el código existente y pegá este archivo
 //  3. Guardá (Ctrl+S)

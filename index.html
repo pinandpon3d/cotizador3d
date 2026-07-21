@@ -9,7 +9,14 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <!-- Capa de estilos — versión dinámica para evitar caché obsoleto -->
-<script>document.write('<link rel="stylesheet" href="css/styles.css?v='+Date.now()+'">');</script>
+<script>
+  (function(){
+    var link = document.createElement('link');
+    link.rel  = 'stylesheet';
+    link.href = 'css/styles.css?v=' + Date.now();
+    document.head.appendChild(link);
+  })();
+</script>
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
@@ -2081,11 +2088,11 @@
 
 <!--
   CAPAS DE PROGRAMACIÓN — orden de carga:
-    1. db.js     → Base de datos (Firebase Firestore + Auth)
-    2. logic.js  → Lógica de negocio y cálculos
-    3. ui.js     → Interfaz gráfica y renderizado
-    4. app.js    → Controlador y orquestación
-    5. auth.js   → Autenticación y control de acceso
+    1. db.js       → Base de datos (Firebase Firestore + Auth)
+    2. logic.js    → Lógica de negocio y cálculos
+    3. ui.js       → Interfaz gráfica y renderizado
+    4. js/app/*.js → Controlador y orquestación, dividido por área funcional
+    5. auth.js     → Autenticación y control de acceso
 -->
 <!-- BARRA DE SELECCIÓN MÚLTIPLE -->
 <div class="barra-seleccion" id="barra-seleccion">
@@ -2115,8 +2122,28 @@
 <script>
   (function(){
     var v = Date.now();
-    ['js/db.js','js/logic.js','js/ui.js','js/app.js','js/auth.js'].forEach(function(s){
-      document.write('<script src="'+s+'?v='+v+'"><\/script>');
+    var archivos = [
+      'js/db.js', 'js/logic.js', 'js/ui.js',
+      'js/app/01-core.js',
+      'js/app/02-trabajos-crud.js',
+      'js/app/03-trabajos-acciones.js',
+      'js/app/04-insumos.js',
+      'js/app/05-clientes.js',
+      'js/app/06-catalogo.js',
+      'js/app/07-inventario-productos.js',
+      'js/app/08-dashboard-config.js',
+      'js/app/09-documentos-pdf.js',
+      'js/app/10-costos.js',
+      'js/app/11-pagos-calendario.js',
+      'js/auth.js'
+    ];
+    // async=false conserva el orden de ejecución sin bloquear el parser
+    // como lo hacía document.write (evita el warning de deprecación).
+    archivos.forEach(function(s){
+      var script = document.createElement('script');
+      script.src   = s + '?v=' + v;
+      script.async = false;
+      document.body.appendChild(script);
     });
   })();
 </script>
