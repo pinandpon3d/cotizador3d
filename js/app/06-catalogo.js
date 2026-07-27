@@ -485,6 +485,88 @@ async function toggleOcultoProductoCatalogo(id) {
 }
 
 /* ----------------------------------------------------------
+   Cotizar producto del catálogo — atajo en el Cotizador para
+   generar una cotización de un producto ya existente eligiendo
+   la cantidad, sin tener que recalcular costos desde cero.
+---------------------------------------------------------- */
+
+/** Unidades disponibles de un producto del catálogo, sumando los lotes de
+ *  Inventario Productos vinculados (por catalogoProductoId o, si aún no
+ *  está vinculado, por nombre). Solo informativo — no bloquea la cotización. */
+function _disponibilidadCatalogoProducto(producto) {
+  const norm = s => (s || '').toLowerCase().trim();
+  let disponibles = 0;
+  let precio = 0;
+  (trabajos || []).forEach(t => {
+    if (t.estado === 'Cancelado' || !_esDetalle(t)) return;
+    const vinculado = t.catalogoProductoId
+      ? t.catalogoProductoId === producto.id
+      : !t.catalogoProductoId && norm(t.pieza) === norm(producto.nombre);
+    if (!vinculado) return;
+    const total  = _totalUnidadesDetalle(t);
+    const vend   = Math.min(t.unidadesVendidas || 0, total);
+    disponibles += Math.max(total - vend, 0);
+    if (t.precio_unitario) precio = t.precio_unitario;
+  });
+  return { disponibles, precio };
+}
+
+/** Rellena el selector de productos del catálogo en el Cotizador. */
+function poblarSelectCotizarCatalogo() {
+  const sel = el('c_stock_producto');
+  if (!sel) return;
+  const valorPrevio = sel.value;
+  const productos = (catalogoProductos || []).filter(p => !p.oculto)
+    .slice()
+    .sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
+
+  sel.innerHTML = '<option value="">— Seleccionar producto del catálogo —</option>' +
+    productos.map(p => `<option value="${escHtml(p.id)}">${escHtml(p.nombre)} — ${fmt(p.precio || 0)}</option>`).join('');
+
+  if (productos.some(p => p.id === valorPrevio)) sel.value = valorPrevio;
+  actualizarInfoCotizarCatalogo();
+}
+
+/** Muestra precio y disponibilidad del producto elegido en el selector. */
+function actualizarInfoCotizarCatalogo() {
+  const sel  = el('c_stock_producto');
+  const info = el('c_stock_info');
+  if (!sel || !info) return;
+  const p = (catalogoProductos || []).find(p => p.id === sel.value);
+  if (!p) { info.style.display = 'none'; info.textContent = ''; return; }
+
+  const { disponibles, precio } = _disponibilidadCatalogoProducto(p);
+  const precioMostrar = p.precio || precio || 0;
+  info.style.display = 'block';
+  info.textContent = disponibles > 0
+    ? `${fmt(precioMostrar)} c/u · ${disponibles} disponible${disponibles !== 1 ? 's' : ''} en stock`
+    : `${fmt(precioMostrar)} c/u · sin stock — se cotiza por encargo`;
+}
+
+/** Prellena el formulario del Cotizador con el producto y la cantidad elegidos. */
+function cotizarProductoCatalogo() {
+  const sel = el('c_stock_producto');
+  const p   = (catalogoProductos || []).find(p => p.id === sel?.value);
+  if (!p) { toast('Seleccione un producto del catálogo', 'error'); return; }
+
+  const cantidad = Math.max(parseInt(el('c_stock_cantidad')?.value, 10) || 1, 1);
+  const { precio } = _disponibilidadCatalogoProducto(p);
+  const precioUnitario = p.precio || precio || 0;
+
+  nuevaCotizacion();
+  if (el('c_pieza'))    el('c_pieza').value    = p.nombre;
+  if (el('c_material')) el('c_material').value = p.material || '';
+  if (el('c_categoria')) el('c_categoria').value = 'Producto de Catálogo';
+  if (el('c_cantidad'))  el('c_cantidad').value  = cantidad;
+  if (el('c_placas'))    el('c_placas').value    = 1;
+  if (el('c_precio_manual')) el('c_precio_manual').value = precioUnitario || '';
+  manejarPrecioManualInput();
+
+  toast(`"${p.nombre}" × ${cantidad} cargado en la cotización — complete el cliente y guarde`, 'success');
+  el('c_cliente')?.focus();
+}
+
+/* ----------------------------------------------------------
    Catálogo de Productos — selección de productos para el PDF
 ---------------------------------------------------------- */
 function toggleSeleccionCatalogo(id, checkbox) {

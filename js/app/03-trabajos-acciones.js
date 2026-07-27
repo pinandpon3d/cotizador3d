@@ -319,6 +319,9 @@ function nuevaCotizacion() {
   if(el('c_fecha_entrega')) el('c_fecha_entrega').value = '';
   if(el('c_metodo_pago'))   el('c_metodo_pago').value   = 'Efectivo';
   el('c_categoria').value = 'Funcional';
+  if (el('c_stock_producto')) el('c_stock_producto').value = '';
+  if (el('c_stock_cantidad')) el('c_stock_cantidad').value = 1;
+  if (typeof actualizarInfoCotizarCatalogo === 'function') actualizarInfoCotizarCatalogo();
   calcular();
 }
 

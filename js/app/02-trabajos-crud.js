@@ -240,6 +240,7 @@ function iniciarSincronizacion() {
     try { localStorage.setItem('catalogoProductos3d', JSON.stringify(catalogoProductos)); } catch(e) {}
     if (typeof renderCatalogoProductos     === 'function') renderCatalogoProductos();
     if (typeof cargarCategoriasCatalogo    === 'function') cargarCategoriasCatalogo();
+    if (typeof poblarSelectCotizarCatalogo === 'function') poblarSelectCotizarCatalogo();
   }));
 
   _unsubs.push(fbSuscribirCategoriasCatalogo(data => {

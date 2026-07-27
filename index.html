@@ -652,6 +652,33 @@
           </button>
         </div>
       </div>
+
+      <!-- ATAJO: COTIZAR PRODUCTO DEL CATÁLOGO -->
+      <div class="card" id="card-cotizar-catalogo">
+        <div class="card-title">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+          Cotizar producto del catálogo
+          <span style="font-size:.75rem;color:var(--text3);font-weight:400;margin-left:8px">opcional — atajo para productos que ya existen</span>
+        </div>
+        <div class="form-grid">
+          <div class="form-group" style="grid-column:span 2">
+            <label>Producto</label>
+            <select id="c_stock_producto" onchange="actualizarInfoCotizarCatalogo()">
+              <option value="">— Seleccionar producto del catálogo —</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Cantidad a cotizar</label>
+            <input type="number" id="c_stock_cantidad" min="1" value="1" step="1">
+          </div>
+          <div class="form-group">
+            <label>&nbsp;</label>
+            <button type="button" class="btn btn-secondary" style="width:100%" onclick="cotizarProductoCatalogo()">Usar este producto →</button>
+          </div>
+        </div>
+        <div id="c_stock_info" style="display:none;font-size:.8rem;color:var(--text2);margin-top:2px"></div>
+      </div>
+
       <div class="card">
         <div class="card-title">
           <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
@@ -677,6 +704,7 @@
               <option value="Prototipo">Prototipo</option><option value="Educativo">Educativo</option>
               <option value="Repuesto">Repuesto</option><option value="Personalizado">Personalizado</option>
               <option value="Inventario Productos">Inventario Productos</option>
+              <option value="Producto de Catálogo">Producto de Catálogo</option>
               <option value="Otro">Otro</option>
             </select>
           </div>
@@ -942,6 +970,7 @@
               <option value="Prototipo">Prototipo</option><option value="Educativo">Educativo</option>
               <option value="Repuesto">Repuesto</option><option value="Personalizado">Personalizado</option>
               <option value="Inventario Productos">Inventario Productos</option>
+              <option value="Producto de Catálogo">Producto de Catálogo</option>
               <option value="Otro">Otro</option>
             </select>
             <button id="btn-mostrar-entregados" class="btn btn-secondary btn-sm" onclick="toggleMostrarEntregados()">
