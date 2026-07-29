@@ -4431,9 +4431,14 @@ function _csvStr(filas) {
   ).join('\r\n');
 }
 
-function _filaCot(t) {
+function _normNombre(s) {
+  return String(s || '').trim().toLowerCase();
+}
+
+function _filaCot(t, clienteMap) {
   return [
-    t.id, t.fecha||'', t.cliente||'', t.pieza||'',
+    t.id, t.fecha||'', t.cliente||'', clienteMap.get(_normNombre(t.cliente)) || '',
+    t.pieza||'',
     t.categoria||'', t.material||'',
     t.estado||'', t.estadoPago||'', t.metodoPago||'',
     t.cantidad||0, t.placas||0, t.gramos||0,
@@ -4448,7 +4453,7 @@ function _filaCot(t) {
   ];
 }
 
-const _HDR_COT = ['id','fecha','cliente','pieza','categoria','material',
+const _HDR_COT = ['id','fecha','cliente','cliente_id','pieza','categoria','material',
   'estado','estadoPago','metodoPago',
   'cantidad','placas','gramos','horas_imp','horas_mo','horas_dis',
   'pFallos','pMargen','pIVA',
@@ -4462,9 +4467,10 @@ async function exportarTodosCSV() {
   }
   const zip = new JSZip();
   const hoy = new Date().toISOString().split('T')[0];
+  const clienteMap = new Map(clientes.map(c => [_normNombre(c.nombre), c.id]));
 
   /* 1 — Todos los trabajos (filtrar por estado/estadoPago en Power BI) */
-  zip.file('trabajos.csv', _csvStr([_HDR_COT, ...trabajos.map(_filaCot)]));
+  zip.file('trabajos.csv', _csvStr([_HDR_COT, ...trabajos.map(t => _filaCot(t, clienteMap))]));
 
   /* 2 — Historial de ventas de Inventario Productos */
   const filasVentas = [['cotizacion_id','pieza','cliente','categoria','fecha_venta','cantidad','es_devolucion','nota']];
