@@ -700,6 +700,12 @@ function renderDashboard(filtro = 'mes-actual') {
     .filter(t => ESTADOS_ELEC.includes(t.estado))
     .reduce((s, t) => s + costoElectricidadTrabajo(t), 0);
 
+  // Gastos por pagar: deuda actual del negocio, no depende del filtro de mes
+  // (igual que pendPago y montoPorCobrar).
+  const gastosPendientes = gastos
+    .filter(g => !g.pagado)
+    .reduce((s, g) => s + (g.monto || 0), 0);
+
   // Actualizar DOM
   set('dash-ventas',              fmt(ventasMes));
   set('dash-ganancia',            fmt(gananciaMes));
@@ -707,6 +713,7 @@ function renderDashboard(filtro = 'mes-actual') {
   set('dash-monto-cobrar', fmt(montoPorCobrar));
   set('dash-urgentes',     urgentes);
   set('dash-elec',         fmt(elecPeriodo));
+  set('dash-gastos-pend',  fmt(gastosPendientes));
   set('dash-cotizados',    countByEstado['Cotizado']     || 0);
   set('dash-aprobados',    countByEstado['Aprobado']     || 0);
   set('dash-enimpresion',  (countByEstado['En impresión']||0) + (countByEstado['Post-proceso']||0));
