@@ -4419,18 +4419,8 @@ function onAuthSuccess() {
 }
 
 /* ----------------------------------------------------------
-   Exportar datos a CSV — un ZIP con todos los archivos
+   Exportar datos a Excel — un solo .xlsx con 5 hojas
 ---------------------------------------------------------- */
-function _csvStr(filas) {
-  const BOM = '﻿';
-  return BOM + filas.map(f =>
-    f.map(v => {
-      const s = String(v ?? '');
-      return /[,"\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-    }).join(',')
-  ).join('\r\n');
-}
-
 function _normNombre(s) {
   return String(s || '').trim().toLowerCase();
 }
@@ -4461,16 +4451,17 @@ const _HDR_COT = ['id','fecha','cliente','cliente_id','pieza','categoria','mater
   'montoAbonado','montoPendiente',
   'fechaEntrega','fechaActualizacion','ventaDetalle','unidadesVendidas','notas'];
 
-async function exportarTodosCSV() {
-  if (typeof JSZip === 'undefined') {
-    toast('JSZip no cargó aún, reintentá en un momento', 'error'); return;
+function exportarExcelPowerBI() {
+  if (typeof XLSX === 'undefined') {
+    toast('Librería de Excel no cargó aún, reintentá en un momento', 'error'); return;
   }
-  const zip = new JSZip();
   const hoy = new Date().toISOString().split('T')[0];
   const clienteMap = new Map(clientes.map(c => [_normNombre(c.nombre), c.id]));
+  const wb = XLSX.utils.book_new();
 
   /* 1 — Todos los trabajos (filtrar por estado/estadoPago en Power BI) */
-  zip.file('trabajos.csv', _csvStr([_HDR_COT, ...trabajos.map(t => _filaCot(t, clienteMap))]));
+  const hojaTrabajos = XLSX.utils.aoa_to_sheet([_HDR_COT, ...trabajos.map(t => _filaCot(t, clienteMap))]);
+  XLSX.utils.book_append_sheet(wb, hojaTrabajos, 'trabajos');
 
   /* 2 — Historial de ventas de Inventario Productos */
   const filasVentas = [['cotizacion_id','pieza','cliente','categoria','fecha_venta','cantidad','es_devolucion','nota']];
@@ -4481,9 +4472,9 @@ async function exportarTodosCSV() {
       Math.abs(v.cantidad||0), (v.cantidad||0) < 0 ? 1 : 0, v.nota||''
     ]));
   });
-  zip.file('historial_ventas.csv', _csvStr(filasVentas));
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(filasVentas), 'historial_ventas');
 
-  /* 5 — Abonos */
+  /* 3 — Abonos */
   const filasAbonos = [['cotizacion_id','pieza','cliente','fecha_pago','monto','metodo','nota']];
   trabajos.forEach(t => {
     const ab = t.abonos || [];
@@ -4493,28 +4484,25 @@ async function exportarTodosCSV() {
       filasAbonos.push([t.id, t.pieza||'', t.cliente||'', t.fechaPago||'', t.montoAbonado||0, t.metodoPago||'', 'Pago legacy']);
     }
   });
-  zip.file('abonos.csv', _csvStr(filasAbonos));
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(filasAbonos), 'abonos');
 
-  /* 6 — Gastos */
-  zip.file('gastos.csv', _csvStr([
+  /* 4 — Gastos */
+  const hojaGastos = XLSX.utils.aoa_to_sheet([
     ['id','fecha','descripcion','categoria','monto','notas'],
     ...gastos.map(g => [g.id, g.fecha||'', g.descripcion||'', g.categoria||'', g.monto||0, g.notas||''])
-  ]));
+  ]);
+  XLSX.utils.book_append_sheet(wb, hojaGastos, 'gastos');
 
-  /* 7 — Clientes */
-  zip.file('clientes.csv', _csvStr([
+  /* 5 — Clientes */
+  const hojaClientes = XLSX.utils.aoa_to_sheet([
     ['id','nombre','telefono','correo','instagram','totalPedidos','totalComprado','notas'],
     ...clientes.map(c => [c.id, c.nombre||'', c.telefono||'', c.correo||'', c.instagram||'', c.totalPedidos||0, c.totalComprado||0, c.notas||''])
-  ]));
+  ]);
+  XLSX.utils.book_append_sheet(wb, hojaClientes, 'clientes');
 
-  const blob = await zip.generateAsync({ type: 'blob' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href = url; a.download = `cotizador3d_${hoy}.zip`;
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 2000);
+  XLSX.writeFile(wb, `cotizador3d_${hoy}.xlsx`);
 
-  toast('ZIP descargado con 5 archivos CSV ✓', 'success', 4000);
+  toast('Excel descargado con 5 hojas ✓', 'success', 4000);
 }
 
 /* ----------------------------------------------------------
