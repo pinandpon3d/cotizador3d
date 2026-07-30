@@ -16,8 +16,8 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<!-- JSZip (exportación CSV) -->
-<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<!-- SheetJS (exportación Excel) -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <!-- Google Identity Services (Drive OAuth) -->
 <script src="https://accounts.google.com/gsi/client" async></script>
 </head>
@@ -1934,10 +1934,10 @@
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           Exportar datos
         </div>
-        <p style="font-size:.75rem;color:var(--text3);margin:0 0 12px">Genera 5 archivos CSV listos para Power BI o Excel: cotizaciones, historial de ventas, abonos, gastos y clientes.</p>
-        <button class="btn btn-secondary btn-sm" onclick="exportarTodosCSV()">
+        <p style="font-size:.75rem;color:var(--text3);margin:0 0 12px">Genera un Excel (.xlsx) con 5 hojas listas para Power BI o Excel: cotizaciones, historial de ventas, abonos, gastos y clientes.</p>
+        <button class="btn btn-secondary btn-sm" onclick="exportarExcelPowerBI()">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Descargar CSV para Power BI
+          Descargar Excel para Power BI
         </button>
       </div>
 
