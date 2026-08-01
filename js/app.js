@@ -1055,6 +1055,101 @@ async function eliminarAbono(idx) {
   }
 }
 
+/* ----------------------------------------------------------
+   Modal historial de abonos — Gastos
+---------------------------------------------------------- */
+let _abonoGastoId = null;
+
+function abrirModalAbonoGasto(id) {
+  const g = gastos.find(g => g.id === id);
+  if (!g) return;
+  _abonoGastoId = id;
+  const fechaHoy = new Date().toISOString().split('T')[0];
+  if (el('abonog-fecha'))  el('abonog-fecha').value  = fechaHoy;
+  if (el('abonog-monto'))  el('abonog-monto').value  = '';
+  if (el('abonog-metodo')) el('abonog-metodo').value = '';
+  if (el('abonog-nota'))   el('abonog-nota').value   = '';
+  renderHistorialAbonosGasto(g);
+  el('modal-abono-gasto').style.display = 'flex';
+}
+
+function cerrarModalAbonoGasto() {
+  const m = el('modal-abono-gasto');
+  if (m) m.style.display = 'none';
+  _abonoGastoId = null;
+}
+
+async function registrarAbonoGasto() {
+  const g = gastos.find(g => g.id === _abonoGastoId);
+  if (!g) return;
+
+  const monto  = parseFloat(el('abonog-monto')?.value);
+  const fecha  = el('abonog-fecha')?.value;
+  const metodo = el('abonog-metodo')?.value || '';
+  const nota   = (el('abonog-nota')?.value || '').trim();
+
+  if (!monto || monto <= 0) { toast('Ingresá un monto válido', 'error'); return; }
+  if (!fecha)               { toast('Ingresá una fecha', 'error'); return; }
+
+  // Migrar legacy: si estaba marcado pagado sin historial, convertirlo en entrada
+  let baseAbonos = g.abonos ? [...g.abonos] : [];
+  if (baseAbonos.length === 0 && g.pagado) {
+    baseAbonos = [{ fecha: g.fecha || fecha, monto: g.monto || 0, nota: 'Pago anterior (migrado)' }];
+  }
+
+  const nuevoAbono = { fecha, monto };
+  if (metodo) nuevoAbono.metodo = metodo;
+  if (nota)   nuevoAbono.nota   = nota;
+
+  const abonos         = [...baseAbonos, nuevoAbono];
+  const montoAbonado   = abonos.reduce((s, a) => s + (a.monto || 0), 0);
+  const montoGasto     = g.monto || 0;
+  const montoPendiente = Math.max(0, montoGasto - montoAbonado);
+  const estadoPago     = calcEstadoPago(montoGasto, montoAbonado);
+  const pagado         = estadoPago === 'Pagado';
+
+  const updates = { abonos, montoAbonado, montoPendiente, estadoPago, pagado };
+
+  try {
+    await fbActualizarPagoGasto(_abonoGastoId, updates);
+    Object.assign(g, updates);
+    if (el('abonog-monto'))  el('abonog-monto').value  = '';
+    if (el('abonog-metodo')) el('abonog-metodo').value = '';
+    if (el('abonog-nota'))   el('abonog-nota').value   = '';
+    renderHistorialAbonosGasto(g);
+    renderCostos();
+    toast('Abono registrado ✓', 'success');
+  } catch(e) {
+    console.error(e);
+    toast('Error al registrar abono', 'error');
+  }
+}
+
+async function eliminarAbonoGasto(idx) {
+  const g = gastos.find(g => g.id === _abonoGastoId);
+  if (!g || !g.abonos) return;
+
+  const abonos         = g.abonos.filter((_, i) => i !== idx);
+  const montoAbonado   = abonos.reduce((s, a) => s + (a.monto || 0), 0);
+  const montoGasto     = g.monto || 0;
+  const montoPendiente = Math.max(0, montoGasto - montoAbonado);
+  const estadoPago     = calcEstadoPago(montoGasto, montoAbonado);
+  const pagado         = estadoPago === 'Pagado';
+
+  const updates = { abonos, montoAbonado, montoPendiente, estadoPago, pagado };
+
+  try {
+    await fbActualizarPagoGasto(_abonoGastoId, updates);
+    Object.assign(g, updates);
+    renderHistorialAbonosGasto(g);
+    renderCostos();
+    toast('Abono eliminado', 'success');
+  } catch(e) {
+    console.error(e);
+    toast('Error al eliminar abono', 'error');
+  }
+}
+
 /* ─── EDITAR EN COTIZADOR ─── Carga todos los datos en el formulario de cálculo */
 function editarEnCotizador(id) {
   const t = trabajos.find(t => t.id === id); if (!t) return;
@@ -4358,7 +4453,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   // Cerrar modales con Escape
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { cerrarModalEdicion(); cerrarModalAbono(); }
+    if (e.key === 'Escape') { cerrarModalEdicion(); cerrarModalAbono(); cerrarModalAbonoGasto(); }
   });
 });
 
