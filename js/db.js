@@ -257,6 +257,10 @@ async function fbGuardarGasto(data) {
 async function fbEliminarGasto(id) {
   await db.collection('gastos').doc(String(id)).delete();
 }
+/** Actualiza datos de pago (abonos) de un gasto. */
+async function fbActualizarPagoGasto(id, updates) {
+  await db.collection('gastos').doc(String(id)).update(updates);
+}
 
 /* ----------------------------------------------------------
    Inversión Inicial

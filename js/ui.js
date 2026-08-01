@@ -253,7 +253,7 @@ function renderTrabajos() {
   const ingresos        = trabajos.reduce((s,t) => s + ingresosLote(t), 0);
   const ganancias       = trabajos.reduce((s,t) => s + gananciaLote(t), 0);
   const gastosPagados   = (typeof gastos !== 'undefined' ? gastos : [])
-    .filter(g => g.pagado).reduce((s, g) => s + (g.monto || 0), 0);
+    .reduce((s, g) => s + gastoMontoAbonado(g), 0);
   const invPagada       = ((typeof inversion !== 'undefined' ? inversion.items : null) || [])
     .filter(i => i.pagado).reduce((s, i) => s + (i.monto || 0), 0);
   const neto            = ingresos - gastosPagados - invPagada;
@@ -715,8 +715,7 @@ function renderDashboard(filtro = 'mes-actual') {
   // Gastos por pagar: deuda actual del negocio, no depende del filtro de mes
   // (igual que pendPago y montoPorCobrar).
   const gastosPendientes = gastos
-    .filter(g => !g.pagado)
-    .reduce((s, g) => s + (g.monto || 0), 0);
+    .reduce((s, g) => s + gastoMontoPendiente(g), 0);
 
   // Actualizar DOM
   set('dash-ventas',              fmt(ventasMes));
@@ -924,6 +923,70 @@ function renderHistorialAbonos(t) {
       <div class="abono-item-right">
         <span class="abono-item-monto">₡${fmt(a.monto || 0)}</span>
         <button class="btn btn-ghost btn-icon btn-sm abono-del" title="Eliminar abono" onclick="eliminarAbono(${i})">
+          <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
+            <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+          </svg>
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+
+  lista.innerHTML = html;
+}
+
+function renderHistorialAbonosGasto(g) {
+  const abonos    = g.abonos || [];
+  const total     = g.monto || 0;
+  const legacyAmt = (abonos.length === 0 && g.pagado) ? total : 0;
+  const pagado    = legacyAmt + abonos.reduce((s, a) => s + (a.monto || 0), 0);
+  const pendiente = Math.max(0, total - pagado);
+  const pct       = total > 0 ? Math.min(100, (pagado / total) * 100) : 0;
+
+  set('abonog-modal-descripcion', escHtml(g.descripcion || '—'));
+  set('abonog-total',     fmt(total));
+  set('abonog-pagado',    fmt(pagado));
+  set('abonog-pendiente', fmt(pendiente));
+
+  const bar = el('abonog-progress-bar');
+  if (bar) bar.style.width = pct.toFixed(1) + '%';
+  const pctEl = el('abonog-progress-pct');
+  if (pctEl) pctEl.textContent = pct.toFixed(0) + '%';
+
+  const lista = el('abonog-lista');
+  if (!lista) return;
+
+  if (abonos.length === 0 && legacyAmt === 0) {
+    lista.innerHTML = '<div class="abono-empty">Sin abonos registrados</div>';
+    return;
+  }
+
+  const METODO = { 'SINPE':'📱','Efectivo':'💵','Transferencia':'🏦','Tarjeta':'💳','Otro':'📋' };
+  let html = '';
+
+  if (legacyAmt > 0) {
+    html += `<div class="abono-item abono-legado">
+      <div class="abono-item-info">
+        <span class="abono-item-metodo">💰 Sin detalle</span>
+        <span class="abono-item-nota">Pago registrado antes del historial</span>
+      </div>
+      <div class="abono-item-right">
+        <span class="abono-item-monto">₡${fmt(legacyAmt)}</span>
+      </div>
+    </div>`;
+  }
+
+  html += abonos.map((a, i) => {
+    const icon = METODO[a.metodo] || '💰';
+    return `<div class="abono-item">
+      <div class="abono-item-info">
+        <span class="abono-item-fecha">${a.fecha || '—'}</span>
+        <span class="abono-item-metodo">${icon} ${a.metodo || 'Sin método'}</span>
+        ${a.nota ? `<span class="abono-item-nota">${escHtml(a.nota)}</span>` : ''}
+      </div>
+      <div class="abono-item-right">
+        <span class="abono-item-monto">₡${fmt(a.monto || 0)}</span>
+        <button class="btn btn-ghost btn-icon btn-sm abono-del" title="Eliminar abono" onclick="eliminarAbonoGasto(${i})">
           <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
             <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
@@ -1154,6 +1217,16 @@ const GASTO_COLOR = {
   'Otro':        'badge-gray'
 };
 
+/** Monto ya abonado de un gasto (suma del historial, o el total si sigue
+ *  marcado con el toggle simple "pagado" y aún no tiene abonos registrados). */
+function gastoMontoAbonado(g) {
+  if (g.abonos && g.abonos.length) return g.abonos.reduce((s, a) => s + (a.monto || 0), 0);
+  return g.pagado ? (g.monto || 0) : 0;
+}
+function gastoMontoPendiente(g) {
+  return Math.max(0, (g.monto || 0) - gastoMontoAbonado(g));
+}
+
 function renderCostos() {
   const tbody = el('gastos-tbody');
   if (!tbody) return;
@@ -1169,11 +1242,15 @@ function renderCostos() {
   }
   if (empty) empty.style.display = 'none';
   const total   = gastos.reduce((s, g) => s + (g.monto || 0), 0);
-  const pagado  = gastos.filter(g => g.pagado).reduce((s, g) => s + (g.monto || 0), 0);
+  const pagado  = gastos.reduce((s, g) => s + gastoMontoAbonado(g), 0);
   if (totalEl)  totalEl.textContent  = fmt(total);
   if (pagadoEl) pagadoEl.textContent = `${fmt(pagado)} pagado`;
   tbody.innerHTML = gastos.map(g => {
-    const cls = g.pagado ? ' style="opacity:.55"' : '';
+    const cls           = g.pagado ? ' style="opacity:.55"' : '';
+    const montoAbonadoG  = gastoMontoAbonado(g);
+    const montoPendG     = gastoMontoPendiente(g);
+    const estadoPagoG    = (typeof calcEstadoPago === 'function') ? calcEstadoPago(g.monto || 0, montoAbonadoG) : (g.pagado ? 'Pagado' : 'Pendiente');
+    const pclsG          = pagoClass(estadoPagoG);
     return `
     <tr${cls}>
       <td class="td-mono">${g.fecha || '—'}</td>
@@ -1182,9 +1259,16 @@ function renderCostos() {
       <td class="td-mono"><strong style="${g.pagado ? 'text-decoration:line-through;color:var(--text3)' : ''}">${fmt(g.monto || 0)}</strong></td>
       <td>${escHtml(g.notas || '')}</td>
       <td>
+        <button class="badge ${pclsG} abono-badge-btn" onclick="abrirModalAbonoGasto('${g.id}')" title="Ver/agregar abonos">${estadoPagoG}</button>
+        ${estadoPagoG === 'Abono' && montoPendG > 0 ? `<div style="font-size:.6rem;color:var(--text3);margin-top:2px">Pend: ₡${fmt(montoPendG)}</div>` : ''}
+      </td>
+      <td>
         <div class="td-actions">
           <button class="btn btn-sm ${g.pagado ? 'btn-success' : 'btn-secondary'}" style="font-size:.7rem;padding:3px 8px" title="${g.pagado ? 'Marcar como pendiente' : 'Marcar como pagado'}" onclick='toggleGastoPagado("${g.id}")'>
             ${g.pagado ? '✓ Pagado' : 'Pagar'}
+          </button>
+          <button class="btn btn-ghost btn-icon btn-sm" title="Historial de abonos" onclick='abrirModalAbonoGasto("${g.id}")'>
+            <svg width="13" height="13" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
           </button>
           <button class="btn btn-danger btn-icon btn-sm" title="Eliminar" onclick='eliminarGasto("${g.id}")'>
             <svg width="13" height="13" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
