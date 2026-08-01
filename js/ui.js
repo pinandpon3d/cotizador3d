@@ -187,6 +187,7 @@ function pagoClass(estado) {
 ---------------------------------------------------------- */
 
 let _mostrarEntregados = false;
+let _mostrarCancelados = false;
 
 function toggleMostrarEntregados() {
   _mostrarEntregados = !_mostrarEntregados;
@@ -194,6 +195,16 @@ function toggleMostrarEntregados() {
   if (btn) {
     btn.textContent = _mostrarEntregados ? '👁 Ocultar entregados' : '📦 Mostrar entregados';
     btn.classList.toggle('active', _mostrarEntregados);
+  }
+  renderTrabajos();
+}
+
+function toggleMostrarCancelados() {
+  _mostrarCancelados = !_mostrarCancelados;
+  const btn = el('btn-mostrar-cancelados');
+  if (btn) {
+    btn.innerHTML = _mostrarCancelados ? '👁 <span>Ocultar cancelados</span>' : '🚫 <span>Trabajos cancelados</span>';
+    btn.classList.toggle('active', _mostrarCancelados);
   }
   renderTrabajos();
 }
@@ -224,8 +235,9 @@ function renderTrabajos() {
       const matchPago   = !pagoF   || (t.estadoPago||'Pendiente') === pagoF;
       // Entregado + pago pendiente/abono siempre visible (requiere cobro)
       const esCobrable  = t.estado === 'Entregado' && (t.estadoPago||'Pendiente') !== 'Pagado';
-      const mostrarEste = _mostrarEntregados || estadoF === 'Entregado' || t.estado !== 'Entregado' || esCobrable;
-      return matchSearch && matchEstado && matchCat && matchPago && mostrarEste;
+      const mostrarEntregadoOk  = _mostrarEntregados || estadoF === 'Entregado' || t.estado !== 'Entregado' || esCobrable;
+      const mostrarCanceladoOk = _mostrarCancelados || estadoF === 'Cancelado' || t.estado !== 'Cancelado';
+      return matchSearch && matchEstado && matchCat && matchPago && mostrarEntregadoOk && mostrarCanceladoOk;
     })
     // Ordenar por ID descendente (más reciente primero — IDs son timestamps)
     .sort((a, b) => String(b.id).localeCompare(String(a.id)));
