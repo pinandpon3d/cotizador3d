@@ -2690,24 +2690,102 @@ async function guardarReabastecimiento() {
   }
 }
 
-/** Muestra el historial de ventas/devoluciones de un lote de Inventario
- *  Productos (antes se mostraba siempre expandido dentro de la tarjeta). */
+/** Abre el modal para restar unidades del inventario de un producto —
+ *  para mermas, daños o pérdidas, sin registrarlo como una venta. */
+function abrirModalRestar(id) {
+  const t = trabajos.find(t => t.id === id);
+  if (!t) return;
+  const disponibles = Math.max(_totalUnidadesDetalle(t) - (t.unidadesVendidas || 0), 0);
+  if (disponibles <= 0) { toast('No hay unidades disponibles para restar', 'error'); return; }
+  el('rs-id').value              = id;
+  el('rs-pieza-lbl').textContent = t.pieza || '—';
+  el('rs-actual-num').textContent = disponibles;
+  el('rs-cantidad').value        = 1;
+  el('rs-cantidad').max          = disponibles;
+  el('rs-motivo').value          = '';
+  const mv = el('modal-restar');
+  if (mv) mv.style.display = 'flex';
+}
+
+function cerrarModalRestar() {
+  const mv = el('modal-restar');
+  if (mv) mv.style.display = 'none';
+}
+
+/** Resta unidades del total del lote (inverso de reabastecer), sin tocar
+ *  unidadesVendidas — no es una venta, es un ajuste de stock disponible. */
+async function guardarRestarStock() {
+  const id       = el('rs-id')?.value;
+  const unidades = parseInt(el('rs-cantidad')?.value) || 0;
+  const motivo   = (el('rs-motivo')?.value || '').trim();
+  const t        = trabajos.find(t => t.id === id);
+  if (!t) return;
+  if (unidades < 1) { toast('Ingresá una cantidad mayor a 0', 'error'); return; }
+
+  const vendidas    = t.unidadesVendidas || 0;
+  const totalActual = _totalUnidadesDetalle(t);
+  const disponibles = Math.max(totalActual - vendidas, 0);
+  if (unidades > disponibles) {
+    toast(`Solo hay ${disponibles} unidad${disponibles !== 1 ? 'es' : ''} disponible${disponibles !== 1 ? 's' : ''}`, 'error');
+    return;
+  }
+
+  const placas          = Math.max(t.placas || 1, 1);
+  const precioUnitario   = totalActual > 0 ? (t.precio_final || 0) / totalActual : 0;
+  const nuevaCantidad    = Math.max(0, (t.cantidad || 1) - unidades);
+  const nuevoTotal       = Math.max(nuevaCantidad * placas, vendidas);
+  const nuevoPrecioFinal = Math.max(0, Math.round(precioUnitario * nuevoTotal));
+  const entrada = { fecha: new Date().toISOString(), cantidad: -unidades, nota: motivo || 'Ajuste de inventario' };
+
+  const updateData = {
+    cantidad: nuevaCantidad,
+    precio_final: nuevoPrecioFinal,
+    fechaActualizacionEstado: new Date().toISOString(),
+    historialAjustes: firebase.firestore.FieldValue.arrayUnion(entrada)
+  };
+
+  try {
+    await db.collection('cotizaciones').doc(String(id)).update(updateData);
+    t.cantidad = nuevaCantidad;
+    t.precio_final = nuevoPrecioFinal;
+    t.fechaActualizacionEstado = updateData.fechaActualizacionEstado;
+    t.historialAjustes = [...(t.historialAjustes || []), entrada];
+    try { localStorage.setItem('trabajos3d', JSON.stringify(trabajos.map(t => { const {_desglose,...c}=t; return c; }))); } catch(e){}
+    cerrarModalRestar();
+    toast('Unidades restadas del inventario ✓', 'success');
+    if (typeof renderTrabajos === 'function') renderTrabajos();
+    cargarVentaDetalle();
+  } catch(e) {
+    console.error('Error al restar del inventario:', e);
+    toast('No se pudo restar del inventario', 'error');
+  }
+}
+
+/** Muestra el historial de ventas/devoluciones/ajustes de un lote de
+ *  Inventario Productos (antes se mostraba siempre expandido dentro de la tarjeta). */
 function abrirModalHistorialVD(id) {
   const t = trabajos.find(t => t.id === id);
   if (!t) return;
   set('hvd-pieza', t.pieza || '—');
 
-  const hist  = (t.historialVentas || []).slice().reverse();
+  const histVentas  = (t.historialVentas  || []).map(v => v);
+  const histAjustes = (t.historialAjustes || []).map(a => ({ ...a, tipo: 'ajuste' }));
+  const hist = [...histVentas, ...histAjustes].sort((a, b) => String(b.fecha||'').localeCompare(String(a.fecha||'')));
+
   const lista = el('hvd-lista');
   if (lista) {
     lista.innerHTML = hist.map(v => {
-      const esDev = (v.cantidad || 0) < 0;
-      const cantLabel = esDev
-        ? `<span class="vd-hist-cant" style="color:var(--danger,#dc2626)">−${Math.abs(v.cantidad)}</span>`
-        : `<span class="vd-hist-cant">+${v.cantidad}</span>`;
+      const esAjuste = v.tipo === 'ajuste';
+      const esDev    = !esAjuste && (v.cantidad || 0) < 0;
+      const cantLabel = esAjuste
+        ? `<span class="vd-hist-cant" style="color:var(--warn,#d97706)">−${Math.abs(v.cantidad)}</span>`
+        : esDev
+          ? `<span class="vd-hist-cant" style="color:var(--danger,#dc2626)">−${Math.abs(v.cantidad)}</span>`
+          : `<span class="vd-hist-cant">+${v.cantidad}</span>`;
       return `<div class="vd-hist-item">
         <span class="vd-hist-fecha">${(v.fecha||'').split('T')[0] || '—'}</span>
         ${cantLabel}
+        ${esAjuste ? `<span style="font-size:.65rem;color:var(--text3)">(ajuste)</span>` : ''}
         ${v.nota ? `<span class="vd-hist-nota">${escHtml(v.nota)}</span>` : ''}
       </div>`;
     }).join('');
