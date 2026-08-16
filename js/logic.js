@@ -165,6 +165,16 @@ function calcular() {
     if (ind) ind.style.display = 'none';
   }
 
+  // Paso 7: descuento sobre el precio total (cotización o producto completo)
+  const descuentoTipo  = el('c_descuento_tipo')?.value || 'porcentaje';
+  const descuentoValor = Math.max(fv('c_descuento_valor'), 0);
+  let descuentoMonto = 0;
+  if (descuentoValor > 0) {
+    descuentoMonto = descuentoTipo === 'monto' ? descuentoValor : precioTotal * (descuentoValor / 100);
+    descuentoMonto = Math.min(Math.max(descuentoMonto, 0), precioTotal);
+  }
+  const precioTotalFinal = Math.max(0, precioTotal - descuentoMonto);
+
   // Actualizar desglose en pantalla
   set('b_material',           fmt(material));
   set('b_elec',               fmt(elec));
@@ -190,14 +200,21 @@ function calcular() {
   set('b_iva_val',            fmt(ivaVal));
   set('b_unitario_label',     `PRECIO POR OBJETO`);
   set('b_unitario',           fmt(precioRedondeado));
+  const hayDescuento = descuentoMonto > 0;
+  if (el('b_desc_sub_row')) el('b_desc_sub_row').style.display = hayDescuento ? '' : 'none';
+  set('b_desc_sub',           fmt(precioTotal));
+  if (el('b_desc_row')) el('b_desc_row').style.display = hayDescuento ? '' : 'none';
+  set('b_desc_label',         descuentoTipo === 'monto' ? 'Descuento' : `Descuento (${descuentoValor}%)`);
+  set('b_desc_val',           '-' + fmt(descuentoMonto));
   set('b_total_label',        `PRECIO TOTAL (× ${totalObjetos} objeto${totalObjetos !== 1 ? 's' : ''})`);
-  set('b_final',              fmt(precioTotal));
+  set('b_final',              fmt(precioTotalFinal));
 
   return { material, elec, desgaste, mo, dis, postpro, otros,
            placas, cantidad, totalObjetos,
            subtotal, fallosVal, costoTotalPlacas, costoUnitario,
            gananciaObjeto, antesIVA, ivaVal,
-           precioRedondeado, precioTotal };
+           precioRedondeado, precioTotal,
+           descuentoTipo, descuentoValor, descuentoMonto, precioTotalFinal };
 }
 
 /* ----------------------------------------------------------

@@ -130,7 +130,7 @@ async function guardarCotizacion() {
   const desglose     = calcular();
   _matPreviewCosto = savedPreview;
   const id              = editingId || genId();
-  const precioFinal     = desglose.precioTotal;
+  const precioFinal     = desglose.precioTotalFinal;
   const montoAbonado    = fv('c_monto_abonado') || 0;
   const precioManualVal = fv('c_precio_manual') || 0;
 
@@ -169,6 +169,10 @@ async function guardarCotizacion() {
     inventarioDescontado: editingId ? (trabajos.find(t=>t.id===editingId)?.inventarioDescontado || false) : false,
     precioManualActivo: precioManualVal > 0,
     precioManualValor:  precioManualVal > 0 ? precioManualVal : 0,
+    descuentoTipo:   desglose.descuentoTipo,
+    descuentoValor:  desglose.descuentoValor,
+    descuentoMonto:  desglose.descuentoMonto,
+    precioFinalBruto: desglose.precioTotal,
     _desglose: desglose
   };
 
@@ -884,9 +888,10 @@ function nuevaCotizacion() {
   const nums = {
     c_cantidad:1, c_placas:1, c_gramos:0, c_horas_imp:0, c_horas_mo:0,
     c_horas_dis:0, c_costo_dis:0, c_postpro:0, c_otros:0,
-    c_fallos:5, c_margen:35, c_iva:0, c_monto_abonado:0
+    c_fallos:5, c_margen:35, c_iva:0, c_monto_abonado:0, c_descuento_valor:0
   };
   Object.entries(nums).forEach(([k,v]) => { if(el(k)) el(k).value = v; });
+  if (el('c_descuento_tipo')) el('c_descuento_tipo').value = 'porcentaje';
   el('c_fecha').value = today();
   if(el('c_fecha_entrega')) el('c_fecha_entrega').value = '';
   if(el('c_metodo_pago'))   el('c_metodo_pago').value   = 'Efectivo';
@@ -1180,6 +1185,8 @@ function editarEnCotizador(id) {
   sv('c_margen',        t.pMargen   ?? 35);
   sv('c_iva',           t.pIVA      ?? 0);
   sv('c_precio_manual', t.precioManualActivo ? t.precioManualValor : '');
+  if (el('c_descuento_tipo')) el('c_descuento_tipo').value = t.descuentoTipo || 'porcentaje';
+  sv('c_descuento_valor', t.descuentoValor || 0);
   sv('c_monto_abonado', t.montoAbonado || 0);
   if (el('c_metodo_pago')) el('c_metodo_pago').value = t.metodoPago || 'Efectivo';
 
@@ -3391,10 +3398,14 @@ function generarPDF() {
     horas_imp:      fv('c_horas_imp'),
     pIVA:           fv('c_iva'),
     costo_total:    desglose.costoTotalPlacas,
-    precio_final:   desglose.precioTotal,
+    precio_final:   desglose.precioTotalFinal,
     precio_unitario:desglose.precioRedondeado,
     metodoPago:     el('c_metodo_pago')?.value || '',
     montoAbonado:   fv('c_monto_abonado'),
+    descuentoTipo:    desglose.descuentoTipo,
+    descuentoValor:   desglose.descuentoValor,
+    descuentoMonto:   desglose.descuentoMonto,
+    precioFinalBruto: desglose.precioTotal,
     _desglose:      desglose
   });
 }
@@ -3414,6 +3425,9 @@ function generarPDFData(t) {
   const abono        = Number(t.montoAbonado) || 0;
   const pendiente    = Math.max(precioFinal - abono, 0);
   const metodo       = t.metodoPago || '';
+  const descuentoMonto  = Number(t.descuentoMonto) || 0;
+  const precioFinalBruto = Number(t.precioFinalBruto) || precioFinal;
+  const descLabel = t.descuentoTipo === 'monto' ? 'Descuento' : `Descuento (${t.descuentoValor||0}%)`;
 
   const base       = new URL('.', window.location.href).href;
   const mascotaUrl = base + 'img/Mascota-PNG.png';
@@ -3633,6 +3647,9 @@ body{min-height:100vh;padding:20px 0 80px;display:flex;justify-content:center;al
     <!-- SUMMARY -->
     <div class="summary">
       <div class="sum-card">
+        ${descuentoMonto > 0 ? `
+        <div class="sum-row"><span class="sum-label">Precio (sin descuento)</span><span class="sum-val">&#8353;&thinsp;${(Math.ceil(precioFinalBruto)).toLocaleString('es-CR',{minimumFractionDigits:0,maximumFractionDigits:0})}</span></div>
+        <div class="sum-row"><span class="sum-label">${escHtml(descLabel)}</span><span class="sum-val" style="color:#c0392b">&#8722; &#8353;&thinsp;${(Math.ceil(descuentoMonto)).toLocaleString('es-CR',{minimumFractionDigits:0,maximumFractionDigits:0})}</span></div>` : ''}
         ${pIVA > 0 ? `
         <div class="sum-row"><span class="sum-label">Subtotal (sin IVA)</span><span class="sum-val">&#8353;&thinsp;${(Math.ceil(antesIVATotal)).toLocaleString('es-CR',{minimumFractionDigits:0,maximumFractionDigits:0})}</span></div>
         <div class="sum-row"><span class="sum-label">IVA (${pIVA}%)</span><span class="sum-val">&#8353;&thinsp;${(Math.ceil(ivaValTotal)).toLocaleString('es-CR',{minimumFractionDigits:0,maximumFractionDigits:0})}</span></div>` : ''}

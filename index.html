@@ -865,6 +865,26 @@
       </div>
       <div class="card">
         <div class="card-title">
+          <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>
+          Descuento
+          <span style="font-size:.75rem;color:var(--text3);font-weight:400;margin-left:8px">opcional — aplica sobre el precio total de la cotización</span>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <div class="form-group" style="flex:1;min-width:150px">
+            <label>Tipo de descuento</label>
+            <select id="c_descuento_tipo" onchange="calcular()">
+              <option value="porcentaje">% Porcentaje</option>
+              <option value="monto">₡ Monto fijo</option>
+            </select>
+          </div>
+          <div class="form-group" style="flex:1;min-width:150px">
+            <label>Valor del descuento</label>
+            <input type="number" id="c_descuento_valor" value="0" min="0" step="1" placeholder="0" oninput="calcular()">
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">
           <svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
           Desglose de Costos
         </div>
@@ -885,6 +905,8 @@
           <div class="breakdown-row subtotal"><span>Precio antes de IVA (por objeto)</span><span class="breakdown-val" id="b_antes_iva">₡0.00</span></div>
           <div class="breakdown-row" id="b_iva_row"><span id="b_iva_label">+ IVA (0%)</span><span class="breakdown-val" id="b_iva_val">₡0.00</span></div>
           <div class="breakdown-row total highlight"><span id="b_unitario_label">PRECIO POR OBJETO</span><span class="breakdown-val" id="b_unitario">₡0</span></div>
+          <div class="breakdown-row" id="b_desc_sub_row" style="display:none"><span>Precio total (sin descuento)</span><span class="breakdown-val" id="b_desc_sub">₡0</span></div>
+          <div class="breakdown-row" id="b_desc_row" style="display:none"><span id="b_desc_label">Descuento</span><span class="breakdown-val" id="b_desc_val" style="color:var(--danger)">-₡0</span></div>
           <div class="breakdown-row subtotal"><span id="b_total_label">PRECIO TOTAL (× 1 objeto)</span><span class="breakdown-val"><span id="b_final">₡0</span> <span id="b_modo_precio" style="display:none;font-size:.65rem;background:rgba(26,96,166,.12);color:var(--accent);padding:1px 6px;border-radius:4px;font-weight:600">precio manual</span></span></div>
         </div>
 
