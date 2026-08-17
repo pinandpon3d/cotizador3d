@@ -244,10 +244,11 @@ function renderFeriaStandalone() {
     tbody.innerHTML = items.map(i => {
       const asignadas   = i.cantidadAsignada || 0;
       const vendidasHoy = i.vendidasHoy || 0;
+      const restantes    = Math.max(asignadas - vendidasHoy, 0);
       return `<tr>
         <td><strong>${escHtml(i.pieza || '—')}</strong></td>
         <td class="td-mono">${fmt(i.precioUnitario || 0)}</td>
-        <td class="td-mono">${asignadas}</td>
+        <td class="td-mono">${restantes}</td>
         <td>
           <div style="display:flex;align-items:center;gap:8px;justify-content:center">
             <button class="btn btn-ghost btn-icon btn-sm" title="Restar una venta" onclick="cambiarVendidasFeriaStandalone('${i.id}',-1)" ${vendidasHoy <= 0 ? 'disabled' : ''}>
@@ -269,8 +270,10 @@ function renderFeriaStandalone() {
     }).join('');
   }
 
-  set('fe-st-asignadas', itemsFeria.reduce((s, i) => s + (i.cantidadAsignada || 0), 0));
-  set('fe-st-hoy',       itemsFeria.reduce((s, i) => s + (i.vendidasHoy || 0), 0));
+  const totalAsignadasStandalone = itemsFeria.reduce((s, i) => s + (i.cantidadAsignada || 0), 0);
+  const totalHoyStandalone       = itemsFeria.reduce((s, i) => s + (i.vendidasHoy || 0), 0);
+  set('fe-st-asignadas', Math.max(totalAsignadasStandalone - totalHoyStandalone, 0));
+  set('fe-st-hoy',       totalHoyStandalone);
   set('fe-st-total',     fmt(itemsFeria.reduce((s, i) => s + (i.vendidasHoy || 0) * (i.precioUnitario || 0), 0)));
 }
 
