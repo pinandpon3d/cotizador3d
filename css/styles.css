@@ -972,6 +972,7 @@ tbody td{padding:11px 14px;color:var(--text);vertical-align:middle}
 .role-badge{display:inline-flex;padding:1px 7px;border-radius:20px;font-size:.65rem;font-weight:700;margin-top:2px}
 .role-admin{background:var(--accent-soft);color:var(--accent)}
 .role-user{background:var(--surface2);color:var(--text2);border:1px solid var(--border)}
+.role-feria{background:rgba(217,119,6,.1);color:var(--warn)}
 .btn-logout{
   display:flex;align-items:center;gap:8px;
   padding:7px 10px;border-radius:var(--radius-sm);

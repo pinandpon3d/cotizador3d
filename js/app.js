@@ -79,6 +79,10 @@ function toggleTrabajosVista(vista) {
 }
 
 function navTo(page) {
+  if (typeof currentRole !== 'undefined' && currentRole && typeof ROLE_PAGES !== 'undefined') {
+    const permitidas = ROLE_PAGES[currentRole] || ROLE_PAGES.usuario;
+    if (!permitidas.includes(page)) page = permitidas[0] || 'cotizador';
+  }
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   const pg  = el('page-' + page); if (pg)  pg.classList.add('active');

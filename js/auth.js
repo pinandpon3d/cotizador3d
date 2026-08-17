@@ -5,8 +5,10 @@
  * registro de usuarios y control de acceso por rol.
  *
  * Roles:
- *   admin   → cotizador, trabajos, inventario, configuracion, usuarios
- *   usuario → cotizador, trabajos
+ *   admin   → acceso completo
+ *   usuario → cotizador, trabajos y el resto de páginas operativas
+ *   feria   → únicamente Inventario Feria (para el personal de un
+ *             puesto/evento — no ve cotizaciones, clientes ni finanzas)
  *
  * Depende de: db.js (firebase/auth ya inicializado), logic.js (el/toast)
  */
@@ -23,9 +25,13 @@ let currentRole   = null;
 let currentPerfil = null;
 
 const ROLE_PAGES = {
-  admin:   ['cotizador', 'trabajos', 'inventario', 'configuracion', 'usuarios', 'dashboard', 'clientes', 'detalle', 'costos', 'calendario', 'catalogo'],
-  usuario: ['cotizador', 'trabajos', 'dashboard', 'clientes', 'detalle', 'calendario', 'catalogo']
+  admin:   ['cotizador', 'trabajos', 'inventario', 'configuracion', 'usuarios', 'dashboard', 'clientes', 'detalle', 'feria', 'costos', 'calendario', 'catalogo'],
+  usuario: ['cotizador', 'trabajos', 'dashboard', 'clientes', 'detalle', 'feria', 'calendario', 'catalogo'],
+  feria:   ['feria']
 };
+
+const ROLE_LABELS = { admin: 'Administrador', usuario: 'Usuario', feria: 'Feria' };
+const ROLE_BADGE_CLASS = { admin: 'role-admin', usuario: 'role-user', feria: 'role-feria' };
 
 /* ----------------------------------------------------------
    Inicialización — punto de entrada
@@ -131,22 +137,23 @@ function actualizarUIUsuario() {
   const nombre  = currentPerfil.nombre || currentUser?.email || '?';
   const email   = currentPerfil.email  || currentUser?.email || '—';
   const inicial = nombre.charAt(0).toUpperCase();
-  const esAdmin = currentRole === 'admin';
+  const rolLabel = ROLE_LABELS[currentRole] || 'Usuario';
+  const rolClass = ROLE_BADGE_CLASS[currentRole] || 'role-user';
 
   const sid = el('sidebar-avatar');    if (sid) sid.textContent = inicial;
   const sn  = el('sidebar-nombre');   if (sn)  sn.textContent  = nombre;
   const se  = el('sidebar-email');    if (se)  se.textContent  = email;
   const srb = el('sidebar-role-badge');
   if (srb) {
-    srb.textContent = esAdmin ? 'Admin' : 'Usuario';
-    srb.className   = 'role-badge ' + (esAdmin ? 'role-admin' : 'role-user');
+    srb.textContent = rolLabel;
+    srb.className   = 'role-badge ' + rolClass;
   }
 
   const ta = el('topbar-avatar'); if (ta) ta.textContent = inicial;
 
   if (el('mi-nombre')) el('mi-nombre').value = nombre;
   if (el('mi-email-val')) el('mi-email-val').textContent = email;
-  if (el('mi-rol-val'))   el('mi-rol-val').textContent   = esAdmin ? 'Administrador' : 'Usuario';
+  if (el('mi-rol-val'))   el('mi-rol-val').textContent   = rolLabel;
 }
 
 /* ----------------------------------------------------------
@@ -387,8 +394,8 @@ function renderizarUsuarios(usuarios) {
 
   tbody.innerHTML = usuarios.map(u => {
     const esSelf   = currentUser && u.id === currentUser.uid;
-    const rolClass = u.rol === 'admin' ? 'role-admin' : 'role-user';
-    const rolLabel = u.rol === 'admin' ? 'Admin' : 'Usuario';
+    const rolClass = ROLE_BADGE_CLASS[u.rol] || 'role-user';
+    const rolLabel = ROLE_LABELS[u.rol] || 'Usuario';
     const inicial  = (u.nombre || u.email || '?').charAt(0).toUpperCase();
     return `<tr>
       <td>
@@ -410,6 +417,7 @@ function renderizarUsuarios(usuarios) {
             onchange="cambiarRolUsuario('${u.id}',this.value,'${escHtml(u.nombre||'')}',this)">
             <option value="admin"${u.rol==='admin'?' selected':''}>Admin</option>
             <option value="usuario"${u.rol==='usuario'?' selected':''}>Usuario</option>
+            <option value="feria"${u.rol==='feria'?' selected':''}>Feria</option>
           </select>
           <button class="btn btn-danger btn-icon btn-sm" title="Eliminar"
             onclick='eliminarUsuario("${u.id}","${escHtml(u.nombre||u.email||'')}")'>
@@ -428,7 +436,7 @@ async function cambiarRolUsuario(uid, nuevoRol, nombre, selectEl) {
   if (currentRole !== 'admin') return;
   try {
     await db.collection('usuarios').doc(uid).update({ rol: nuevoRol });
-    const rolClass = nuevoRol === 'admin' ? 'role-admin' : 'role-user';
+    const rolClass = ROLE_BADGE_CLASS[nuevoRol] || 'role-user';
     if (selectEl) selectEl.className = 'badge ' + rolClass;
     toast(`Rol de "${nombre}" actualizado a ${nuevoRol} ✓`, 'success');
   } catch (e) {
