@@ -98,6 +98,9 @@ function navTo(page) {
   if (page === 'calendario')    cargarCalendario();
   if (page === 'catalogo')      cargarCatalogo();
   closeSidebar();
+  if (location.hash.slice(1) !== page) {
+    try { history.replaceState(null, '', '#' + page); } catch(e) {}
+  }
 }
 
 function openSidebar()  { el('sidebar').classList.add('open');    el('overlay').classList.add('show'); }
@@ -4768,6 +4771,12 @@ document.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') { cerrarModalEdicion(); cerrarModalAbono(); cerrarModalAbonoGasto(); }
   });
+
+  // Navegar por URL — permite compartir un link directo a una página (ej. #feria)
+  window.addEventListener('hashchange', () => {
+    const pagina = (location.hash || '').slice(1);
+    if (PAGE_LABELS[pagina] && trabajosListos) navTo(pagina);
+  });
 });
 
 /* ----------------------------------------------------------
@@ -4822,7 +4831,8 @@ function onAuthSuccess() {
   try { const l=localStorage.getItem('catalogoConfig3d');    if(l) catalogoConfig=JSON.parse(l);    } catch(e){}
   try { const l=localStorage.getItem('categoriasCatalogo3d'); if(l) categoriasProductos=JSON.parse(l); } catch(e){}
   try { const l=localStorage.getItem('inventarioFeria3d'); if(l) inventarioFeria=JSON.parse(l); } catch(e){}
-  navTo('dashboard');
+  const paginaSolicitada = (location.hash || '').slice(1);
+  navTo(PAGE_LABELS[paginaSolicitada] ? paginaSolicitada : 'dashboard');
   cargarConfiguracion();
   iniciarSincronizacion(); // Sincronización en tiempo real
 }
