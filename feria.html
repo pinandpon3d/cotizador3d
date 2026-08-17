@@ -27,6 +27,9 @@
   .fe-hdr-title{font-size:2.3rem;font-weight:800;color:var(--text);letter-spacing:-.01em}
   .fe-hdr-sub{font-size:1rem;color:var(--text2);margin-top:6px;line-height:1.45}
   .fe-hdr-actions{display:flex;gap:10px;flex-shrink:0}
+  .fe-link-devolver{display:block;width:100%;text-align:right;background:none;border:none;
+    color:var(--text3);font-size:.85rem;text-decoration:underline;cursor:pointer;
+    padding:4px 0 18px;margin-top:-6px}
   .fe-hdr-actions .btn-icon-only{padding:15px;border-radius:16px}
   .fe-hdr-actions .btn-icon-only svg{width:23px;height:23px}
   .fe-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:26px}
@@ -111,6 +114,10 @@
       </button>
     </div>
   </div>
+
+  <button class="fe-link-devolver" onclick="devolverTodoInventarioFeriaStandalone()">
+    Devolver todo el inventario (fin del evento)
+  </button>
 
   <div class="fe-stats">
     <div class="fe-stat">
@@ -325,6 +332,44 @@ function quitarDeFeriaStandalone(feriaId) {
       toast('No se pudo quitar el producto de la Feria', 'error');
     }
   }, 'Quitar');
+}
+
+/** "Devolver todo el inventario": libera de una sola vez, al inventario
+ *  general, TODO lo que sigue asignado a la Feria y no se vendió — para
+ *  cuando termina el evento por completo, no para cerrar un día. Nunca se
+ *  ejecuta junto con "Cerrar día"; son acciones independientes. Los
+ *  productos con ventas del día sin cerrar se saltan. */
+function devolverTodoInventarioFeriaStandalone() {
+  const conStock = itemsFeria.filter(i => (i.cantidadAsignada || 0) > 0);
+  if (!conStock.length) { toast('No hay inventario asignado a la Feria para devolver', 'info'); return; }
+
+  const pendientes  = conStock.filter(i => (i.vendidasHoy || 0) > 0);
+  const devolvibles = conStock.filter(i => (i.vendidasHoy || 0) === 0);
+
+  if (!devolvibles.length) {
+    toast('Cierre el día antes de devolver — todos los productos tienen ventas sin cerrar', 'error');
+    return;
+  }
+
+  const totalUnidades = devolvibles.reduce((s, i) => s + (i.cantidadAsignada || 0), 0);
+  const avisoPendientes = pendientes.length
+    ? `\n\n${pendientes.length} producto${pendientes.length !== 1 ? 's' : ''} con ventas sin cerrar no se van a devolver todavía — cierre el día primero para incluirlos.`
+    : '';
+
+  showConfirm(
+    'Devolver todo el inventario',
+    `Se devolverán ${totalUnidades} unidad${totalUnidades !== 1 ? 'es' : ''} de ${devolvibles.length} producto${devolvibles.length !== 1 ? 's' : ''} al inventario general.${avisoPendientes}`,
+    async () => {
+      let ok = 0, fallidos = 0;
+      for (const item of devolvibles) {
+        try { await fbEliminarItemFeria(item.id); ok++; }
+        catch(e) { console.error('Error al devolver de la Feria:', item.pieza, e); fallidos++; }
+      }
+      if (fallidos === 0) toast(`Inventario devuelto ✓ (${ok} producto${ok !== 1 ? 's' : ''})`, 'success');
+      else toast(`Se devolvieron ${ok}, fallaron ${fallidos} — reintente`, 'error');
+    },
+    'Devolver todo'
+  );
 }
 
 /** "Cerrar día": aplica las ventas locales al inventario real. Solo toca,

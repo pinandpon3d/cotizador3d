@@ -1553,6 +1553,10 @@
             <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
             <span>Recargar</span>
           </button>
+          <button class="btn btn-secondary btn-sm" onclick="devolverTodoInventarioFeria()" title="Termina el evento: libera al inventario general lo que no se vendió">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>
+            <span>Devolver todo el inventario</span>
+          </button>
           <button class="btn btn-primary btn-sm" onclick="cerrarDiaFeria()">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
             <span>Cerrar día</span>
@@ -1562,7 +1566,7 @@
 
       <div class="card" style="padding:14px 18px;margin-bottom:18px;display:flex;align-items:center;gap:10px;font-size:.83rem;color:var(--text2)">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-        Para enviar un producto a la Feria, vaya a <strong style="color:var(--text1);margin:0 3px">Inventario Productos</strong> y use el botón "Enviar a Feria" en la fila del producto. Las unidades vendidas que suma o resta aquí <strong style="color:var(--text1)">no se aplican al inventario real hasta presionar "Cerrar día"</strong>.
+        Para enviar un producto a la Feria, vaya a <strong style="color:var(--text1);margin:0 3px">Inventario Productos</strong> y use el botón "Enviar a Feria" en la fila del producto. Las unidades vendidas que suma o resta aquí <strong style="color:var(--text1)">no se aplican al inventario real hasta presionar "Cerrar día"</strong> (y ese botón solo manda a ingresos lo vendido). Lo que no se vendió <strong style="color:var(--text1)">se queda asignado a la Feria</strong> hasta que uses "Devolver todo el inventario" para liberarlo de vuelta al inventario general — pensado para cuando termina el evento por completo.
       </div>
 
       <div class="stats-grid" style="margin-bottom:18px">

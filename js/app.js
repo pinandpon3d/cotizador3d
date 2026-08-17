@@ -3063,6 +3063,55 @@ function quitarDeFeria(feriaId) {
   }, 'Quitar');
 }
 
+/** "Devolver todo el inventario": libera de una sola vez, al inventario
+ *  general, TODO lo que sigue asignado a la Feria y no se vendió — pensado
+ *  para cuando termina el evento por completo (no para cerrar un día).
+ *  Nunca se ejecuta automáticamente junto con "Cerrar día"; son acciones
+ *  independientes. Los productos con ventas del día sin cerrar se saltan,
+ *  igual que en quitarDeFeria, para no perder ese conteo pendiente. */
+function devolverTodoInventarioFeria() {
+  const conStock = inventarioFeria.filter(i => (i.cantidadAsignada || 0) > 0);
+  if (!conStock.length) { toast('No hay inventario asignado a la Feria para devolver', 'info'); return; }
+
+  const pendientes  = conStock.filter(i => (i.vendidasHoy || 0) > 0);
+  const devolvibles = conStock.filter(i => (i.vendidasHoy || 0) === 0);
+
+  if (!devolvibles.length) {
+    toast('Cierre el día antes de devolver — todos los productos tienen ventas sin cerrar', 'error');
+    return;
+  }
+
+  const totalUnidades = devolvibles.reduce((s, i) => s + (i.cantidadAsignada || 0), 0);
+  const avisoPendientes = pendientes.length
+    ? `\n\n${pendientes.length} producto${pendientes.length !== 1 ? 's' : ''} con ventas sin cerrar no se van a devolver todavía — cierre el día primero para incluirlos.`
+    : '';
+
+  showConfirm(
+    'Devolver todo el inventario',
+    `Se devolverán ${totalUnidades} unidad${totalUnidades !== 1 ? 'es' : ''} de ${devolvibles.length} producto${devolvibles.length !== 1 ? 's' : ''} al inventario general.${avisoPendientes}`,
+    () => _ejecutarDevolucionTotalFeria(devolvibles),
+    'Devolver todo'
+  );
+}
+
+async function _ejecutarDevolucionTotalFeria(items) {
+  let ok = 0, fallidos = 0;
+  for (const item of items) {
+    try {
+      await fbEliminarItemFeria(item.id);
+      inventarioFeria = inventarioFeria.filter(i => i.id !== item.id);
+      ok++;
+    } catch(e) {
+      console.error('Error al devolver de la Feria:', item.pieza, e);
+      fallidos++;
+    }
+  }
+  try { localStorage.setItem('inventarioFeria3d', JSON.stringify(inventarioFeria)); } catch(e){}
+  renderFeria();
+  if (fallidos === 0) toast(`Inventario devuelto ✓ (${ok} producto${ok !== 1 ? 's' : ''})`, 'success');
+  else toast(`Se devolvieron ${ok}, fallaron ${fallidos} — reintente`, 'error');
+}
+
 /** "Cerrar día": recién aquí se aplican las ventas locales (vendidasHoy) al
  *  inventario real de cada lote — antes de esto no se escribe en Firestore. */
 function cerrarDiaFeria() {
