@@ -1033,11 +1033,14 @@ function renderVentaDetalle(lotes) {
   tbody.innerHTML = activos.map(l => {
     const total       = _totalUnidadesDetalle(l);
     const vendidas    = Math.min(l.unidadesVendidas || 0, total);
-    const disponibles = total - vendidas;
+    const enFeria      = (typeof _unidadesAsignadasAFeria === 'function') ? _unidadesAsignadasAFeria(l.id) : 0;
+    const disponibles = Math.max(total - vendidas - enFeria, 0);
     const precioUnit  = total > 0 ? (l.precio_final || 0) / total : 0;
     const recaudado   = vendidas * precioUnit;
     const potencial   = l.precio_final || 0;
     const agotado     = disponibles === 0;
+    const totalmenteVendido = vendidas >= total;
+    const enFeriaCompleto   = agotado && !totalmenteVendido && enFeria > 0;
     const bajoStock   = !agotado && disponibles <= STOCK_BAJO_UMBRAL;
     const histLen     = (l.historialVentas || []).length + (l.historialAjustes || []).length;
 
@@ -1049,15 +1052,17 @@ function renderVentaDetalle(lotes) {
       <td class="td-mono">${fmt(precioUnit)}</td>
       <td class="td-mono">
         <strong>${disponibles}</strong> disp.
-        <div style="font-size:.68rem;color:var(--text3);margin-top:2px">${vendidas} de ${total} vendidas</div>
+        <div style="font-size:.68rem;color:var(--text3);margin-top:2px">${vendidas} de ${total} vendidas${enFeria > 0 ? ` · ${enFeria} en Feria` : ''}</div>
       </td>
       <td class="td-mono" style="color:#16a34a">${fmt(recaudado)}</td>
       <td class="td-mono">${fmt(potencial)}</td>
-      <td>${agotado
+      <td>${totalmenteVendido
         ? `<span class="badge badge-success">Agotado ✓</span>`
-        : bajoStock
-          ? `<span class="badge badge-warn" title="Quedan ${disponibles} unidad${disponibles !== 1 ? 'es' : ''}">⚠ Bajo stock</span>`
-          : `<span class="badge badge-accent">Activo</span>`}</td>
+        : enFeriaCompleto
+          ? `<span class="badge badge-warn" title="Las ${enFeria} unidad${enFeria !== 1 ? 'es' : ''} restantes están en la Feria">🎪 En la Feria</span>`
+          : bajoStock
+            ? `<span class="badge badge-warn" title="Quedan ${disponibles} unidad${disponibles !== 1 ? 'es' : ''}">⚠ Bajo stock</span>`
+            : `<span class="badge badge-accent">Activo</span>`}</td>
       <td><div class="td-actions">
         ${!agotado ? `
         <button class="btn btn-primary btn-sm" onclick="abrirModalVenta('${l.id}')">

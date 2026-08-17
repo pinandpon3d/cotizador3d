@@ -2627,7 +2627,8 @@ function abrirModalVenta(id, tipo = 'venta') {
   if (!t) return;
   const esDevolucion = tipo === 'devolucion';
   const vendidas     = t.unidadesVendidas || 0;
-  const disponibles  = Math.max(_totalUnidadesDetalle(t) - vendidas, 0);
+  const enFeria       = _unidadesAsignadasAFeria(id);
+  const disponibles  = Math.max(_totalUnidadesDetalle(t) - vendidas - enFeria, 0);
   const maxUnidades  = esDevolucion ? vendidas : disponibles;
   if (maxUnidades <= 0) {
     toast(esDevolucion ? 'No hay unidades vendidas que devolver' : 'No hay unidades disponibles', 'error');
@@ -2661,7 +2662,7 @@ function cerrarModalVenta() {
 function abrirModalReabastecer(id) {
   const t = trabajos.find(t => t.id === id);
   if (!t) return;
-  const disponibles = Math.max(_totalUnidadesDetalle(t) - (t.unidadesVendidas || 0), 0);
+  const disponibles = Math.max(_totalUnidadesDetalle(t) - (t.unidadesVendidas || 0) - _unidadesAsignadasAFeria(id), 0);
   el('rb-id').value              = id;
   el('rb-pieza-lbl').textContent = t.pieza || '—';
   el('rb-actual-num').textContent = disponibles;
@@ -2724,7 +2725,7 @@ async function guardarReabastecimiento() {
 function abrirModalRestar(id) {
   const t = trabajos.find(t => t.id === id);
   if (!t) return;
-  const disponibles = Math.max(_totalUnidadesDetalle(t) - (t.unidadesVendidas || 0), 0);
+  const disponibles = Math.max(_totalUnidadesDetalle(t) - (t.unidadesVendidas || 0) - _unidadesAsignadasAFeria(id), 0);
   if (disponibles <= 0) { toast('No hay unidades disponibles para restar', 'error'); return; }
   el('rs-id').value              = id;
   el('rs-pieza-lbl').textContent = t.pieza || '—';
@@ -2753,7 +2754,7 @@ async function guardarRestarStock() {
 
   const vendidas    = t.unidadesVendidas || 0;
   const totalActual = _totalUnidadesDetalle(t);
-  const disponibles = Math.max(totalActual - vendidas, 0);
+  const disponibles = Math.max(totalActual - vendidas - _unidadesAsignadasAFeria(id), 0);
   if (unidades > disponibles) {
     toast(`Solo hay ${disponibles} unidad${disponibles !== 1 ? 'es' : ''} disponible${disponibles !== 1 ? 's' : ''}`, 'error');
     return;
@@ -2841,7 +2842,8 @@ async function guardarVenta() {
 
   const esDevolucion = tipo === 'devolucion';
   const vendidas     = t.unidadesVendidas || 0;
-  const disponibles  = Math.max(_totalUnidadesDetalle(t) - vendidas, 0);
+  const enFeria       = _unidadesAsignadasAFeria(id);
+  const disponibles  = Math.max(_totalUnidadesDetalle(t) - vendidas - enFeria, 0);
 
   if (esDevolucion) {
     if (cantidad < 1 || cantidad > vendidas) {
