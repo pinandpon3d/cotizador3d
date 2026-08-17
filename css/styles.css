@@ -321,6 +321,7 @@ main.main{padding:28px;flex:1}
   white-space:nowrap;
 }
 .btn:active{transform:translateY(1px) scale(.99)}
+.btn:disabled{opacity:.4;cursor:not-allowed;pointer-events:none}
 .btn svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .btn-primary{
   background:linear-gradient(180deg,var(--brand-blue) -60%,var(--accent) 55%);

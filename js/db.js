@@ -243,6 +243,39 @@ async function fbRegistrarVenta(id, cantVendida, nota) {
 }
 
 /* ----------------------------------------------------------
+   Inventario Feria
+   Colección: inventarioFeria
+   Campos: id, trabajoId, pieza, precioUnitario, cantidadAsignada,
+           vendidasTotal, fechaAsignacion, fechaUltimoCierre
+   (vendidasHoy — el conteo del día en curso — es solo local y
+   nunca se escribe aquí; se aplica recién al "Cerrar día")
+---------------------------------------------------------- */
+
+/** Carga todos los ítems asignados a la Feria. */
+async function fbCargarInventarioFeria() {
+  const snap = await db.collection('inventarioFeria').get();
+  return snap.docs.map(d => ({ ...d.data(), id: d.id }));
+}
+
+/** Guarda o actualiza un ítem de Inventario Feria (nunca incluye vendidasHoy). */
+async function fbGuardarItemFeria(data) {
+  const { vendidasHoy, ...clean } = data;
+  await db.collection('inventarioFeria').doc(String(data.id)).set(clean, { merge: true });
+}
+
+/** Quita un producto de la Feria. */
+async function fbEliminarItemFeria(id) {
+  await db.collection('inventarioFeria').doc(String(id)).delete();
+}
+
+/** Suscribe a cambios en Inventario Feria. Retorna función para desuscribir. */
+function fbSuscribirInventarioFeria(onData) {
+  return db.collection('inventarioFeria').onSnapshot(snap => {
+    onData(snap.docs.map(d => ({ ...d.data(), id: d.id })));
+  }, err => console.error('onSnapshot inventarioFeria:', err));
+}
+
+/* ----------------------------------------------------------
    Gastos Operativos
 ---------------------------------------------------------- */
 async function fbCargarGastos() {

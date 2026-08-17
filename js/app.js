@@ -33,6 +33,7 @@ let categoriasProductos = [];
 let _catImagenPendiente = null;   // null = sin cambios; '' = imagen quitada; dataURL = nueva imagen
 let _catImagenesExtraPendientes = null; // null = sin cambios; array = nueva lista de fotos adicionales
 let catalogoSeleccionados = new Set(); // ids elegidos para el próximo PDF (vacío = incluir todo el catálogo visible)
+let inventarioFeria = []; // productos asignados a la Feria (cantidadAsignada/vendidasTotal persistidos; vendidasHoy es un conteo local sin guardar hasta "Cerrar día")
 
 /* ----------------------------------------------------------
    Navegación
@@ -48,7 +49,8 @@ const PAGE_LABELS = {
   detalle:      'Inventario Productos',
   costos:       'Costos',
   calendario:   'Calendario',
-  catalogo:     'Catálogo de Productos'
+  catalogo:     'Catálogo de Productos',
+  feria:        'Inventario Feria'
 };
 
 /* ─── TABS DE CONFIGURACIÓN ─── */
@@ -91,6 +93,7 @@ function navTo(page) {
   if (page === 'dashboard')     cargarDashboard();
   if (page === 'clientes')      cargarClientes();
   if (page === 'detalle')       cargarVentaDetalle();
+  if (page === 'feria')         cargarFeria();
   if (page === 'costos')        cargarCostos();
   if (page === 'calendario')    cargarCalendario();
   if (page === 'catalogo')      cargarCatalogo();
@@ -361,6 +364,18 @@ function iniciarSincronizacion() {
     pedidosOnline = data;
     if (typeof actualizarBadgePedidosOnline === 'function') actualizarBadgePedidosOnline();
     if (typeof renderPedidosOnline === 'function' && detalleVista === 'pedidos') renderPedidosOnline();
+  }));
+
+  _unsubs.push(fbSuscribirInventarioFeria(data => {
+    // El "vendidasHoy" en curso es local — se preserva al recibir datos remotos,
+    // pero acotado a la cantidad asignada por si cambió desde otro dispositivo.
+    const draft = new Map(inventarioFeria.map(i => [i.id, i.vendidasHoy || 0]));
+    inventarioFeria = data.map(item => ({
+      ...item,
+      vendidasHoy: Math.min(draft.get(item.id) || 0, item.cantidadAsignada || 0)
+    }));
+    try { localStorage.setItem('inventarioFeria3d', JSON.stringify(inventarioFeria)); } catch(e) {}
+    if (typeof renderFeria === 'function') renderFeria();
   }));
 }
 
@@ -2916,6 +2931,209 @@ async function guardarVenta() {
   }
 }
 
+/* ----------------------------------------------------------
+   Inventario Feria
+   Subconjunto "portátil" de Inventario Productos: se asignan
+   unidades desde un lote existente y, durante el evento, se
+   suman/restan ventas en un conteo LOCAL (vendidasHoy) que solo
+   se aplica al inventario real (unidadesVendidas del lote +
+   historial) al presionar "Cerrar día".
+---------------------------------------------------------- */
+
+/** Unidades de un lote ya asignadas a la Feria (sin vender todavía). */
+function _unidadesAsignadasAFeria(trabajoId) {
+  return inventarioFeria
+    .filter(i => i.trabajoId === trabajoId)
+    .reduce((s, i) => s + (i.cantidadAsignada || 0), 0);
+}
+
+function cargarFeria() {
+  // Los datos llegan en tiempo real vía onSnapshot; solo re-renderizar
+  renderFeria();
+}
+
+function abrirModalAsignarFeria(trabajoId) {
+  const t = trabajos.find(t => t.id === trabajoId);
+  if (!t) return;
+  const total       = _totalUnidadesDetalle(t);
+  const vendidas     = t.unidadesVendidas || 0;
+  const enFeria       = _unidadesAsignadasAFeria(trabajoId);
+  const disponibles  = Math.max(total - vendidas - enFeria, 0);
+  if (disponibles <= 0) { toast('No hay unidades disponibles para enviar a la Feria', 'error'); return; }
+  el('af-id').value              = trabajoId;
+  el('af-pieza-lbl').textContent = t.pieza || '—';
+  el('af-disp-num').textContent  = disponibles;
+  el('af-cantidad').value        = 1;
+  el('af-cantidad').max          = disponibles;
+  const mv = el('modal-asignar-feria');
+  if (mv) mv.style.display = 'flex';
+}
+
+function cerrarModalAsignarFeria() {
+  const mv = el('modal-asignar-feria');
+  if (mv) mv.style.display = 'none';
+}
+
+async function guardarAsignacionFeria() {
+  const trabajoId = el('af-id')?.value;
+  const cantidad  = parseInt(el('af-cantidad')?.value) || 0;
+  const t = trabajos.find(t => t.id === trabajoId);
+  if (!t) return;
+
+  const total       = _totalUnidadesDetalle(t);
+  const vendidas     = t.unidadesVendidas || 0;
+  const enFeria       = _unidadesAsignadasAFeria(trabajoId);
+  const disponibles  = Math.max(total - vendidas - enFeria, 0);
+  if (cantidad < 1 || cantidad > disponibles) {
+    toast(`Cantidad inválida. Disponibles: ${disponibles}`, 'error'); return;
+  }
+
+  const precioUnitario = total > 0 ? (t.precio_final || 0) / total : 0;
+  const existente = inventarioFeria.find(i => i.trabajoId === trabajoId);
+  const idx = existente ? inventarioFeria.findIndex(i => i.id === existente.id) : -1;
+
+  const item = existente
+    ? { ...existente, pieza: t.pieza || existente.pieza, precioUnitario, cantidadAsignada: (existente.cantidadAsignada || 0) + cantidad }
+    : { id: genId(), trabajoId, pieza: t.pieza || '', precioUnitario, cantidadAsignada: cantidad,
+        vendidasHoy: 0, vendidasTotal: 0, fechaAsignacion: today(), fechaUltimoCierre: '' };
+
+  if (idx >= 0) inventarioFeria[idx] = item; else inventarioFeria.unshift(item);
+  try { localStorage.setItem('inventarioFeria3d', JSON.stringify(inventarioFeria)); } catch(e){}
+  renderFeria();
+
+  try {
+    await fbGuardarItemFeria(item);
+    cerrarModalAsignarFeria();
+    toast(`${cantidad} unidad${cantidad !== 1 ? 'es' : ''} enviada${cantidad !== 1 ? 's' : ''} a la Feria ✓`, 'success');
+  } catch(e) {
+    console.error('Error al asignar a la Feria:', e);
+    if (idx >= 0) inventarioFeria[idx] = existente; else inventarioFeria = inventarioFeria.filter(i => i.id !== item.id);
+    try { localStorage.setItem('inventarioFeria3d', JSON.stringify(inventarioFeria)); } catch(e2){}
+    renderFeria();
+    toast('No se pudo enviar el producto a la Feria', 'error');
+  }
+}
+
+/** Ajusta el conteo LOCAL de "vendidas hoy" de un ítem de Feria — no toca
+ *  Firestore ni el inventario real; eso ocurre recién al "Cerrar día". */
+function cambiarVendidasFeria(feriaId, delta) {
+  const idx = inventarioFeria.findIndex(i => i.id === feriaId);
+  if (idx < 0) return;
+  const item  = inventarioFeria[idx];
+  const nuevo = Math.max(0, Math.min((item.vendidasHoy || 0) + delta, item.cantidadAsignada || 0));
+  if (nuevo === item.vendidasHoy) return;
+  item.vendidasHoy = nuevo;
+  try { localStorage.setItem('inventarioFeria3d', JSON.stringify(inventarioFeria)); } catch(e){}
+  renderFeria();
+}
+
+/** Quita por completo un producto de la Feria (bloqueado si tiene ventas
+ *  del día sin cerrar, para no perder un conteo pendiente). */
+function quitarDeFeria(feriaId) {
+  const item = inventarioFeria.find(i => i.id === feriaId);
+  if (!item) return;
+  if ((item.vendidasHoy || 0) > 0) {
+    toast('Cierre el día antes de quitar este producto (tiene ventas sin cerrar)', 'error');
+    return;
+  }
+  showConfirm('Quitar de la Feria', `¿Quitar "${item.pieza}" de la Feria? Las unidades quedan libres en el inventario.`, async () => {
+    const anterior = [...inventarioFeria];
+    inventarioFeria = inventarioFeria.filter(i => i.id !== feriaId);
+    try { localStorage.setItem('inventarioFeria3d', JSON.stringify(inventarioFeria)); } catch(e){}
+    renderFeria();
+    try {
+      await fbEliminarItemFeria(feriaId);
+      toast('Producto quitado de la Feria ✓', 'success');
+    } catch(e) {
+      console.error('Error al quitar de la Feria:', e);
+      inventarioFeria = anterior;
+      try { localStorage.setItem('inventarioFeria3d', JSON.stringify(inventarioFeria)); } catch(e2){}
+      renderFeria();
+      toast('No se pudo quitar el producto de la Feria', 'error');
+    }
+  }, 'Quitar');
+}
+
+/** "Cerrar día": recién aquí se aplican las ventas locales (vendidasHoy) al
+ *  inventario real de cada lote — antes de esto no se escribe en Firestore. */
+function cerrarDiaFeria() {
+  const pendientes = inventarioFeria.filter(i => (i.vendidasHoy || 0) > 0);
+  if (!pendientes.length) { toast('No hay ventas del día para cerrar', 'info'); return; }
+
+  const totalUnidades = pendientes.reduce((s, i) => s + i.vendidasHoy, 0);
+  const totalMonto     = pendientes.reduce((s, i) => s + i.vendidasHoy * (i.precioUnitario || 0), 0);
+
+  showConfirm(
+    'Cerrar día de Feria',
+    `Se aplicarán ${totalUnidades} unidad${totalUnidades !== 1 ? 'es' : ''} vendida${totalUnidades !== 1 ? 's' : ''} (${fmt(totalMonto)}) al inventario real. Esta acción no se puede deshacer.`,
+    () => _ejecutarCierreDiaFeria(pendientes),
+    'Cerrar día'
+  );
+}
+
+async function _ejecutarCierreDiaFeria(pendientes) {
+  let ok = 0, fallidos = 0;
+  for (const item of pendientes) {
+    const idx = trabajos.findIndex(t => t.id === item.trabajoId);
+    const t   = idx >= 0 ? trabajos[idx] : null;
+    if (!t) { fallidos++; continue; }
+
+    const cantidad        = item.vendidasHoy;
+    const vendidasPrev     = t.unidadesVendidas || 0;
+    const totalUnidades    = _totalUnidadesDetalle(t);
+    const nuevasVendidas   = vendidasPrev + cantidad;
+    const ahoraAgotado     = nuevasVendidas >= totalUnidades;
+    const entrada = { fecha: new Date().toISOString(), cantidad, nota: 'Venta en Feria' };
+
+    const updateData = {
+      unidadesVendidas: firebase.firestore.FieldValue.increment(cantidad),
+      historialVentas:  firebase.firestore.FieldValue.arrayUnion(entrada)
+    };
+    if (ahoraAgotado) {
+      Object.assign(updateData, {
+        estado: 'Entregado', estadoPago: 'Pagado',
+        montoAbonado: t.precio_final || 0, montoPendiente: 0,
+        fechaActualizacionEstado: new Date().toISOString()
+      });
+    }
+
+    try {
+      await db.collection('cotizaciones').doc(String(t.id)).update(updateData);
+      trabajos[idx].unidadesVendidas = nuevasVendidas;
+      trabajos[idx].historialVentas  = [...(trabajos[idx].historialVentas || []), entrada];
+      if (ahoraAgotado) {
+        trabajos[idx].estado         = 'Entregado';
+        trabajos[idx].estadoPago     = 'Pagado';
+        trabajos[idx].montoAbonado   = t.precio_final || 0;
+        trabajos[idx].montoPendiente = 0;
+      }
+
+      const feriaItem = {
+        ...item,
+        cantidadAsignada: Math.max(0, (item.cantidadAsignada || 0) - cantidad),
+        vendidasTotal:    (item.vendidasTotal || 0) + cantidad,
+        vendidasHoy:      0,
+        fechaUltimoCierre: new Date().toISOString()
+      };
+      await fbGuardarItemFeria(feriaItem);
+      const fIdx = inventarioFeria.findIndex(i => i.id === item.id);
+      if (fIdx >= 0) inventarioFeria[fIdx] = feriaItem;
+      ok++;
+    } catch(e) {
+      console.error('Error al cerrar día de Feria para', item.pieza, e);
+      fallidos++;
+    }
+  }
+
+  try { localStorage.setItem('trabajos3d', JSON.stringify(trabajos.map(t => { const {_desglose,...c}=t; return c; }))); } catch(e){}
+  try { localStorage.setItem('inventarioFeria3d', JSON.stringify(inventarioFeria)); } catch(e){}
+  if (typeof renderTrabajos === 'function') renderTrabajos();
+  renderFeria();
+
+  if (fallidos === 0) toast(`Día cerrado ✓ (${ok} producto${ok !== 1 ? 's' : ''} actualizado${ok !== 1 ? 's' : ''})`, 'success');
+  else toast(`Día cerrado con errores: ${ok} ok, ${fallidos} fallidos — reintente los pendientes`, 'error');
+}
+
 let detalleVista = 'lotes';
 
 function setDetalleVista(vista) {
@@ -4603,6 +4821,7 @@ function onAuthSuccess() {
   try { const l=localStorage.getItem('catalogoProductos3d'); if(l) catalogoProductos=JSON.parse(l); } catch(e){}
   try { const l=localStorage.getItem('catalogoConfig3d');    if(l) catalogoConfig=JSON.parse(l);    } catch(e){}
   try { const l=localStorage.getItem('categoriasCatalogo3d'); if(l) categoriasProductos=JSON.parse(l); } catch(e){}
+  try { const l=localStorage.getItem('inventarioFeria3d'); if(l) inventarioFeria=JSON.parse(l); } catch(e){}
   navTo('dashboard');
   cargarConfiguracion();
   iniciarSincronizacion(); // Sincronización en tiempo real

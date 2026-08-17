@@ -1072,6 +1072,10 @@ function renderVentaDetalle(lotes) {
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
         </button>
         ${disponibles > 0 ? `
+        <button class="btn btn-ghost btn-icon btn-sm" title="Enviar unidades a la Feria" onclick="abrirModalAsignarFeria('${l.id}')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V10.5L3 9l9-6 9 6-2 1.5V21"/><path d="M9 21v-6a3 3 0 0 1 6 0v6"/></svg>
+        </button>` : ''}
+        ${disponibles > 0 ? `
         <button class="btn btn-ghost btn-icon btn-sm" title="Restar del inventario (merma, daño, pérdida)" onclick="abrirModalRestar('${l.id}')">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
         </button>` : ''}
@@ -1081,6 +1085,61 @@ function renderVentaDetalle(lotes) {
       </div></td>
     </tr>`;
   }).join('');
+}
+
+/* ----------------------------------------------------------
+   Inventario Feria — render
+---------------------------------------------------------- */
+function renderFeria() {
+  const table   = el('feria-table');
+  const tbody   = el('feria-tbody');
+  const emptyEl = el('feria-empty');
+  if (!tbody) return;
+
+  const items = (inventarioFeria || []).filter(i => (i.cantidadAsignada || 0) > 0 || (i.vendidasHoy || 0) > 0);
+
+  if (!items.length) {
+    tbody.innerHTML = '';
+    if (table)   table.style.display   = 'none';
+    if (emptyEl) emptyEl.style.display = 'flex';
+  } else {
+    if (table)   table.style.display   = 'table';
+    if (emptyEl) emptyEl.style.display = 'none';
+
+    tbody.innerHTML = items.map(i => {
+      const asignadas  = i.cantidadAsignada || 0;
+      const vendidasHoy = i.vendidasHoy || 0;
+      return `<tr>
+        <td><strong>${escHtml(i.pieza || '—')}</strong></td>
+        <td class="td-mono">${fmt(i.precioUnitario || 0)}</td>
+        <td class="td-mono">${asignadas}</td>
+        <td>
+          <div style="display:flex;align-items:center;gap:8px;justify-content:center">
+            <button class="btn btn-ghost btn-icon btn-sm" title="Restar una venta" onclick="cambiarVendidasFeria('${i.id}',-1)" ${vendidasHoy <= 0 ? 'disabled' : ''}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+            <strong style="min-width:22px;text-align:center;font-size:1rem">${vendidasHoy}</strong>
+            <button class="btn btn-ghost btn-icon btn-sm" title="Sumar una venta" onclick="cambiarVendidasFeria('${i.id}',1)" ${vendidasHoy >= asignadas ? 'disabled' : ''}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+          </div>
+        </td>
+        <td class="td-mono">${i.vendidasTotal || 0}</td>
+        <td><div class="td-actions">
+          <button class="btn btn-ghost btn-icon btn-sm" title="Quitar de la Feria" onclick="quitarDeFeria('${i.id}')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          </button>
+        </div></td>
+      </tr>`;
+    }).join('');
+  }
+
+  const totalAsignadas = (inventarioFeria || []).reduce((s, i) => s + (i.cantidadAsignada || 0), 0);
+  const totalHoy        = (inventarioFeria || []).reduce((s, i) => s + (i.vendidasHoy || 0), 0);
+  const totalMontoHoy   = (inventarioFeria || []).reduce((s, i) => s + (i.vendidasHoy || 0) * (i.precioUnitario || 0), 0);
+  set('fe-st-asignadas', totalAsignadas);
+  set('fe-st-hoy',       totalHoy);
+  set('fe-st-total',     fmt(totalMontoHoy));
 }
 
 /* ----------------------------------------------------------
