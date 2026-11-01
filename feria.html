@@ -2,12 +2,17 @@
 <html lang="es" data-theme="light">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Inventario Feria — PinandPon 3D</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#f5f5f7">
+<title>Inventario Feria — Pin&amp;Pon 3D</title>
 <link rel="icon" type="image/png" href="img/Logo oficial PNG.png">
+<script>
+  // Tema antes de pintar (evita el destello claro→oscuro)
+  (function(){try{var t=localStorage.getItem('theme');if(!t&&window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)t='dark';if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <script>document.write('<link rel="stylesheet" href="css/styles.css?v='+Date.now()+'">');</script>
 <!-- Firebase SDK — únicamente Auth y Firestore; esta página no carga
      Chart.js, SheetJS ni Google Identity Services porque no los necesita -->
@@ -15,69 +20,96 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <style>
-  /* Pantalla optimizada para celular: todo grande, de un solo dedo,
-     usando el ancho completo de la pantalla */
-  body{-webkit-tap-highlight-color:transparent}
+  /* Pantalla pensada para el celular: todo grande, de un solo pulgar */
+  body{-webkit-tap-highlight-color:transparent;background:var(--bg)}
   #fe-loading{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:var(--text2);font-size:1rem;text-align:center;padding:24px}
   #fe-loading svg{animation:fe-spin 1s linear infinite}
   @keyframes fe-spin{to{transform:rotate(360deg)}}
   #fe-fatal{display:none;max-width:440px;margin:60px auto;padding:0 20px;text-align:center}
-  #fe-app{max-width:760px;margin:0 auto;padding:24px 18px 130px}
-  .fe-hdr{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:22px}
-  .fe-hdr-title{font-size:2.3rem;font-weight:800;color:var(--text);letter-spacing:-.01em}
-  .fe-hdr-sub{font-size:1rem;color:var(--text2);margin-top:6px;line-height:1.45}
-  .fe-hdr-actions{display:flex;gap:10px;flex-shrink:0}
-  .fe-link-devolver{display:block;width:100%;text-align:right;background:none;border:none;
-    color:var(--text3);font-size:.85rem;text-decoration:underline;cursor:pointer;
-    padding:4px 0 18px;margin-top:-6px}
-  .fe-hdr-actions .btn-icon-only{padding:15px;border-radius:16px}
-  .fe-hdr-actions .btn-icon-only svg{width:23px;height:23px}
-  .fe-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:26px}
-  .fe-stat{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:18px 8px;text-align:center}
-  .fe-stat-label{font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:var(--text3);margin-bottom:7px;line-height:1.25}
-  .fe-stat-val{font-size:2.1rem;font-weight:800;color:var(--text);font-family:var(--mono)}
-  .fe-stat-val.warn{color:var(--warn)}
-  .fe-stat-val.accent{color:var(--accent)}
-  .fe-card{background:var(--surface);border:1px solid var(--border);border-radius:24px;padding:28px;margin-bottom:18px;box-shadow:0 4px 16px rgba(15,42,69,.07)}
-  .fe-card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:26px}
-  .fe-card-nombre{font-size:1.9rem;font-weight:800;color:var(--text);line-height:1.2}
-  .fe-card-precio{font-size:1.4rem;color:var(--text2);margin-top:6px;font-family:var(--mono)}
+
+  #fe-app{max-width:720px;margin:0 auto;padding:calc(20px + env(safe-area-inset-top)) 16px 150px}
+
+  .fe-hdr{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin:8px 4px 22px}
+  .fe-hdr-title{font-size:2.5rem;font-weight:600;color:var(--text);letter-spacing:-.03em;line-height:1.05}
+  .fe-hdr-sub{font-size:1rem;color:var(--text2);margin-top:8px;line-height:1.45;max-width:30ch}
+  .fe-round{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--surface3);color:var(--text);flex-shrink:0;transition:var(--transition)}
+  .fe-round:active{transform:scale(.92)}
+  .fe-round svg{width:20px;height:20px}
+
+  /* Resumen del día */
+  .fe-summary{background:var(--surface);border-radius:var(--radius);padding:24px 24px 20px;margin-bottom:14px}
+  .fe-summary-label{font-size:.8125rem;color:var(--text2);font-weight:500}
+  .fe-summary-val{font-size:3rem;font-weight:600;letter-spacing:-.035em;line-height:1.05;margin-top:4px;font-variant-numeric:tabular-nums;color:var(--text)}
+  .fe-summary-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:18px;padding-top:16px;border-top:1px solid var(--border)}
+  .fe-summary-row span{display:block;font-size:.8125rem;color:var(--text2)}
+  .fe-summary-row strong{display:block;font-size:1.5rem;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums;margin-top:2px}
+  .fe-summary-row strong.accent{color:var(--accent)}
+  .fe-draft-note{display:flex;align-items:center;gap:8px;font-size:.8125rem;color:var(--text2);margin-top:14px}
+  .fe-draft-note::before{content:'';width:8px;height:8px;border-radius:50%;background:var(--warn);flex-shrink:0}
+
+  .fe-search{margin:6px 0 14px}
+  .fe-search input{width:100%;min-height:48px;border-radius:var(--radius-pill);border:1px solid transparent;background:var(--surface);padding:12px 18px 12px 44px;font-size:1rem;outline:none;color:var(--text);
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='17' height='17' viewBox='0 0 24 24' fill='none' stroke='%238b95a5' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;background-position:16px center}
+  .fe-search input:focus{border-color:var(--accent);box-shadow:var(--focus-ring)}
+
+  /* Tarjeta de producto */
+  .fe-card{background:var(--surface);border-radius:var(--radius);padding:24px;margin-bottom:12px;transition:background-color .2s}
+  .fe-card.has-sales{box-shadow:inset 0 0 0 2px var(--accent)}
+  .fe-card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+  .fe-card-nombre{font-size:1.5rem;font-weight:600;color:var(--text);line-height:1.2;letter-spacing:-.022em}
+  .fe-card-precio{font-size:1.0625rem;color:var(--text2);margin-top:4px;font-variant-numeric:tabular-nums}
   .fe-card-restantes{text-align:right;flex-shrink:0}
-  .fe-card-restantes-label{font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:var(--text3)}
-  .fe-card-restantes-val{font-size:2.6rem;font-weight:800;color:var(--text);line-height:1.1}
-  .fe-stepper{display:flex;align-items:center;justify-content:center;gap:36px;margin:22px 0}
+  .fe-card-restantes-label{font-size:.75rem;color:var(--text2);font-weight:500}
+  .fe-card-restantes-val{font-size:2rem;font-weight:600;color:var(--text);line-height:1.1;letter-spacing:-.025em;font-variant-numeric:tabular-nums}
+  .fe-card-restantes-val.low{color:var(--warn)}
+
+  .fe-stepper{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:22px 0 4px;background:var(--surface2);border-radius:var(--radius-pill);padding:8px}
   .fe-stepper-btn{
-    width:96px;height:96px;border-radius:50%;border:none;flex-shrink:0;
+    width:76px;height:76px;border-radius:50%;border:none;flex-shrink:0;
     display:flex;align-items:center;justify-content:center;
-    cursor:pointer;transition:transform .1s ease,opacity .15s ease;
-    background:var(--accent-soft);color:var(--accent);
+    cursor:pointer;transition:transform .12s ease,opacity .15s ease,background-color .2s;
+    background:var(--accent);color:#fff;touch-action:manipulation;
   }
-  .fe-stepper-btn svg{width:38px;height:38px}
-  .fe-stepper-btn.minus{background:var(--danger-soft);color:var(--danger)}
-  .fe-stepper-btn:active{transform:scale(.9)}
-  .fe-stepper-btn:disabled{opacity:.3;cursor:not-allowed}
-  .fe-stepper-num{font-size:4.2rem;font-weight:800;min-width:110px;text-align:center;color:var(--text);font-family:var(--mono)}
-  .fe-card-foot{display:flex;justify-content:space-between;align-items:center;margin-top:22px;padding-top:18px;border-top:1px solid var(--border)}
-  .fe-card-foot-label{font-size:.95rem;color:var(--text3)}
-  .fe-card-foot-val{font-size:1.15rem;font-weight:700;color:var(--text2)}
-  .fe-remove-btn{background:transparent;border:none;color:var(--text3);padding:14px;cursor:pointer;border-radius:14px}
+  .fe-stepper-btn svg{width:32px;height:32px}
+  .fe-stepper-btn.minus{background:var(--surface);color:var(--text)}
+  .fe-stepper-btn:active{transform:scale(.88)}
+  .fe-stepper-btn:disabled{opacity:.28;cursor:not-allowed;transform:none}
+  .fe-stepper-mid{text-align:center;flex:1}
+  .fe-stepper-num{font-size:3.25rem;font-weight:600;line-height:1;letter-spacing:-.04em;color:var(--text);font-variant-numeric:tabular-nums}
+  .fe-stepper-cap{font-size:.75rem;color:var(--text2);margin-top:4px}
+  .fe-bump{animation:fe-bump .22s cubic-bezier(.32,.72,0,1)}
+  @keyframes fe-bump{0%{transform:scale(1)}40%{transform:scale(1.14)}100%{transform:scale(1)}}
+
+  .fe-card-foot{display:flex;justify-content:space-between;align-items:center;margin-top:14px}
+  .fe-card-foot-label{font-size:.875rem;color:var(--text2)}
+  .fe-card-foot-val{font-size:.9375rem;font-weight:600;color:var(--text)}
+  .fe-remove-btn{background:transparent;border:none;color:var(--text3);width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;border-radius:50%}
   .fe-remove-btn:active{background:var(--danger-soft);color:var(--danger)}
-  .fe-remove-btn svg{width:23px;height:23px}
+  .fe-remove-btn svg{width:20px;height:20px}
+
+  .fe-link-devolver{display:block;width:100%;text-align:center;background:none;border:none;
+    color:var(--link);font-size:.9375rem;cursor:pointer;padding:18px 0 8px}
+
   /* Barra inferior fija — el botón principal siempre a mano */
   .fe-bottombar{position:fixed;left:0;right:0;bottom:0;z-index:50;
-    background:var(--surface);border-top:1px solid var(--border);
-    padding:14px 18px calc(14px + env(safe-area-inset-bottom));
-    box-shadow:0 -6px 20px rgba(15,42,69,.08)}
-  .fe-bottombar-inner{max-width:760px;margin:0 auto;display:flex;gap:12px}
-  .fe-btn-recargar{flex:0 0 auto;padding:19px;border-radius:18px}
+    background:var(--topbar-bg);
+    backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);
+    border-top:1px solid var(--border);
+    padding:12px 16px calc(12px + env(safe-area-inset-bottom))}
+  .fe-bottombar-inner{max-width:720px;margin:0 auto;display:flex;gap:10px}
+  .fe-btn-recargar{flex:0 0 auto;width:56px;min-height:56px;padding:0}
   .fe-btn-recargar svg{width:20px;height:20px}
-  .fe-btn-cerrar{flex:1;padding:19px;font-size:1.25rem;font-weight:700;border-radius:18px}
-  .fe-btn-cerrar svg{width:23px;height:23px}
-  @media (max-width:400px){
-    .fe-stepper{gap:22px}
-    .fe-stepper-btn{width:84px;height:84px}
-    .fe-stepper-num{font-size:3.6rem;min-width:96px}
-    .fe-card{padding:22px}
+  .fe-btn-cerrar{flex:1;min-height:56px;font-size:1.0625rem}
+  .fe-btn-cerrar svg{width:21px;height:21px}
+  .fe-btn-cerrar .fe-btn-total{opacity:.8;font-weight:500}
+
+  @media (max-width:380px){
+    .fe-hdr-title{font-size:2.1rem}
+    .fe-stepper-btn{width:66px;height:66px}
+    .fe-stepper-num{font-size:2.75rem}
+    .fe-card{padding:20px}
+    .fe-summary-val{font-size:2.5rem}
   }
 </style>
 </head>
@@ -94,8 +126,8 @@
 <!-- Error irrecuperable (ej. autenticación anónima no habilitada) -->
 <div id="fe-fatal">
   <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:12px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-  <div style="font-weight:700;margin-bottom:8px" id="fe-fatal-title">No se pudo conectar</div>
-  <p style="color:var(--text2);font-size:.85rem;line-height:1.5" id="fe-fatal-msg"></p>
+  <div style="font-weight:600;font-size:1.25rem;margin-bottom:8px" id="fe-fatal-title">No se pudo conectar</div>
+  <p style="color:var(--text2);font-size:.9375rem;line-height:1.5" id="fe-fatal-msg"></p>
 </div>
 
 <!-- =====================================================
@@ -105,33 +137,27 @@
 <div id="fe-app" style="display:none">
   <div class="fe-hdr">
     <div>
-      <div class="fe-hdr-title">Inventario Feria</div>
-      <div class="fe-hdr-sub">Sumá o restá ventas del día. Nada se guarda hasta "Cerrar día".</div>
+      <span class="kicker">Pin<span class="brand-amp">&amp;</span>Pon 3D</span>
+      <div class="fe-hdr-title">Ventas de <span class="tint">hoy</span></div>
+      <div class="fe-hdr-sub">Tocá <strong>+</strong> por cada venta. Se aplica al inventario cuando cerrás el día.</div>
     </div>
-    <div class="fe-hdr-actions">
-      <button class="theme-toggle btn-icon-only" onclick="toggleTheme()">
-        <svg id="theme-icon" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-      </button>
-    </div>
+    <button class="fe-round" onclick="toggleTheme()" title="Cambiar tema" aria-label="Cambiar tema">
+      <svg id="theme-icon" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
   </div>
 
-  <button class="fe-link-devolver" onclick="devolverTodoInventarioFeriaStandalone()">
-    Devolver todo el inventario (fin del evento)
-  </button>
+  <div class="fe-summary">
+    <div class="fe-summary-label">Total vendido hoy</div>
+    <div class="fe-summary-val" id="fe-st-total">₡0</div>
+    <div class="fe-summary-row">
+      <div><span>Unidades vendidas</span><strong class="accent" id="fe-st-hoy">0</strong></div>
+      <div><span>Quedan en la Feria</span><strong id="fe-st-asignadas">0</strong></div>
+    </div>
+    <div class="fe-draft-note" id="fe-draft-note" style="display:none">Guardado en este celular — falta cerrar el día</div>
+  </div>
 
-  <div class="fe-stats">
-    <div class="fe-stat">
-      <div class="fe-stat-label">En la Feria</div>
-      <div class="fe-stat-val" id="fe-st-asignadas">0</div>
-    </div>
-    <div class="fe-stat">
-      <div class="fe-stat-label">Vendidas hoy</div>
-      <div class="fe-stat-val warn" id="fe-st-hoy">0</div>
-    </div>
-    <div class="fe-stat">
-      <div class="fe-stat-label">Total hoy</div>
-      <div class="fe-stat-val accent" id="fe-st-total">₡0</div>
-    </div>
+  <div class="fe-search" id="fe-search-wrap" style="display:none">
+    <input type="search" id="fe-search" placeholder="Buscar producto" oninput="renderFeriaStandalone()" autocomplete="off">
   </div>
 
   <div id="fe-list"></div>
@@ -139,20 +165,25 @@
   <div id="fe-empty" class="empty-state" style="display:none">
     <svg viewBox="0 0 24 24"><path d="M3 21h18"/><path d="M5 21V10.5L3 9l9-6 9 6-2 1.5V21"/><path d="M9 21v-6a3 3 0 0 1 6 0v6"/></svg>
     <p>Todavía no hay productos asignados a la Feria.<br>
-      <span style="font-size:.82rem;color:var(--text3)">Pedile a un administrador que los envíe desde Inventario Productos.</span>
+      <span style="font-size:.875rem;color:var(--text3)">Pedile a un administrador que los envíe desde Inventario de productos.</span>
     </p>
   </div>
+
+  <button class="fe-link-devolver" id="fe-link-devolver" onclick="devolverTodoInventarioFeriaStandalone()">
+    Devolver todo el inventario (fin del evento)
+  </button>
 </div>
 
 <!-- Barra inferior fija — siempre visible, sin necesidad de scrollear -->
 <div class="fe-bottombar" id="fe-bottombar" style="display:none">
   <div class="fe-bottombar-inner">
-    <button class="btn btn-secondary fe-btn-recargar" onclick="cargarFeriaStandalone()" title="Recargar">
-      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+    <button class="btn btn-secondary fe-btn-recargar" onclick="cargarFeriaStandalone()" title="Actualizar" aria-label="Actualizar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
     </button>
-    <button class="btn btn-primary fe-btn-cerrar" onclick="cerrarDiaFeriaStandalone()">
+    <button class="btn btn-primary fe-btn-cerrar" id="fe-btn-cerrar" onclick="cerrarDiaFeriaStandalone()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
       <span>Cerrar día</span>
+      <span class="fe-btn-total" id="fe-btn-total"></span>
     </button>
   </div>
 </div>
@@ -161,18 +192,17 @@
      MODAL: CONFIRMACIÓN
 ====================================================== -->
 <div class="modal-overlay" id="modal-confirm" style="display:none" onclick="if(event.target===this)closeConfirm()">
-  <div class="modal" style="max-width:360px;width:100%;text-align:center;padding:28px 24px">
+  <div class="modal" style="max-width:380px;width:100%;text-align:center;padding:28px 24px calc(24px + env(safe-area-inset-bottom))">
     <div class="confirm-icon">
-      <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
-        <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+      <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
       </svg>
     </div>
-    <div style="font-weight:700;font-size:1.05rem;margin-bottom:8px" id="confirm-title">¿Confirmar?</div>
-    <p id="confirm-msg" style="color:var(--text2);font-size:.9rem;margin:0 0 20px;white-space:pre-line;text-align:left"></p>
-    <div class="btn-group" style="justify-content:center">
-      <button class="btn btn-danger" id="confirm-ok-btn" onclick="confirmAction()" style="padding:12px 20px;font-size:.95rem">Confirmar</button>
-      <button class="btn btn-ghost" onclick="closeConfirm()" style="padding:12px 20px;font-size:.95rem">Cancelar</button>
+    <div style="margin-bottom:8px" id="confirm-title">¿Confirmar?</div>
+    <p id="confirm-msg" style="color:var(--text2);font-size:.9375rem;margin:0 0 22px;white-space:pre-line;line-height:1.5"></p>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <button class="btn btn-primary btn-lg" id="confirm-ok-btn" onclick="confirmAction()">Confirmar</button>
+      <button class="btn btn-ghost btn-lg" onclick="closeConfirm()">Cancelar</button>
     </div>
   </div>
 </div>
@@ -210,17 +240,21 @@ firebase.auth().onAuthStateChanged(user => {
   if (user) {
     el('fe-loading').style.display = 'none';
     el('fe-fatal').style.display = 'none';
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme) document.documentElement.setAttribute('data-theme', savedTheme);
     applyThemeLabels();
     el('fe-app').style.display = 'block';
     el('fe-bottombar').style.display = 'block';
+    if (_feriaUnsub) _feriaUnsub();
     _feriaUnsub = fbSuscribirInventarioFeria(data => {
-      const draft = new Map(itemsFeria.map(i => [i.id, i.vendidasHoy || 0]));
+      // El conteo del día vive en memoria y en este dispositivo
+      // (localStorage) hasta "Cerrar día": se conserva al recibir datos
+      // remotos, acotado a lo asignado por si cambió desde otro dispositivo.
+      const enMemoria = new Map(itemsFeria.map(i => [i.id, i.vendidasHoy || 0]));
+      const guardado  = feriaDraftLeer();
       itemsFeria = data.map(item => ({
         ...item,
-        vendidasHoy: Math.min(draft.get(item.id) || 0, item.cantidadAsignada || 0)
+        vendidasHoy: Math.min(enMemoria.get(item.id) || guardado[item.id] || 0, item.cantidadAsignada || 0)
       }));
+      feriaDraftGuardar(itemsFeria);
       renderFeriaStandalone();
     });
   } else {
@@ -238,6 +272,11 @@ firebase.auth().onAuthStateChanged(user => {
   }
 });
 
+/* Aviso si se intenta cerrar la pestaña con ventas sin cerrar */
+window.addEventListener('beforeunload', e => {
+  if (itemsFeria.some(i => (i.vendidasHoy || 0) > 0)) { e.preventDefault(); e.returnValue = ''; }
+});
+
 /* ----------------------------------------------------------
    Estado — Inventario Feria (solo esta colección; nunca se
    cargan cotizaciones, clientes ni ninguna otra información
@@ -246,66 +285,81 @@ firebase.auth().onAuthStateChanged(user => {
 ---------------------------------------------------------- */
 let itemsFeria   = [];
 let _feriaUnsub  = null;
+let _ultimoTocado = null;
 
-function cargarFeriaStandalone() { renderFeriaStandalone(); }
+function cargarFeriaStandalone() {
+  renderFeriaStandalone();
+  toast('Inventario actualizado', 'info', 1500);
+}
 
 function renderFeriaStandalone() {
   const list    = el('fe-list');
   const emptyEl = el('fe-empty');
   if (!list) return;
 
-  const items = itemsFeria.filter(i => (i.cantidadAsignada || 0) > 0 || (i.vendidasHoy || 0) > 0);
+  const conStock = itemsFeria.filter(i => (i.cantidadAsignada || 0) > 0 || (i.vendidasHoy || 0) > 0);
+  const q = (el('fe-search')?.value || '').trim().toLowerCase();
+  const items = q ? conStock.filter(i => (i.pieza || '').toLowerCase().includes(q)) : conStock;
+  el('fe-search-wrap').style.display = conStock.length > 5 ? '' : 'none';
+  el('fe-link-devolver').style.display = conStock.length ? '' : 'none';
 
   if (!items.length) {
-    list.innerHTML = '';
-    if (emptyEl) emptyEl.style.display = 'flex';
+    list.innerHTML = q ? `<div class="empty-state"><p>Ningún producto coincide con “${escHtml(q)}”.</p></div>` : '';
+    if (emptyEl) emptyEl.style.display = q ? 'none' : 'block';
   } else {
     if (emptyEl) emptyEl.style.display = 'none';
 
     list.innerHTML = items.map(i => {
       const asignadas   = i.cantidadAsignada || 0;
       const vendidasHoy = i.vendidasHoy || 0;
-      const restantes    = Math.max(asignadas - vendidasHoy, 0);
-      return `<div class="fe-card">
+      const restantes   = Math.max(asignadas - vendidasHoy, 0);
+      const id          = jsArg(i.id);
+      return `<div class="fe-card${vendidasHoy > 0 ? ' has-sales' : ''}">
         <div class="fe-card-top">
-          <div>
+          <div style="min-width:0">
             <div class="fe-card-nombre">${escHtml(i.pieza || '—')}</div>
-            <div class="fe-card-precio">${fmt(i.precioUnitario || 0)}</div>
+            <div class="fe-card-precio">${fmt(i.precioUnitario || 0)} c/u</div>
           </div>
           <div class="fe-card-restantes">
-            <div class="fe-card-restantes-label">En la Feria</div>
-            <div class="fe-card-restantes-val">${restantes}</div>
+            <div class="fe-card-restantes-label">Quedan</div>
+            <div class="fe-card-restantes-val${restantes <= 2 ? ' low' : ''}">${restantes}</div>
           </div>
         </div>
         <div class="fe-stepper">
-          <button class="fe-stepper-btn minus" title="Restar una venta" onclick="cambiarVendidasFeriaStandalone('${i.id}',-1)" ${vendidasHoy <= 0 ? 'disabled' : ''}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          <button class="fe-stepper-btn minus" aria-label="Restar una venta" onclick="cambiarVendidasFeriaStandalone(${id},-1)" ${vendidasHoy <= 0 ? 'disabled' : ''}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
           </button>
-          <div class="fe-stepper-num">${vendidasHoy}</div>
-          <button class="fe-stepper-btn" title="Sumar una venta" onclick="cambiarVendidasFeriaStandalone('${i.id}',1)" ${vendidasHoy >= asignadas ? 'disabled' : ''}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          <div class="fe-stepper-mid">
+            <div class="fe-stepper-num${_ultimoTocado === i.id ? ' fe-bump' : ''}">${vendidasHoy}</div>
+            <div class="fe-stepper-cap">vendidas hoy</div>
+          </div>
+          <button class="fe-stepper-btn" aria-label="Sumar una venta" onclick="cambiarVendidasFeriaStandalone(${id},1)" ${vendidasHoy >= asignadas ? 'disabled' : ''}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           </button>
         </div>
         <div class="fe-card-foot">
-          <div><span class="fe-card-foot-label">Vendidas hoy</span> <span class="fe-card-foot-val">${vendidasHoy}</span></div>
-          <div><span class="fe-card-foot-label">Histórico</span> <span class="fe-card-foot-val">${i.vendidasTotal || 0}</span></div>
-          <button class="fe-remove-btn" title="Quitar de la Feria" onclick="quitarDeFeriaStandalone('${i.id}')">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          <div><span class="fe-card-foot-label">Vendidas en total</span> <span class="fe-card-foot-val">${(i.vendidasTotal || 0) + vendidasHoy}</span></div>
+          <button class="fe-remove-btn" title="Quitar de la Feria" aria-label="Quitar de la Feria" onclick="quitarDeFeriaStandalone(${id})">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
           </button>
         </div>
       </div>`;
     }).join('');
   }
+  _ultimoTocado = null;
 
-  const totalAsignadasStandalone = itemsFeria.reduce((s, i) => s + (i.cantidadAsignada || 0), 0);
-  const totalHoyStandalone       = itemsFeria.reduce((s, i) => s + (i.vendidasHoy || 0), 0);
-  set('fe-st-asignadas', Math.max(totalAsignadasStandalone - totalHoyStandalone, 0));
-  set('fe-st-hoy',       totalHoyStandalone);
-  set('fe-st-total',     fmt(itemsFeria.reduce((s, i) => s + (i.vendidasHoy || 0) * (i.precioUnitario || 0), 0)));
+  const totalAsignadas = itemsFeria.reduce((s, i) => s + (i.cantidadAsignada || 0), 0);
+  const totalHoy       = itemsFeria.reduce((s, i) => s + (i.vendidasHoy || 0), 0);
+  const montoHoy       = itemsFeria.reduce((s, i) => s + (i.vendidasHoy || 0) * (i.precioUnitario || 0), 0);
+  set('fe-st-asignadas', Math.max(totalAsignadas - totalHoy, 0));
+  set('fe-st-hoy',       totalHoy);
+  set('fe-st-total',     fmt(montoHoy));
+  set('fe-btn-total',    totalHoy > 0 ? '· ' + fmt(montoHoy) : '');
+  el('fe-draft-note').style.display = totalHoy > 0 ? 'flex' : 'none';
 }
 
-/** Ajusta el conteo LOCAL de "vendidas hoy" — no toca Firestore ni el
- *  inventario real; eso ocurre recién al "Cerrar día". */
+/** Ajusta el conteo de "vendidas hoy" (en memoria y en este dispositivo).
+ *  No toca el inventario real; eso ocurre recién al "Cerrar día". */
 function cambiarVendidasFeriaStandalone(feriaId, delta) {
   const idx = itemsFeria.findIndex(i => i.id === feriaId);
   if (idx < 0) return;
@@ -313,6 +367,9 @@ function cambiarVendidasFeriaStandalone(feriaId, delta) {
   const nuevo = Math.max(0, Math.min((item.vendidasHoy || 0) + delta, item.cantidadAsignada || 0));
   if (nuevo === item.vendidasHoy) return;
   item.vendidasHoy = nuevo;
+  feriaDraftGuardar(itemsFeria);
+  _ultimoTocado = feriaId;
+  try { if (navigator.vibrate) navigator.vibrate(12); } catch (e) {}
   renderFeriaStandalone();
 }
 
@@ -320,13 +377,13 @@ function quitarDeFeriaStandalone(feriaId) {
   const item = itemsFeria.find(i => i.id === feriaId);
   if (!item) return;
   if ((item.vendidasHoy || 0) > 0) {
-    toast('Cierre el día antes de quitar este producto (tiene ventas sin cerrar)', 'error');
+    toast('Cerrá el día antes de quitar este producto (tiene ventas sin cerrar)', 'error');
     return;
   }
   showConfirm('Quitar de la Feria', `¿Quitar "${item.pieza}" de la Feria? Las unidades quedan libres en el inventario.`, async () => {
     try {
       await fbEliminarItemFeria(feriaId);
-      toast('Producto quitado de la Feria ✓', 'success');
+      toast('Producto quitado de la Feria', 'success');
     } catch(e) {
       console.error('Error al quitar de la Feria:', e);
       toast('No se pudo quitar el producto de la Feria', 'error');
@@ -347,13 +404,13 @@ function devolverTodoInventarioFeriaStandalone() {
   const devolvibles = conStock.filter(i => (i.vendidasHoy || 0) === 0);
 
   if (!devolvibles.length) {
-    toast('Cierre el día antes de devolver — todos los productos tienen ventas sin cerrar', 'error');
+    toast('Cerrá el día antes de devolver — todos los productos tienen ventas sin cerrar', 'error');
     return;
   }
 
   const totalUnidades = devolvibles.reduce((s, i) => s + (i.cantidadAsignada || 0), 0);
   const avisoPendientes = pendientes.length
-    ? `\n\n${pendientes.length} producto${pendientes.length !== 1 ? 's' : ''} con ventas sin cerrar no se van a devolver todavía — cierre el día primero para incluirlos.`
+    ? `\n\n${pendientes.length} producto${pendientes.length !== 1 ? 's' : ''} con ventas sin cerrar no se van a devolver todavía — cerrá el día primero para incluirlos.`
     : '';
 
   showConfirm(
@@ -365,79 +422,56 @@ function devolverTodoInventarioFeriaStandalone() {
         try { await fbEliminarItemFeria(item.id); ok++; }
         catch(e) { console.error('Error al devolver de la Feria:', item.pieza, e); fallidos++; }
       }
-      if (fallidos === 0) toast(`Inventario devuelto ✓ (${ok} producto${ok !== 1 ? 's' : ''})`, 'success');
-      else toast(`Se devolvieron ${ok}, fallaron ${fallidos} — reintente`, 'error');
+      if (fallidos === 0) toast(`Inventario devuelto (${ok} producto${ok !== 1 ? 's' : ''})`, 'success');
+      else toast(`Se devolvieron ${ok}, fallaron ${fallidos} — reintentá`, 'error');
     },
     'Devolver todo'
   );
 }
 
-/** "Cerrar día": aplica las ventas locales al inventario real. Solo toca,
- *  uno por uno, el documento puntual de cada producto vendido — nunca
- *  carga ni lee el resto de las cotizaciones del negocio. */
+/** "Cerrar día": aplica las ventas del día al inventario real. Cada producto
+ *  se cierra en una transacción (lote + Feria juntos), así que si algo falla
+ *  se puede reintentar sin duplicar ventas. Solo toca el documento puntual de
+ *  cada producto vendido — nunca lee el resto de las cotizaciones. */
 function cerrarDiaFeriaStandalone() {
   const pendientes = itemsFeria.filter(i => (i.vendidasHoy || 0) > 0);
-  if (!pendientes.length) { toast('No hay ventas del día para cerrar', 'info'); return; }
+  if (!pendientes.length) { toast('Todavía no hay ventas para cerrar', 'info'); return; }
 
   const totalUnidades = pendientes.reduce((s, i) => s + i.vendidasHoy, 0);
-  const totalMonto     = pendientes.reduce((s, i) => s + i.vendidasHoy * (i.precioUnitario || 0), 0);
+  const totalMonto    = pendientes.reduce((s, i) => s + i.vendidasHoy * (i.precioUnitario || 0), 0);
 
   showConfirm(
-    'Cerrar día de Feria',
-    `Se aplicarán ${totalUnidades} unidad${totalUnidades !== 1 ? 'es' : ''} vendida${totalUnidades !== 1 ? 's' : ''} (${fmt(totalMonto)}) al inventario real. Esta acción no se puede deshacer.`,
+    'Cerrar el día',
+    `Se aplicarán ${totalUnidades} unidad${totalUnidades !== 1 ? 'es' : ''} vendida${totalUnidades !== 1 ? 's' : ''} (${fmt(totalMonto)}) al inventario real.`,
     () => _ejecutarCierreDiaFeriaStandalone(pendientes),
     'Cerrar día'
   );
 }
 
 async function _ejecutarCierreDiaFeriaStandalone(pendientes) {
+  const btn = el('fe-btn-cerrar');
+  if (btn) btn.disabled = true;
   let ok = 0, fallidos = 0;
   for (const item of pendientes) {
-    const cantidad = item.vendidasHoy;
     try {
-      const snap = await db.collection('cotizaciones').doc(String(item.trabajoId)).get();
-      if (!snap.exists) { fallidos++; continue; }
-      const t = snap.data();
-
-      const vendidasPrev   = t.unidadesVendidas || 0;
-      const totalUnidades  = Math.max((t.cantidad || 1) * Math.max(t.placas || 1, 1), 1);
-      const nuevasVendidas = vendidasPrev + cantidad;
-      const ahoraAgotado   = nuevasVendidas >= totalUnidades;
-      const entrada = { fecha: new Date().toISOString(), cantidad, nota: 'Venta en Feria' };
-
-      const updateData = {
-        unidadesVendidas: firebase.firestore.FieldValue.increment(cantidad),
-        historialVentas:  firebase.firestore.FieldValue.arrayUnion(entrada)
-      };
-      if (ahoraAgotado) {
-        Object.assign(updateData, {
-          estado: 'Entregado', estadoPago: 'Pagado',
-          montoAbonado: t.precio_final || 0, montoPendiente: 0,
-          fechaActualizacionEstado: new Date().toISOString()
-        });
-      }
-      await db.collection('cotizaciones').doc(String(item.trabajoId)).update(updateData);
-
-      const feriaItem = {
-        ...item,
-        cantidadAsignada: Math.max(0, (item.cantidadAsignada || 0) - cantidad),
-        vendidasTotal:    (item.vendidasTotal || 0) + cantidad,
-        vendidasHoy:      0,
-        fechaUltimoCierre: new Date().toISOString()
-      };
-      await fbGuardarItemFeria(feriaItem);
+      const r = await fbCerrarDiaItemFeria(item.id, item.trabajoId, item.vendidasHoy);
       const idx = itemsFeria.findIndex(i => i.id === item.id);
-      if (idx >= 0) itemsFeria[idx] = feriaItem;
+      if (idx >= 0) itemsFeria[idx] = {
+        ...itemsFeria[idx],
+        cantidadAsignada: r.cantidadAsignada, vendidasTotal: r.vendidasTotal,
+        fechaUltimoCierre: r.fechaUltimoCierre, vendidasHoy: 0
+      };
       ok++;
     } catch(e) {
       console.error('Error al cerrar día de Feria para', item.pieza, e);
       fallidos++;
     }
   }
-
+  feriaDraftGuardar(itemsFeria);
+  if (btn) btn.disabled = false;
   renderFeriaStandalone();
-  if (fallidos === 0) toast(`Día cerrado ✓ (${ok} producto${ok !== 1 ? 's' : ''} actualizado${ok !== 1 ? 's' : ''})`, 'success');
-  else toast(`Día cerrado con errores: ${ok} ok, ${fallidos} fallidos — reintente los pendientes`, 'error');
+  if (fallidos === 0) toast(`Día cerrado — ${ok} producto${ok !== 1 ? 's' : ''} actualizado${ok !== 1 ? 's' : ''}`, 'success');
+  else toast(`Se cerraron ${ok}, fallaron ${fallidos}. Revisá la conexión y tocá "Cerrar día" otra vez.`, 'error', 6000);
 }
 </script>
 </body>

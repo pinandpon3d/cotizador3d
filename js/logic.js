@@ -209,6 +209,20 @@ function calcular() {
   set('b_total_label',        `PRECIO TOTAL (× ${totalObjetos} objeto${totalObjetos !== 1 ? 's' : ''})`);
   set('b_final',              fmt(precioTotalFinal));
 
+  // Resumen lateral (cotizador en dos columnas) y barra móvil
+  set('ph_unit',    fmt(precioRedondeado));
+  set('ph_total',   fmt(precioTotalFinal));
+  set('ph_total_m', fmt(precioTotalFinal));
+  set('ph_objs',    `${totalObjetos} objeto${totalObjetos !== 1 ? 's' : ''}`);
+  set('ph_costo',   fmt(costoUnitario));
+  set('ph_ganancia', fmt(gananciaObjeto));
+  set('ph_margen',  `${(Number.isFinite(margenEfectivo) ? margenEfectivo : 0).toFixed(1)}%`);
+  set('ph_desc',    hayDescuento ? '-' + fmt(descuentoMonto) : '—');
+  const phG = el('ph_ganancia');
+  if (phG) phG.className = gananciaObjeto < 0 ? 'neg' : 'pos';
+  const phM = el('ph_manual');
+  if (phM) phM.style.display = precioManual > 0 ? 'inline-flex' : 'none';
+
   return { material, elec, desgaste, mo, dis, postpro, otros,
            placas, cantidad, totalObjetos,
            subtotal, fallosVal, costoTotalPlacas, costoUnitario,

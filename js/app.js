@@ -325,6 +325,8 @@ function iniciarSincronizacion() {
     trabajosListos = true;
     try { localStorage.setItem('trabajos3d', JSON.stringify(trabajos)); } catch(e) {}
     if (typeof renderTrabajos === 'function') renderTrabajos();
+    // El dashboard también depende de los trabajos: refrescarlo si está a la vista
+    if (el('page-dashboard')?.classList.contains('active') && typeof cargarDashboard === 'function') cargarDashboard();
   }));
 
   _unsubs.push(fbSuscribirGastos(data => {
@@ -376,12 +378,14 @@ function iniciarSincronizacion() {
   _unsubs.push(fbSuscribirInventarioFeria(data => {
     // El "vendidasHoy" en curso es local — se preserva al recibir datos remotos,
     // pero acotado a la cantidad asignada por si cambió desde otro dispositivo.
-    const draft = new Map(inventarioFeria.map(i => [i.id, i.vendidasHoy || 0]));
+    const draft    = new Map(inventarioFeria.map(i => [i.id, i.vendidasHoy || 0]));
+    const guardado = feriaDraftLeer();
     inventarioFeria = data.map(item => ({
       ...item,
-      vendidasHoy: Math.min(draft.get(item.id) || 0, item.cantidadAsignada || 0)
+      vendidasHoy: Math.min(draft.get(item.id) || guardado[item.id] || 0, item.cantidadAsignada || 0)
     }));
     try { localStorage.setItem('inventarioFeria3d', JSON.stringify(inventarioFeria)); } catch(e) {}
+    feriaDraftGuardar(inventarioFeria);
     if (typeof renderFeria === 'function') renderFeria();
   }));
 }
@@ -907,10 +911,14 @@ function nuevaCotizacion() {
   cargarFilamentosYPoblar();
   ['c_pieza','c_cliente','c_notas','c_material','c_precio_manual'].forEach(f => { if(el(f)) el(f).value = ''; });
   if (el('c_filamento_id')) el('c_filamento_id').value = '';
+  // Los % por defecto salen de Configuración (antes se reiniciaban a 5/35/0
+  // fijos después de guardar, ignorando lo configurado).
+  const cfgNum = (id, def) => { const e = el(id); return e && e.value !== '' && !isNaN(parseFloat(e.value)) ? parseFloat(e.value) : def; };
   const nums = {
     c_cantidad:1, c_placas:1, c_gramos:0, c_horas_imp:0, c_horas_mo:0,
     c_horas_dis:0, c_costo_dis:0, c_postpro:0, c_otros:0,
-    c_fallos:5, c_margen:35, c_iva:0, c_monto_abonado:0, c_descuento_valor:0
+    c_fallos: cfgNum('cfg_fallos', 5), c_margen: cfgNum('cfg_margen', 35), c_iva: cfgNum('cfg_iva', 0),
+    c_monto_abonado:0, c_descuento_valor:0
   };
   Object.entries(nums).forEach(([k,v]) => { if(el(k)) el(k).value = v; });
   if (el('c_descuento_tipo')) el('c_descuento_tipo').value = 'porcentaje';
@@ -918,7 +926,17 @@ function nuevaCotizacion() {
   if(el('c_fecha_entrega')) el('c_fecha_entrega').value = '';
   if(el('c_metodo_pago'))   el('c_metodo_pago').value   = 'Efectivo';
   el('c_categoria').value = 'Funcional';
+  _modoEdicionCotizador(false);
   calcular();
+}
+
+/** Ajusta título, botón principal y acciones según se esté creando o editando. */
+function _modoEdicionCotizador(editando) {
+  const titulo = el('cotz-title');
+  if (titulo) titulo.innerHTML = editando ? 'Editar <span class="tint">cotización</span>' : 'Nueva <span class="tint">cotización</span>';
+  set('btn-guardar-lbl', editando ? 'Guardar cambios' : 'Guardar trabajo');
+  const wa = el('btn-copiar-wa');
+  if (wa) wa.style.display = editando ? '' : 'none';
 }
 
 /* ----------------------------------------------------------
@@ -1213,7 +1231,8 @@ function editarEnCotizador(id) {
   if (el('c_metodo_pago')) el('c_metodo_pago').value = t.metodoPago || 'Efectivo';
 
   el('edit-banner').style.display = 'flex';
-  set('edit-banner-text', `Editando: ${t.pieza || 'cotización'} · ${t.cliente || ''}`);
+  set('edit-banner-text', `Editando: ${t.pieza || 'cotización'}${t.cliente ? ' · ' + t.cliente : ''}`);
+  _modoEdicionCotizador(true);
 
   materialesAdicionalesCotizacion = (t.materialesAdicionales || []).map(m=>({...m}));
   _matPreviewCosto = 0;
@@ -1232,6 +1251,7 @@ function duplicarCotizacion(id) {
   editarEnCotizador(id);
   editingId = null;
   el('edit-banner').style.display = 'none';
+  _modoEdicionCotizador(false);
   el('c_cliente').value = '';
   el('c_fecha').value = today();
   el('c_cliente').focus();
@@ -1948,8 +1968,8 @@ function cargarCategoriasCatalogo() {
       ? categoriasProductos.map(c => `
         <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:6px">
           <span style="flex:1">${escHtml(c)}</span>
-          <button type="button" class="btn btn-ghost btn-sm" onclick="editarCategoriaCatalogo('${escHtml(c).replace(/'/g, "\\'")}')" title="Editar">✎</button>
-          <button type="button" class="btn btn-ghost btn-sm" onclick="eliminarCategoriaCatalogo('${escHtml(c).replace(/'/g, "\\'")}')" title="Eliminar">🗑</button>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="editarCategoriaCatalogo(${jsArg(c)})" title="Editar">✎</button>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="eliminarCategoriaCatalogo(${jsArg(c)})" title="Eliminar">🗑</button>
         </div>`).join('')
       : '<div class="page-hdr-sub">Aún no hay categorías. Agregá la primera arriba.</div>';
   }
@@ -3033,6 +3053,7 @@ function cambiarVendidasFeria(feriaId, delta) {
   if (nuevo === item.vendidasHoy) return;
   item.vendidasHoy = nuevo;
   try { localStorage.setItem('inventarioFeria3d', JSON.stringify(inventarioFeria)); } catch(e){}
+  feriaDraftGuardar(inventarioFeria);
   renderFeria();
 }
 
@@ -3132,56 +3153,29 @@ function cerrarDiaFeria() {
 async function _ejecutarCierreDiaFeria(pendientes) {
   let ok = 0, fallidos = 0;
   for (const item of pendientes) {
-    const idx = trabajos.findIndex(t => t.id === item.trabajoId);
-    const t   = idx >= 0 ? trabajos[idx] : null;
-    if (!t) { fallidos++; continue; }
-
-    const cantidad        = item.vendidasHoy;
-    const vendidasPrev     = t.unidadesVendidas || 0;
-    const totalUnidades    = _totalUnidadesDetalle(t);
-    const nuevasVendidas   = vendidasPrev + cantidad;
-    const ahoraAgotado     = nuevasVendidas >= totalUnidades;
-    const entrada = { fecha: new Date().toISOString(), cantidad, nota: 'Venta en Feria' };
-
-    const updateData = {
-      unidadesVendidas: firebase.firestore.FieldValue.increment(cantidad),
-      historialVentas:  firebase.firestore.FieldValue.arrayUnion(entrada)
-    };
-    if (ahoraAgotado) {
-      Object.assign(updateData, {
-        estado: 'Entregado', estadoPago: 'Pagado',
-        montoAbonado: t.precio_final || 0, montoPendiente: 0,
-        fechaActualizacionEstado: new Date().toISOString()
-      });
-    }
-
     try {
-      await db.collection('cotizaciones').doc(String(t.id)).update(updateData);
-      trabajos[idx].unidadesVendidas = nuevasVendidas;
-      trabajos[idx].historialVentas  = [...(trabajos[idx].historialVentas || []), entrada];
-      if (ahoraAgotado) {
-        trabajos[idx].estado         = 'Entregado';
-        trabajos[idx].estadoPago     = 'Pagado';
-        trabajos[idx].montoAbonado   = t.precio_final || 0;
-        trabajos[idx].montoPendiente = 0;
+      const r = await fbCerrarDiaItemFeria(item.id, item.trabajoId, item.vendidasHoy);
+      const idx = trabajos.findIndex(t => t.id === item.trabajoId);
+      if (idx >= 0) {
+        trabajos[idx].unidadesVendidas = r.nuevasVendidas;
+        trabajos[idx].historialVentas  = [...(trabajos[idx].historialVentas || []), r.entrada];
+        if (r.agotado) Object.assign(trabajos[idx], {
+          estado: 'Entregado', estadoPago: 'Pagado', montoAbonado: r.precioFinal, montoPendiente: 0
+        });
       }
-
-      const feriaItem = {
-        ...item,
-        cantidadAsignada: Math.max(0, (item.cantidadAsignada || 0) - cantidad),
-        vendidasTotal:    (item.vendidasTotal || 0) + cantidad,
-        vendidasHoy:      0,
-        fechaUltimoCierre: new Date().toISOString()
-      };
-      await fbGuardarItemFeria(feriaItem);
       const fIdx = inventarioFeria.findIndex(i => i.id === item.id);
-      if (fIdx >= 0) inventarioFeria[fIdx] = feriaItem;
+      if (fIdx >= 0) inventarioFeria[fIdx] = {
+        ...inventarioFeria[fIdx],
+        cantidadAsignada: r.cantidadAsignada, vendidasTotal: r.vendidasTotal,
+        fechaUltimoCierre: r.fechaUltimoCierre, vendidasHoy: 0
+      };
       ok++;
     } catch(e) {
       console.error('Error al cerrar día de Feria para', item.pieza, e);
       fallidos++;
     }
   }
+  feriaDraftGuardar(inventarioFeria);
 
   try { localStorage.setItem('trabajos3d', JSON.stringify(trabajos.map(t => { const {_desglose,...c}=t; return c; }))); } catch(e){}
   try { localStorage.setItem('inventarioFeria3d', JSON.stringify(inventarioFeria)); } catch(e){}
@@ -3273,7 +3267,7 @@ function _detectarPedidosNuevos(data) {
 function _notificarPedidoNuevo(cliente, total) {
   if (typeof Notification === 'undefined') return;
   if (Notification.permission === 'granted') {
-    try { new Notification('Nuevo pedido online', { body: `${cliente} — ₡${total}`, icon: 'icons/icon-192.png' }); } catch(e) {}
+    try { new Notification('Nuevo pedido online', { body: `${cliente} — ₡${total}`, icon: 'img/logo.png' }); } catch(e) {}
   }
 }
 
@@ -3360,41 +3354,51 @@ function renderPedidosOnline() {
   }
   if (empty) empty.style.display = 'none';
 
+  // Todo lo que llega de un pedido online lo escribió un visitante anónimo de
+  // la tienda: se escapa siempre y los números se fuerzan a número, para que
+  // nada de ese texto pueda inyectar HTML/JS en el panel de administración.
+  const num = v => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
+  const crc = v => '₡' + num(v).toLocaleString('es-CR');
   cont.innerHTML = toggleHtml + visibles.map(p => {
-    const fecha = p.fecha ? new Date(p.fecha).toLocaleString('es-CR', { dateStyle: 'medium', timeStyle: 'short' }) : '—';
+    const fechaD = p.fecha ? new Date(p.fecha) : null;
+    const fecha = fechaD && !isNaN(fechaD) ? fechaD.toLocaleString('es-CR', { dateStyle: 'medium', timeStyle: 'short' }) : '—';
     const aprobado  = p.estado === 'Aprobado';
     const rechazado = p.estado === 'Rechazado';
     const discrepancias = _detectarDiscrepanciasPedido(p);
-    const itemsHtml = (p.items || []).map(it => {
+    const itemsHtml = (Array.isArray(p.items) ? p.items : []).map(it => {
       const disc = discrepancias.find(d => d.nombre === it.nombre);
+      const cant = num(it.cantidad);
+      const subtotal = crc(cant * num(it.precio));
       return `
       <div class="pedido-item-row">
-        <span>${escHtml(it.nombre)}${it.porEncargo ? ' <em class="pedido-encargo-tag">por encargo</em>' : ''} × ${it.cantidad}</span>
-        <span>${disc ? `<span style="color:var(--danger);font-weight:700" title="El precio enviado no coincide con el del catálogo (₡${disc.precioOficial.toLocaleString('es-CR')})">⚠ ₡${(it.cantidad * it.precio).toLocaleString('es-CR')}</span>` : `₡${(it.cantidad * it.precio).toLocaleString('es-CR')}`}</span>
+        <span>${escHtml(it.nombre || '—')}${it.porEncargo ? ' <em class="pedido-encargo-tag">por encargo</em>' : ''} × ${cant}</span>
+        <span>${disc ? `<span style="color:var(--danger);font-weight:600" title="El precio enviado no coincide con el del catálogo (${crc(disc.precioOficial)})">⚠ ${subtotal}</span>` : subtotal}</span>
       </div>`;
     }).join('');
+    const idAttr = escHtml(p.id || '');
 
     return `
       <div class="card pedido-online-card">
         <div class="pedido-online-hdr">
           <div>
             <div class="pedido-online-cliente">${escHtml(p.cliente || 'Cliente sin nombre')}</div>
-            <div class="pedido-online-fecha">${fecha}</div>
+            <div class="pedido-online-fecha">${escHtml(fecha)}</div>
           </div>
           <span class="badge ${aprobado ? 'badge-success' : rechazado ? 'badge-danger' : 'badge-warn'}">${aprobado ? 'Aprobado' : rechazado ? 'Rechazado' : 'Pendiente'}</span>
         </div>
-        ${discrepancias.length && !aprobado && !rechazado ? `<div style="background:#fef2f2;color:var(--danger);border:1px solid var(--danger);border-radius:6px;padding:8px 10px;font-size:.8125rem;margin:8px 0">⚠ Precio(s) distinto(s) al catálogo actual. Se usará el precio oficial del catálogo al aprobar.</div>` : ''}
+        ${discrepancias.length && !aprobado && !rechazado ? `<div style="background:var(--danger-soft);color:var(--danger);border-radius:var(--radius-sm);padding:10px 14px;font-size:.8125rem;margin:8px 0">⚠ Precio(s) distinto(s) al catálogo actual. Se usará el precio oficial del catálogo al aprobar.</div>` : ''}
         <div class="pedido-online-items">${itemsHtml}</div>
+        ${p.notas ? `<div class="pedido-online-notas"><strong>Notas:</strong> ${escHtml(p.notas)}</div>` : ''}
         <div class="pedido-online-footer">
-          <span class="pedido-online-total">Total: ₡${(p.total || 0).toLocaleString('es-CR')}</span>
+          <span class="pedido-online-total">Total: ${crc(p.total)}</span>
           ${aprobado || rechazado
             ? ''
             : `<div class="btn-group">
-                 <button class="btn btn-primary btn-sm" onclick="aprobarPedidoOnline('${p.id}')">
+                 <button class="btn btn-primary btn-sm" data-id="${idAttr}" onclick="aprobarPedidoOnline(this.dataset.id)">
                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                    Aprobar
                  </button>
-                 <button class="btn btn-danger btn-sm" onclick="rechazarPedidoOnline('${p.id}')">
+                 <button class="btn btn-danger btn-sm" data-id="${idAttr}" onclick="rechazarPedidoOnline(this.dataset.id)">
                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                    Rechazar
                  </button>
@@ -4239,7 +4243,7 @@ async function probarDrive() {
   h1{color:#133658;font-size:1.4rem;margin:0 0 8px}
   p{color:#4e6882;font-size:.9rem;margin:4px 0}
   .ok{display:inline-block;background:#d1fae5;color:#065f46;
-      border-radius:99px;padding:6px 18px;font-weight:700;margin-top:20px;font-size:1rem}
+      border-radius:99px;padding:6px 18px;font-weight:600;margin-top:20px;font-size:1rem}
 </style></head>
 <body>
   <div class="card">
@@ -4786,7 +4790,7 @@ function initClienteAutocomplete() {
 
     list.innerHTML = matches.map(c => {
       const meta = [c.telefono, c.correo].filter(Boolean).join(' · ');
-      return `<div class="cs-item" onmousedown="seleccionarCliente(${JSON.stringify(c.nombre)})">
+      return `<div class="cs-item" onmousedown="seleccionarCliente(${jsArg(c.nombre)})">
         <span class="cs-nombre">${escHtml(c.nombre || '')}</span>
         ${meta ? `<span class="cs-meta">${escHtml(meta)}</span>` : ''}
       </div>`;
@@ -4822,10 +4826,16 @@ document.addEventListener('DOMContentLoaded', () => {
     localStorage.setItem('gdrive_client_id', savedCid);
     if (el('cfg_gdrive_client_id')) el('cfg_gdrive_client_id').value = savedCid;
   }
-  // Cerrar modales con Escape
+  // Cerrar con Escape el modal que esté abierto (cualquiera): se simula el
+  // clic en su fondo, que ya ejecuta la función de cierre propia de cada uno.
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { cerrarModalEdicion(); cerrarModalAbono(); cerrarModalAbonoGasto(); }
+    if (e.key !== 'Escape' || _paletaAbierta()) return;
+    const abiertos = [...document.querySelectorAll('.modal-overlay')].filter(m => m.style.display && m.style.display !== 'none');
+    const ultimo = abiertos[abiertos.length - 1];
+    if (ultimo) ultimo.click();
   });
+  initPaleta();
+  _configurarGraficos();
 
   // Navegar por URL — permite compartir un link directo a una página (ej. #feria)
   window.addEventListener('hashchange', () => {
@@ -5047,4 +5057,169 @@ function usarComoBase(id) {
   if (t.material && el('c_material')) el('c_material').value = t.material;
   calcular();
   toast(`Parámetros copiados de "${t.pieza}"`, 'success');
+}
+
+
+/* ----------------------------------------------------------
+   Paleta de comandos (Ctrl/⌘ + K)
+   Navegación rápida a cualquier página y búsqueda de trabajos,
+   clientes y productos sin tener que recorrer el menú.
+---------------------------------------------------------- */
+const _PAGE_ICONS = {
+  dashboard:'<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>',
+  cotizador:'<path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>',
+  trabajos:'<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>',
+  calendario:'<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
+  detalle:'<path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/>',
+  feria:'<path d="M3 21h18"/><path d="M5 21V10.5L3 9l9-6 9 6-2 1.5V21"/>',
+  costos:'<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
+  inventario:'<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>',
+  clientes:'<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>',
+  catalogo:'<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>',
+  configuracion:'<circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.2 4.2l2.8 2.8M17 17l2.8 2.8M1 12h4M19 12h4M4.2 19.8 7 17M17 7l2.8-2.8"/>',
+  usuarios:'<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/>'
+};
+const _ICON_PLUS  = '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>';
+const _ICON_THEME = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+const _ICON_DOC   = '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>';
+const _ICON_USER  = '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>';
+const _ICON_BOX   = '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>';
+
+let _paletaItems = [];
+let _paletaSel   = 0;
+
+function _paletaAbierta() { return !!el('cmdk')?.classList.contains('open'); }
+
+function initPaleta() {
+  if (el('cmdk')) return;
+  const wrap = document.createElement('div');
+  wrap.className = 'cmdk-overlay';
+  wrap.id = 'cmdk';
+  wrap.innerHTML = `
+    <div class="cmdk" role="dialog" aria-label="Búsqueda rápida">
+      <input class="cmdk-input" id="cmdk-input" placeholder="Buscar páginas, trabajos, clientes o productos…" autocomplete="off" spellcheck="false">
+      <div class="cmdk-list" id="cmdk-list"></div>
+      <div class="cmdk-foot"><span><kbd>↑</kbd><kbd>↓</kbd>moverse</span><span><kbd>↵</kbd>abrir</span><span><kbd>esc</kbd>cerrar</span></div>
+    </div>`;
+  document.body.appendChild(wrap);
+  wrap.addEventListener('mousedown', e => { if (e.target === wrap) cerrarPaleta(); });
+  const inp = el('cmdk-input');
+  inp.addEventListener('input', () => { _paletaSel = 0; _renderPaleta(); });
+  inp.addEventListener('keydown', e => {
+    if (e.key === 'ArrowDown') { e.preventDefault(); _paletaSel = Math.min(_paletaSel + 1, _paletaItems.length - 1); _renderPaleta(false); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); _paletaSel = Math.max(_paletaSel - 1, 0); _renderPaleta(false); }
+    else if (e.key === 'Enter') { e.preventDefault(); _ejecutarItemPaleta(_paletaSel); }
+    else if (e.key === 'Escape') { e.preventDefault(); cerrarPaleta(); }
+  });
+  document.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+      if (el('app-layout')?.style.display === 'none') return;
+      e.preventDefault();
+      _paletaAbierta() ? cerrarPaleta() : abrirPaleta();
+    }
+  });
+  const kbd = el('quick-kbd');
+  if (kbd && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent)) kbd.textContent = '⌘K';
+}
+
+function abrirPaleta() {
+  initPaleta();
+  const o = el('cmdk');
+  o.classList.add('open');
+  const inp = el('cmdk-input');
+  inp.value = '';
+  _paletaSel = 0;
+  _renderPaleta();
+  setTimeout(() => inp.focus(), 10);
+}
+
+function cerrarPaleta() { el('cmdk')?.classList.remove('open'); }
+
+function _normBusqueda(s) {
+  return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
+
+function _itemsPaleta(q) {
+  const permitidas = (typeof ROLE_PAGES !== 'undefined' && currentRole) ? (ROLE_PAGES[currentRole] || ROLE_PAGES.usuario) : Object.keys(PAGE_LABELS);
+  const nq = _normBusqueda(q);
+  const coincide = (...txt) => !nq || txt.some(t => _normBusqueda(t).includes(nq));
+  const out = [];
+
+  const acciones = [];
+  if (permitidas.includes('cotizador')) acciones.push({ grupo:'Acciones', label:'Nueva cotización', icon:_ICON_PLUS, run:() => { navTo('cotizador'); nuevaCotizacion(); setTimeout(() => el('c_pieza')?.focus(), 50); } });
+  acciones.push({ grupo:'Acciones', label: document.documentElement.getAttribute('data-theme') === 'dark' ? 'Usar modo claro' : 'Usar modo oscuro', icon:_ICON_THEME, run:toggleTheme });
+  acciones.filter(a => coincide(a.label)).forEach(a => out.push(a));
+
+  Object.entries(PAGE_LABELS)
+    .filter(([k]) => permitidas.includes(k) && el('page-' + k))
+    .filter(([k, v]) => coincide(v, k))
+    .forEach(([k, v]) => out.push({ grupo:'Ir a', label:v, icon:_PAGE_ICONS[k] || _ICON_DOC, run:() => navTo(k) }));
+
+  if (nq.length >= 2) {
+    if (permitidas.includes('trabajos')) {
+      trabajos.filter(t => !_esDetalle(t) && coincide(t.pieza, t.cliente)).slice(0, 6).forEach(t => out.push({
+        grupo:'Trabajos', label:t.pieza || '—', sub:[t.cliente, t.estado].filter(Boolean).join(' · '), icon:_ICON_DOC,
+        run:() => { navTo('trabajos'); const i = el('tr-search'); if (i) { i.value = t.pieza || ''; renderTrabajos(); } }
+      }));
+    }
+    if (permitidas.includes('clientes')) {
+      clientes.filter(c => coincide(c.nombre, c.telefono, c.correo)).slice(0, 4).forEach(c => out.push({
+        grupo:'Clientes', label:c.nombre || '—', sub:c.telefono || c.correo || '', icon:_ICON_USER,
+        run:() => { navTo('clientes'); const i = el('cl-search'); if (i) { i.value = c.nombre || ''; renderClientes(clientes); } }
+      }));
+    }
+    if (permitidas.includes('detalle')) {
+      trabajos.filter(t => _esDetalle(t) && t.estado !== 'Cancelado' && coincide(t.pieza)).slice(0, 4).forEach(t => out.push({
+        grupo:'Productos', label:t.pieza || '—', sub:`${Math.max(_totalUnidadesDetalle(t) - (t.unidadesVendidas || 0), 0)} disponibles`, icon:_ICON_BOX,
+        run:() => { navTo('detalle'); const i = el('detalle-search'); if (i) { i.value = t.pieza || ''; renderVentaDetalle(); } }
+      }));
+    }
+  }
+  return out;
+}
+
+function _renderPaleta(recalcular = true) {
+  if (recalcular) _paletaItems = _itemsPaleta(el('cmdk-input')?.value || '');
+  const list = el('cmdk-list');
+  if (!list) return;
+  if (!_paletaItems.length) { list.innerHTML = '<div class="cmdk-empty">Sin resultados</div>'; return; }
+  let grupo = null;
+  list.innerHTML = _paletaItems.map((it, i) => {
+    const hdr = it.grupo !== grupo ? `<div class="cmdk-group">${escHtml(it.grupo)}</div>` : '';
+    grupo = it.grupo;
+    return `${hdr}<div class="cmdk-item${i === _paletaSel ? ' sel' : ''}" data-i="${i}" onmousemove="_paletaHover(${i})" onclick="_ejecutarItemPaleta(${i})">
+      <svg viewBox="0 0 24 24">${it.icon}</svg><span>${escHtml(it.label)}</span>${it.sub ? `<span class="cmdk-sub">${escHtml(it.sub)}</span>` : ''}
+    </div>`;
+  }).join('');
+  list.querySelector('.cmdk-item.sel')?.scrollIntoView({ block:'nearest' });
+}
+
+function _paletaHover(i) {
+  if (i === _paletaSel) return;
+  _paletaSel = i;
+  el('cmdk-list').querySelectorAll('.cmdk-item').forEach(n => n.classList.toggle('sel', +n.dataset.i === i));
+}
+
+function _ejecutarItemPaleta(i) {
+  const it = _paletaItems[i];
+  if (!it) return;
+  cerrarPaleta();
+  it.run();
+}
+
+/* ----------------------------------------------------------
+   Gráficos — tipografía y colores del sistema visual
+---------------------------------------------------------- */
+function _configurarGraficos() {
+  if (typeof Chart === 'undefined') return;
+  const css = getComputedStyle(document.documentElement);
+  Chart.defaults.font.family = "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+  Chart.defaults.font.size = 11;
+  Chart.defaults.color = css.getPropertyValue('--text2').trim() || '#5a6577';
+  Chart.defaults.borderColor = css.getPropertyValue('--border').trim() || '#e5e5ea';
+  Chart.defaults.plugins.tooltip.backgroundColor = 'rgba(29,29,31,.94)';
+  Chart.defaults.plugins.tooltip.padding = 10;
+  Chart.defaults.plugins.tooltip.cornerRadius = 10;
+  Chart.defaults.plugins.tooltip.displayColors = false;
+  Chart.defaults.plugins.legend.labels.usePointStyle = true;
 }

@@ -1,0 +1,114 @@
+rules_version = '2';
+
+// =====================================================================
+//  Reglas de seguridad de Firestore — Pin&Pon 3D
+//
+//  IMPORTANTE: este archivo NO está enlazado en firebase.json a propósito,
+//  para que un `firebase deploy` de la página no cambie las reglas sin que
+//  nadie lo note. Para publicarlas:
+//    1. Revisalas y probalas (Firebase Console → Firestore → Reglas →
+//       "Rules Playground", o con el emulador).
+//    2. Agregá "firestore": { "rules": "firestore.rules" } a firebase.json.
+//    3. firebase deploy --only firestore:rules
+//
+//  Modelo de acceso
+//    admin    → todo
+//    usuario  → operación diaria (cotizaciones, clientes, inventario…)
+//    feria    → y también la sesión anónima de feria.html: solo puede ver
+//               Inventario Feria y cerrar ventas sobre lotes de inventario
+//    público  → la tienda: lee el catálogo, los lotes de inventario y los
+//               datos de la empresa, y puede CREAR pedidos (validados)
+//
+//  Una cuenta de Firebase Auth sin documento en /usuarios no tiene acceso a
+//  nada privado (antes la app le daba rol "usuario" por defecto).
+// =====================================================================
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn()    { return request.auth != null; }
+    function perfilPath()  { return /databases/$(database)/documents/usuarios/$(request.auth.uid); }
+    function tienePerfil() { return signedIn() && exists(perfilPath()); }
+    function rol()         { return get(perfilPath()).data.rol; }
+    function esAdmin()     { return tienePerfil() && rol() == 'admin'; }
+    function esStaff()     { return tienePerfil() && rol() in ['admin', 'usuario']; }
+    function esFeria() {
+      return signedIn() && (
+        request.auth.token.firebase.sign_in_provider == 'anonymous' ||
+        (tienePerfil() && rol() == 'feria')
+      );
+    }
+    function soloCambia(campos) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(campos);
+    }
+    // Lotes de "Inventario Productos": no tienen datos de clientes
+    function esLoteInventario(d) {
+      return d.ventaDetalle == true
+          || d.categoria == 'Inventario Productos'
+          || d.categoria == 'Venta al Detalle';
+    }
+
+    // ---------- Perfiles y roles ----------
+    match /usuarios/{uid} {
+      allow read:  if signedIn() && (request.auth.uid == uid || esStaff());
+      allow write: if esAdmin();
+      // Nota: la pantalla "crear primer administrador" deja de funcionar con
+      // estas reglas; el primer admin se crea desde la consola de Firebase.
+    }
+
+    // ---------- Cotizaciones / trabajos / lotes ----------
+    match /cotizaciones/{id} {
+      // La tienda pública solo puede leer lotes de inventario (consulta con
+      // where ventaDetalle / categoria). Las cotizaciones de clientes, no.
+      allow read: if esStaff() || esLoteInventario(resource.data);
+      allow create, delete: if esStaff();
+      allow update: if esStaff()
+        || (esFeria() && esLoteInventario(resource.data) && soloCambia([
+              'unidadesVendidas', 'historialVentas', 'estado', 'estadoPago',
+              'montoAbonado', 'montoPendiente', 'fechaActualizacionEstado']));
+    }
+
+    // ---------- Feria ----------
+    match /inventarioFeria/{id} {
+      allow read:   if esStaff() || esFeria();
+      allow create: if esStaff();
+      allow delete: if esStaff() || esFeria();
+      allow update: if esStaff()
+        || (esFeria() && soloCambia(['cantidadAsignada', 'vendidasTotal', 'fechaUltimoCierre'])
+            && request.resource.data.cantidadAsignada >= 0);
+    }
+
+    // ---------- Catálogo (público para la tienda) ----------
+    match /catalogoProductos/{id} {
+      allow read:  if true;
+      allow write: if esStaff();
+    }
+
+    // ---------- Configuración ----------
+    match /settings/{doc} {
+      allow read:  if doc in ['empresa', 'catalogo', 'categoriasCatalogo'] || esStaff();
+      allow write: if esAdmin() || (esStaff() && doc in ['catalogo', 'categoriasCatalogo', 'pagos']);
+    }
+
+    // ---------- Pedidos desde la tienda ----------
+    match /pedidosOnline/{id} {
+      // Cualquier visitante puede crear un pedido, pero con forma y tamaños
+      // acotados (evita basura o contenido malicioso en el panel admin).
+      allow create: if request.resource.data.keys().hasOnly(['id', 'fecha', 'cliente', 'items', 'total', 'estado', 'notas'])
+        && request.resource.data.id == id
+        && request.resource.data.estado == 'Pendiente'
+        && request.resource.data.cliente is string && request.resource.data.cliente.size() > 0 && request.resource.data.cliente.size() <= 80
+        && request.resource.data.notas is string && request.resource.data.notas.size() <= 500
+        && request.resource.data.fecha is string && request.resource.data.fecha.size() <= 40
+        && request.resource.data.items is list && request.resource.data.items.size() > 0 && request.resource.data.items.size() <= 50
+        && request.resource.data.total is number && request.resource.data.total >= 0;
+      allow read, update, delete: if esStaff();
+    }
+
+    // ---------- Datos internos ----------
+    match /clientes/{id}   { allow read, write: if esStaff(); }
+    match /gastos/{id}     { allow read, write: if esStaff(); }
+    match /filamentos/{id} { allow read, write: if esStaff(); }
+
+    // Todo lo demás: denegado
+  }
+}

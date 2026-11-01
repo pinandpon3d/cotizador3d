@@ -41,6 +41,7 @@ function initAuth() {
     if (user) {
       currentUser = user;
       await cargarPerfilUsuario(user.uid);
+      if (!currentRole) { mostrarSinAcceso(); return; }
       mostrarApp();
     } else {
       currentUser   = null;
@@ -65,19 +66,33 @@ function initAuth() {
    Perfil de usuario en Firestore
 ---------------------------------------------------------- */
 async function cargarPerfilUsuario(uid) {
+  // Sin documento de perfil no hay rol: la cuenta existe en Firebase Auth
+  // pero un administrador no le dio acceso (antes se asumía "usuario").
+  currentRole = null;
+  currentPerfil = null;
   try {
     const snap = await db.collection('usuarios').doc(uid).get();
     if (snap.exists) {
       currentPerfil = snap.data();
-      currentRole   = currentPerfil.rol || 'usuario';
-    } else {
-      currentRole   = 'usuario';
-      currentPerfil = { nombre: currentUser.email, email: currentUser.email, rol: 'usuario' };
+      currentRole   = ROLE_PAGES[currentPerfil.rol] ? currentPerfil.rol : 'usuario';
     }
   } catch (e) {
-    currentRole   = 'usuario';
-    currentPerfil = { nombre: currentUser.email, email: currentUser.email, rol: 'usuario' };
+    console.error('No se pudo leer el perfil:', e);
   }
+}
+
+/** Cuenta autenticada pero sin perfil/rol asignado. */
+async function mostrarSinAcceso() {
+  const email = currentUser?.email || '';
+  try { await auth.signOut(); } catch (e) {}
+  mostrarPantallaLogin();
+  const errEl = el('auth-error');
+  if (errEl) {
+    errEl.textContent = `La cuenta ${email} todavía no tiene acceso. Pedile a un administrador que te agregue en Usuarios.`;
+    errEl.style.display = 'block';
+  }
+  const btn = el('auth-login-btn');
+  if (btn) { btn.disabled = false; btn.textContent = 'Entrar'; }
 }
 
 /* ----------------------------------------------------------
@@ -414,13 +429,13 @@ function renderizarUsuarios(usuarios) {
         <div class="td-actions">
           ${!esSelf ? `
           <select class="badge ${rolClass}" style="padding:3px 8px;font-size:.72rem;cursor:pointer"
-            onchange="cambiarRolUsuario('${u.id}',this.value,'${escHtml(u.nombre||'')}',this)">
+            onchange="cambiarRolUsuario(${jsArg(u.id)},this.value,${jsArg(u.nombre||'')},this)">
             <option value="admin"${u.rol==='admin'?' selected':''}>Admin</option>
             <option value="usuario"${u.rol==='usuario'?' selected':''}>Usuario</option>
             <option value="feria"${u.rol==='feria'?' selected':''}>Feria</option>
           </select>
           <button class="btn btn-danger btn-icon btn-sm" title="Eliminar"
-            onclick='eliminarUsuario("${u.id}","${escHtml(u.nombre||u.email||'')}")'>
+            onclick="eliminarUsuario(${jsArg(u.id)},${jsArg(u.nombre||u.email||'')})">
             <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
               <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
