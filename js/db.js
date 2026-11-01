@@ -268,6 +268,68 @@ async function fbEliminarItemFeria(id) {
   await db.collection('inventarioFeria').doc(String(id)).delete();
 }
 
+/**
+ * "Cerrar día" para UN producto de la Feria, en una sola transacción:
+ * suma las unidades vendidas al lote real (con su historial) y las descuenta
+ * de lo asignado a la Feria. O se aplican las dos escrituras o ninguna, así
+ * que reintentar después de un error nunca cuenta una venta dos veces.
+ * Usa los valores que hay en el servidor en ese momento (no los locales), por
+ * si otro dispositivo asignó o cerró ventas mientras tanto.
+ */
+async function fbCerrarDiaItemFeria(feriaId, trabajoId, cantidad) {
+  const loteRef  = db.collection('cotizaciones').doc(String(trabajoId));
+  const feriaRef = db.collection('inventarioFeria').doc(String(feriaId));
+  const ahora    = new Date().toISOString();
+  return db.runTransaction(async tx => {
+    const loteSnap  = await tx.get(loteRef);
+    const feriaSnap = await tx.get(feriaRef);
+    if (!loteSnap.exists)  throw new Error('El lote de inventario ya no existe');
+    if (!feriaSnap.exists) throw new Error('El producto ya no está asignado a la Feria');
+    const t = loteSnap.data();
+    const f = feriaSnap.data();
+
+    const asignadas = f.cantidadAsignada || 0;
+    const cant      = Math.min(Math.max(parseInt(cantidad) || 0, 0), asignadas);
+    if (cant <= 0) throw new Error('No quedan unidades asignadas para cerrar');
+
+    const total          = Math.max((t.cantidad || 1) * Math.max(t.placas || 1, 1), 1);
+    const nuevasVendidas = (t.unidadesVendidas || 0) + cant;
+    const agotado        = nuevasVendidas >= total;
+    const entrada        = { fecha: ahora, cantidad: cant, nota: 'Venta en Feria' };
+
+    const updLote = {
+      unidadesVendidas: nuevasVendidas,
+      historialVentas:  firebase.firestore.FieldValue.arrayUnion(entrada)
+    };
+    if (agotado) Object.assign(updLote, {
+      estado: 'Entregado', estadoPago: 'Pagado',
+      montoAbonado: t.precio_final || 0, montoPendiente: 0,
+      fechaActualizacionEstado: ahora
+    });
+    const updFeria = {
+      cantidadAsignada:  asignadas - cant,
+      vendidasTotal:     (f.vendidasTotal || 0) + cant,
+      fechaUltimoCierre: ahora
+    };
+    tx.update(loteRef,  updLote);
+    tx.update(feriaRef, updFeria);
+    return { cantidad: cant, nuevasVendidas, agotado, entrada, precioFinal: t.precio_final || 0, ...updFeria };
+  });
+}
+
+/* Conteo de "vendidas hoy" pendiente de cerrar — se guarda en el
+   dispositivo para que no se pierda si el navegador recarga la página
+   (pasa seguido en celulares cuando la app queda en segundo plano). */
+const _FERIA_DRAFT_KEY = 'feriaVendidasHoy';
+function feriaDraftLeer() {
+  try { return JSON.parse(localStorage.getItem(_FERIA_DRAFT_KEY) || '{}') || {}; } catch (e) { return {}; }
+}
+function feriaDraftGuardar(items) {
+  const m = {};
+  (items || []).forEach(i => { if ((i.vendidasHoy || 0) > 0) m[i.id] = i.vendidasHoy; });
+  try { localStorage.setItem(_FERIA_DRAFT_KEY, JSON.stringify(m)); } catch (e) {}
+}
+
 /** Suscribe a cambios en Inventario Feria. Retorna función para desuscribir. */
 function fbSuscribirInventarioFeria(onData) {
   return db.collection('inventarioFeria').onSnapshot(snap => {

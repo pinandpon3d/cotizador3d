@@ -58,7 +58,10 @@ function toast(msg, type = 'info', dur = 3500) {
     error:   '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>',
     info:    '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>'
   };
-  t.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${icons[type] || icons.info}</svg><span>${msg}</span>`;
+  t.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${icons[type] || icons.info}</svg><span></span>`;
+  // El mensaje suele incluir nombres de piezas/clientes: va como texto, nunca como HTML
+  t.querySelector('span').textContent = msg;
+  t.setAttribute('role', type === 'error' ? 'alert' : 'status');
   container.appendChild(t);
   setTimeout(() => {
     t.style.animation = 'fadeOut .25s ease forwards';
@@ -141,16 +144,29 @@ function toggleTheme() {
   const html = document.documentElement;
   const dark = html.getAttribute('data-theme') === 'dark';
   html.setAttribute('data-theme', dark ? 'light' : 'dark');
-  localStorage.setItem('theme', dark ? 'light' : 'dark');
+  try { localStorage.setItem('theme', dark ? 'light' : 'dark'); } catch (e) {}
   applyThemeLabels();
+  // Los gráficos leen los colores del tema al dibujarse: se redibujan
+  if (typeof _configurarGraficos === 'function') {
+    _configurarGraficos();
+    if (el('page-dashboard')?.classList.contains('active') && typeof cargarDashboard === 'function') cargarDashboard();
+  }
 }
 
 /* ----------------------------------------------------------
    Escapado HTML
 ---------------------------------------------------------- */
 
+/** Argumento seguro para un handler inline (onclick="f(${jsArg(x)})"):
+ *  primero literal JS válido, después escapado para el atributo HTML. */
+function jsArg(v) {
+  return escHtml(JSON.stringify(v == null ? '' : String(v)));
+}
+
 function escHtml(str) {
-  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return String(str ?? '')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
 /* ----------------------------------------------------------
@@ -343,7 +359,7 @@ function renderTrabajos() {
       </td>
       <td>
         <button class="badge ${pcls} abono-badge-btn" onclick="abrirModalAbono('${t.id}')" title="Ver historial de pagos">${t.estadoPago||'Pendiente'}</button>
-        ${(t.estadoPago||'Pendiente') === 'Abono' && rowPendiente > 0 ? `<div style="font-size:.6rem;color:var(--text3);margin-top:2px">Pend: ₡${fmt(rowPendiente)}</div>` : ''}
+        ${(t.estadoPago||'Pendiente') === 'Abono' && rowPendiente > 0 ? `<div style="font-size:.6rem;color:var(--text3);margin-top:2px">Pend: ${fmt(rowPendiente)}</div>` : ''}
       </td>
       <td><div class="td-actions">
         <button class="btn btn-ghost btn-icon btn-sm" title="Copiar WhatsApp"
@@ -482,7 +498,7 @@ function renderClientes(lista) {
       <td><div class="td-actions">
         ${c.telefono ? `
         <button class="btn btn-ghost btn-icon btn-sm" title="Abrir WhatsApp"
-          onclick="abrirWhatsAppCliente('${escHtml(c.telefono)}')">
+          onclick="abrirWhatsAppCliente(${jsArg(c.telefono)})">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
           </svg>
@@ -754,8 +770,8 @@ function _renderCharts(lista, countByEstado, anio, mes) {
   const estadoColors = {
     'Cotizado':    '#b5d3f0', 'Aprobado':     '#1a60a6',
     'En impresión':'#4185c6', 'Post-proceso': '#f4c70f',
-    'Listo':       '#133658', 'Venta':        '#7c3aed',
-    'Entregado':   '#059669', 'Cancelado':    '#dc2626'
+    'Listo':       '#133658', 'Venta':        '#8668ff',
+    'Entregado':   '#03aa49', 'Cancelado':    '#ff3b30'
   };
 
   // — Gráfico 1: Donut de estados —
@@ -771,15 +787,16 @@ function _renderCharts(lista, countByEstado, anio, mes) {
         datasets: [{
           data: vals,
           backgroundColor: labels.map(l => estadoColors[l] || '#9ca3af'),
-          borderWidth: 2,
-          borderColor: 'transparent'
+          borderWidth: 3,
+          borderColor: getComputedStyle(document.documentElement).getPropertyValue('--surface').trim() || '#fff',
+          hoverOffset: 4
         }]
       },
       options: {
         responsive: true, maintainAspectRatio: false,
-        cutout: '60%',
+        cutout: '68%',
         plugins: {
-          legend: { position:'right', labels:{ font:{size:11}, boxWidth:12, padding:10 } }
+          legend: { position:'right', labels:{ font:{size:12}, boxWidth:8, boxHeight:8, padding:12 } }
         }
       }
     });
@@ -808,8 +825,8 @@ function _renderCharts(lista, countByEstado, anio, mes) {
         datasets: [{
           label: 'Ingresos (₡)',
           data: ingresosPorMes,
-          backgroundColor: 'rgba(26,96,166,.82)',
-          borderRadius: 6, borderSkipped: false
+          backgroundColor: '#1a60a6',
+          borderRadius: 8, borderSkipped: false, maxBarThickness: 36
         }]
       },
       options: {
@@ -818,7 +835,7 @@ function _renderCharts(lista, countByEstado, anio, mes) {
         scales: {
           y: {
             ticks: { callback: v => '₡'+(v/1000).toFixed(0)+'K', font:{size:10} },
-            grid: { color:'rgba(0,0,0,.05)' }
+            grid: { color: Chart.defaults.borderColor }, border: { display:false }
           },
           x: { ticks:{ font:{size:10} }, grid:{ display:false } }
         }
@@ -849,8 +866,8 @@ function _renderCharts(lista, countByEstado, anio, mes) {
         datasets: [{
           label: 'Electricidad (₡)',
           data: elecPorMes,
-          backgroundColor: 'rgba(244,199,15,.85)',
-          borderRadius: 6, borderSkipped: false
+          backgroundColor: '#f4c70f',
+          borderRadius: 8, borderSkipped: false, maxBarThickness: 36
         }]
       },
       options: {
@@ -859,7 +876,7 @@ function _renderCharts(lista, countByEstado, anio, mes) {
         scales: {
           y: {
             ticks: { callback: v => '₡'+(v/1000).toFixed(0)+'K', font:{size:10} },
-            grid: { color:'rgba(0,0,0,.05)' }
+            grid: { color: Chart.defaults.borderColor }, border: { display:false }
           },
           x: { ticks:{ font:{size:10} }, grid:{ display:false } }
         }
@@ -907,7 +924,7 @@ function renderHistorialAbonos(t) {
         <span class="abono-item-nota">Pago registrado antes del historial</span>
       </div>
       <div class="abono-item-right">
-        <span class="abono-item-monto">₡${fmt(legacyAmt)}</span>
+        <span class="abono-item-monto">${fmt(legacyAmt)}</span>
       </div>
     </div>`;
   }
@@ -921,7 +938,7 @@ function renderHistorialAbonos(t) {
         ${a.nota ? `<span class="abono-item-nota">${escHtml(a.nota)}</span>` : ''}
       </div>
       <div class="abono-item-right">
-        <span class="abono-item-monto">₡${fmt(a.monto || 0)}</span>
+        <span class="abono-item-monto">${fmt(a.monto || 0)}</span>
         <button class="btn btn-ghost btn-icon btn-sm abono-del" title="Eliminar abono" onclick="eliminarAbono(${i})">
           <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
@@ -971,7 +988,7 @@ function renderHistorialAbonosGasto(g) {
         <span class="abono-item-nota">Pago registrado antes del historial</span>
       </div>
       <div class="abono-item-right">
-        <span class="abono-item-monto">₡${fmt(legacyAmt)}</span>
+        <span class="abono-item-monto">${fmt(legacyAmt)}</span>
       </div>
     </div>`;
   }
@@ -985,7 +1002,7 @@ function renderHistorialAbonosGasto(g) {
         ${a.nota ? `<span class="abono-item-nota">${escHtml(a.nota)}</span>` : ''}
       </div>
       <div class="abono-item-right">
-        <span class="abono-item-monto">₡${fmt(a.monto || 0)}</span>
+        <span class="abono-item-monto">${fmt(a.monto || 0)}</span>
         <button class="btn btn-ghost btn-icon btn-sm abono-del" title="Eliminar abono" onclick="eliminarAbonoGasto(${i})">
           <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
@@ -1329,7 +1346,7 @@ function renderCostos() {
       <td>${escHtml(g.notas || '')}</td>
       <td>
         <button class="badge ${pclsG} abono-badge-btn" onclick="abrirModalAbonoGasto('${g.id}')" title="Ver/agregar abonos">${estadoPagoG}</button>
-        ${estadoPagoG === 'Abono' && montoPendG > 0 ? `<div style="font-size:.6rem;color:var(--text3);margin-top:2px">Pend: ₡${fmt(montoPendG)}</div>` : ''}
+        ${estadoPagoG === 'Abono' && montoPendG > 0 ? `<div style="font-size:.6rem;color:var(--text3);margin-top:2px">Pend: ${fmt(montoPendG)}</div>` : ''}
       </td>
       <td>
         <div class="td-actions">
