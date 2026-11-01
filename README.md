@@ -17,6 +17,7 @@ Sistema interno de Pin&Pon 3D (impresión 3D a pedido, Costa Rica): cotizador, t
 - `js/logic.js` — cálculo de la cotización.
 - `js/ui.js` — render de tablas, tarjetas, gráficos, toasts, tema.
 - `js/auth.js` — sesión y roles (`admin`, `usuario`, `feria`).
+- `js/slicer.js` — "Importar del slicer" en el cotizador: lee gramos y tiempo de una captura (OCR con Tesseract.js, en el navegador) o de un `.gcode.3mf` / `.gcode` (Bambu, Orca, Prusa, Cura).
 - `js/app.js` — controlador: navegación, CRUD, PDFs, Excel, paleta de búsqueda (Ctrl/⌘ + K).
 - `firestore.rules` — reglas de seguridad propuestas (ver abajo).
 - `apps-script/` — backend viejo de Google Sheets; ya no se usa.
