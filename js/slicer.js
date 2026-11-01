@@ -213,7 +213,7 @@ function _slParsearTextoCaptura(texto) {
   };
   const filas = crudos.map(f => f.filter(x => x.g || modoTabla).map(aNum).filter(Number.isFinite));
   const todos = filas.flat();
-  const gramos = todos.length ? Math.max(...todos) : NaN;
+  let gramos = todos.length ? Math.max(...todos) : NaN;
   const cerca = (a, b) => Math.abs(a - b) <= Math.max(0.06, b * 0.005);
 
   // El último valor de cada fila de filamento es su total; la fila "Total"
@@ -221,8 +221,35 @@ function _slParsearTextoCaptura(texto) {
   const porFilamento = filas.filter(f => f.length >= 2 && f[f.length - 1] !== gramos).map(f => f[f.length - 1]);
   const filaSuma = filas.some(f => f.length >= 3 && f[f.length - 1] === gramos && cerca(f.slice(0, -1).reduce((a, b) => a + b, 0), gramos));
   const filamentosSuman = porFilamento.length >= 1 && cerca(porFilamento.reduce((a, b) => a + b, 0), gramos);
-  const verificado = gramos > 0 && gramos < 5000
+  let verificado = gramos > 0 && gramos < 5000
     && (porFilamento.length >= 2 ? filamentosSuman : (filaSuma || filamentosSuman));
+
+  // Control físico con los metros: 1 m de filamento de 1,75 mm pesa unos 3 g
+  // (PLA 2,98 · PETG 3,05 · ABS 2,5 · TPU 2,9). Si el OCR se comió la coma,
+  // gramos ÷ metros da ~300 en vez de ~3, y se corrige dividiendo entre 100.
+  let corregidoPorMetros = false;
+  if (!verificado && Number.isFinite(gramos)) {
+    const reM = /(?<![\d.,h])(\d{1,5}(?:[.,]\d{1,2})?)\s*m(?![a-z0-9])/gi;
+    const metrosTok = lineas
+      .filter(l => !/(tiempo|time|prepar|impres|print)/i.test(l))
+      .flatMap(l => [...l.matchAll(reM)].map(m => m[1]));
+    const opciones = t => /[.,]/.test(t) ? [_slNum(t)] : [_slNum(t), _slNum(t) / 100];
+    const metros = metrosTok.flatMap(opciones).filter(v => v > 0);
+    // Si ambos perdieron la coma la proporción no cambia: con más de 1 kg se
+    // prefiere la versión dividida (una placa casi nunca pesa tanto).
+    const gCands = gramos >= 1000 ? [gramos / 100, gramos] : [gramos, gramos / 100];
+    const ok = (g) => metros.some(mv => { const r = g / mv; return r >= 2 && r <= 4.2; });
+    const elegido = gCands.find(ok);
+    if (elegido !== undefined && metros.length) {
+      corregidoPorMetros = elegido !== gramos;
+      gramos = elegido;
+      verificado = true;
+    } else if (gramos >= 1000 && !metros.length) {
+      // Sin metros para comparar: más de 1 kg por placa es casi seguro una coma perdida
+      gramos = gramos / 100;
+      corregidoPorMetros = true;
+    }
+  }
 
   // Tiempo: primero la línea que dice "total"; si no, la duración más larga.
   let seg = NaN;
@@ -234,7 +261,7 @@ function _slParsearTextoCaptura(texto) {
     if (d.length) seg = Math.max(...d.map(x => x.seg));
   }
 
-  return { gramos, seg, porFilamento, verificado, fuente: 'captura', placas: 1 };
+  return { gramos, seg, porFilamento: porFilamento.filter(g => g < gramos), verificado, corregidoPorMetros, fuente: 'captura', placas: 1 };
 }
 
 async function _slLeerCaptura(file, onProgreso) {
@@ -310,7 +337,8 @@ function _slAplicar(r) {
 
   const aviso = esFoto && !r.verificado
     ? 'Leído de la foto — revisá que los números coincidan.'
-    : esFoto ? 'Leído de la foto y verificado con la suma de la tabla.'
+    : esFoto && r.corregidoPorMetros ? 'Leído de la foto; la coma decimal se corrigió comparando con los metros de filamento — revisalo.'
+    : esFoto ? 'Leído de la foto y verificado.'
              : `Leído del archivo (${escHtml(r.fuente || 'slicer')}).`;
 
   _slEstado(`
@@ -320,7 +348,7 @@ function _slAplicar(r) {
       <small>${aviso}${extras.length ? ' ' + escHtml(extras.join(' · ')) + '.' : ''}</small>
     </div>
     <button type="button" class="btn btn-ghost btn-sm" onclick="deshacerImportacionSlicer()">Deshacer</button>`,
-    esFoto && !r.verificado ? 'warn' : 'ok');
+    esFoto && (!r.verificado || r.corregidoPorMetros) ? 'warn' : 'ok');
 }
 
 function deshacerImportacionSlicer() {

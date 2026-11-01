@@ -319,7 +319,7 @@ nav{padding:4px 12px 12px;flex:1}
   border:1px solid var(--border);
 }
 
-main.main{padding:40px 40px 64px;flex:1;max-width:1440px;width:100%}
+main.main{padding:40px 40px 64px;flex:1;width:100%;min-width:0}
 
 .page{display:none}
 .page.active{display:block;animation:pageIn .35s cubic-bezier(.32,.72,0,1) both}
@@ -837,6 +837,22 @@ tbody td{padding:13px 14px;color:var(--text);vertical-align:middle}
 .cmdk-empty{padding:28px;text-align:center;color:var(--text3);font-size:.875rem}
 .cmdk-foot{display:flex;gap:14px;padding:10px 18px;border-top:1px solid var(--border);font-size:.6875rem;color:var(--text3)}
 .cmdk-foot kbd{font-family:var(--font);font-weight:600;background:var(--surface2);border-radius:5px;padding:1px 5px;margin-right:3px}
+
+/* Pantallas grandes: la app usa todo el ancho y crece un poco el texto
+   para que no quede espacio vacío ni letras diminutas */
+@media (min-width:1600px){
+  html{font-size:17px}
+  :root{--sb-w:264px}
+  main.main{padding:44px 56px 72px}
+  .stats-grid{grid-template-columns:repeat(auto-fill,minmax(210px,1fr))}
+  .cotz-layout{grid-template-columns:minmax(0,1fr) 420px}
+  .chart-container{height:260px}
+  .chart-container canvas{max-height:260px}
+}
+@media (min-width:2200px){
+  html{font-size:18px}
+  main.main{padding:48px 72px 80px}
+}
 
 /* =========================================================
    RESPONSIVE — base
